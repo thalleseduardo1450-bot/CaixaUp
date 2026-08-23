@@ -124,7 +124,7 @@ export default function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [activePage, setActivePage] = useState<PageKey>(() => {
-    return "vendas";
+    return "home";
   });
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     if (typeof window === "undefined") return "light";
@@ -367,7 +367,8 @@ export default function App() {
       setAuthSession(result.user, remember);
       setCurrentUser(toCurrentUser(result.user));
       setIsAuthenticated(true);
-      setActivePage("vendas");
+      setActivePage("home");
+      window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "home");
       return { success: true, message: "Login realizado com sucesso." };
     } catch (error) {
       return {
@@ -478,7 +479,8 @@ export default function App() {
       if (user) {
         setCurrentUser(toCurrentUser(user));
         setIsAuthenticated(true);
-        setActivePage("vendas");
+        setActivePage("home");
+        window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "home");
         return true;
       }
       return false;
@@ -517,7 +519,8 @@ export default function App() {
       if (cancelado || !user) return;
       setCurrentUser(toCurrentUser(user));
       setIsAuthenticated(true);
-      setActivePage("vendas");
+      setActivePage("home");
+      window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "home");
     });
 
     return () => {
