@@ -193,6 +193,61 @@ function sanitizarUserAgent() {
   }
 }
 
+function getUpdateStatePath() {
+  return path.join(app.getPath("userData"), "caixaup-update.json");
+}
+
+function formatReleaseNotes(releaseNotes) {
+  const text = Array.isArray(releaseNotes)
+    ? releaseNotes
+        .map((entry) => `${entry.version ? `Versão ${entry.version}\n` : ""}${entry.note || ""}`)
+        .join("\n\n")
+    : String(releaseNotes || "");
+  return text
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, 1800);
+}
+
+function savePendingUpdate(info) {
+  try {
+    fs.writeFileSync(
+      getUpdateStatePath(),
+      JSON.stringify({ version: info.version, notes: formatReleaseNotes(info.releaseNotes) }),
+      "utf8",
+    );
+  } catch (error) {
+    console.log(`[atualizacao] nao foi possivel salvar o resumo: ${error.message || error}`);
+  }
+}
+
+async function showInstalledUpdate() {
+  try {
+    const statePath = getUpdateStatePath();
+    if (!fs.existsSync(statePath)) return;
+    const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
+    if (state.version !== app.getVersion()) return;
+    fs.unlinkSync(statePath);
+    await dialog.showMessageBox(mainWindow, {
+      type: "info",
+      title: "CaixaUp atualizado",
+      message: `Atualização concluída: versão ${state.version}`,
+      detail: state.notes || "A nova versão foi instalada com sucesso.",
+      buttons: ["Continuar"],
+      defaultId: 0,
+      noLink: true,
+    });
+  } catch (error) {
+    console.log(`[atualizacao] nao foi possivel mostrar o resumo: ${error.message || error}`);
+  }
+}
+
 function configureAutoUpdater() {
   if (!packaged) return;
 
@@ -215,18 +270,28 @@ function configureAutoUpdater() {
   autoUpdater.on("update-downloaded", async (info) => {
     if (updatePromptShown) return;
     updatePromptShown = true;
-    const result = await dialog.showMessageBox(mainWindow, {
+    savePendingUpdate(info);
+
+    let installing = false;
+    const installUpdate = () => {
+      if (installing) return;
+      installing = true;
+      autoUpdater.quitAndInstall(false, true);
+    };
+    const installTimer = setTimeout(installUpdate, 8000);
+
+    await dialog.showMessageBox(mainWindow, {
       type: "info",
       title: "Atualização pronta",
-      message: `A versão ${info.version} do CaixaUp está pronta.`,
+      message: `A versão ${info.version} será instalada automaticamente.`,
       detail:
-        "Você pode reiniciar agora. Se escolher Depois, a atualização será instalada quando o CaixaUp for fechado.",
-      buttons: ["Reiniciar e atualizar", "Depois"],
+        "O CaixaUp vai reiniciar sozinho em alguns segundos. Depois ele mostrará o que mudou nesta versão.",
+      buttons: ["Atualizar agora"],
       defaultId: 0,
-      cancelId: 1,
       noLink: true,
     });
-    if (result.response === 0) autoUpdater.quitAndInstall(false, true);
+    clearTimeout(installTimer);
+    installUpdate();
   });
 
   const checkForUpdates = () => {
@@ -246,6 +311,7 @@ app.whenReady().then(async () => {
     webServer = await startWebServer();
     createMainWindow();
     configureAutoUpdater();
+    setTimeout(() => void showInstalledUpdate(), 2500);
   } catch (err) {
     if (splash && !splash.isDestroyed()) splash.destroy();
     dialog.showErrorBox("CaixaUp - falha ao iniciar", String(err.message || err));
