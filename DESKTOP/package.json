@@ -1,0 +1,72 @@
+{
+    "name": "caixaup-desktop",
+    "productName": "CaixaUp",
+    "version": "3.3.0",
+    "description": "CaixaUp - frente de caixa. Dados no Supabase (nuvem), sem banco local.",
+    "main": "main.js",
+    "private": true,
+    "scripts": {
+        "icon": "node make-icon.js",
+        "start": "electron .",
+        "dist": "electron-builder --win nsis --x64",
+        "dist:publish": "electron-builder --win nsis --x64 --publish always"
+    },
+    "devDependencies": {
+        "electron": "^33.2.0",
+        "electron-builder": "^25.1.8"
+    },
+    "build": {
+        "appId": "br.com.caixaup.desktop",
+        "productName": "CaixaUp",
+        "artifactName": "CaixaUp-Setup-${version}.${ext}",
+        "publish": [
+            {
+                "provider": "github",
+                "owner": "thalleseduardo1450-bot",
+                "repo": "CaixaUp",
+                "releaseType": "release"
+            }
+        ],
+        "directories": {
+            "output": "release",
+            "buildResources": "build"
+        },
+        "files": [
+            "main.js",
+            "splash.html",
+            "build/icon.png"
+        ],
+        "extraResources": [
+            {
+                "from": "../FRONTEND/dist",
+                "to": "web"
+            }
+        ],
+        "win": {
+            "icon": "build/icon.png",
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ]
+        },
+        "nsis": {
+            "include": "build/installer.nsh",
+            "oneClick": false,
+            "perMachine": true,
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "shortcutName": "CaixaUp"
+        }
+    },
+    "allowScripts": {
+        "electron@33.4.11": true
+    },
+    "dependencies": {
+        "electron-updater": "^6.8.9"
+    }
+}

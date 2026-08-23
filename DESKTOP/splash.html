@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>CaixaUp</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        color: #fff;
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        border-radius: 12px;
+        overflow: hidden;
+        user-select: none;
+        -webkit-app-region: drag;
+      }
+      .mark {
+        filter: drop-shadow(0 6px 18px rgba(2, 20, 60, 0.35));
+      }
+      h1 { font-size: 22px; font-weight: 650; letter-spacing: 0.4px; }
+      p { font-size: 13px; opacity: 0.75; }
+      .bar {
+        width: 220px;
+        height: 4px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.22);
+        overflow: hidden;
+      }
+      .bar span {
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: 999px;
+        background: #fff;
+        animation: slide 1.15s ease-in-out infinite;
+      }
+      @keyframes slide {
+        0%   { transform: translateX(-105%); }
+        100% { transform: translateX(255%); }
+      }
+    </style>
+  </head>
+  <body>
+    <svg class="mark" viewBox="0 0 124 92" width="120" height="89" aria-label="CaixaUp" style="display:block">
+      <path d="M72 72 C 94 66, 106 54, 116 34" fill="none" stroke="#7dd3fc" stroke-width="7" stroke-linecap="round"/>
+      <path d="M108 30 L 118 33 L 113 43 Z" fill="#7dd3fc"/>
+      <rect x="76" y="60" width="9" height="14" rx="3.5" fill="#bfdbfe"/>
+      <rect x="89" y="50" width="9" height="24" rx="3.5" fill="#bfdbfe"/>
+      <rect x="102" y="40" width="9" height="34" rx="3.5" fill="#bfdbfe"/>
+      <rect x="115" y="30" width="9" height="44" rx="3.5" fill="#bfdbfe"/>
+      <circle cx="17" cy="42" r="8" fill="#f8fafc"/>
+      <circle cx="17" cy="42" r="2.5" fill="#94a3b8"/>
+      <rect x="20" y="18" width="36" height="18" rx="5" fill="#bfdbfe"/>
+      <rect x="27" y="22" width="3" height="10" rx="1" fill="#1d4ed8"/>
+      <rect x="34" y="22" width="2" height="10" rx="1" fill="#1d4ed8"/>
+      <rect x="40" y="22" width="4" height="10" rx="1" fill="#1d4ed8"/>
+      <rect x="48" y="22" width="2.5" height="10" rx="1" fill="#1d4ed8"/>
+      <rect x="12" y="36" width="52" height="30" rx="8" fill="#0b1120"/>
+      <circle cx="48" cy="46" r="2.6" fill="#bfdbfe"/>
+      <circle cx="56" cy="46" r="2.6" fill="#bfdbfe"/>
+      <circle cx="48" cy="54" r="2.6" fill="#bfdbfe"/>
+      <circle cx="56" cy="54" r="2.6" fill="#bfdbfe"/>
+      <rect x="12" y="58" width="30" height="12" rx="4" fill="#60a5fa"/>
+      <circle cx="27" cy="64" r="2" fill="#f8fafc"/>
+      <path d="M27 64 L 24 68 H 30 Z" fill="#f8fafc"/>
+    </svg>
+    <h1>CaixaUp</h1>
+    <div class="bar"><span></span></div>
+    <p>Iniciando servidor e banco de dados…</p>
+  </body>
+</html>

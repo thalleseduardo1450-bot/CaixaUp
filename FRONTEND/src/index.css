@@ -1,0 +1,1263 @@
+/* =====================================================
+   Theme - 
+===================================================== */
+
+@import "tailwindcss";
+
+@theme {
+  /* fontes do sistema: o app roda offline, nada de CDN de fonte */
+  --font-body:
+    "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto,
+    Arial, sans-serif;
+  --font-display:
+    "Segoe UI Variable Display", "Segoe UI Semibold", "Segoe UI", system-ui,
+    -apple-system, Roboto, Arial, sans-serif;
+  --font-sans:
+    "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto,
+    Arial, sans-serif;
+
+  /* escala tipográfica ampliada (leitura confortável para idosos) */
+  --text-xs: 0.875rem;
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 1rem;
+  --text-sm--line-height: 1.5rem;
+  --text-base: 1.0625rem;
+  --text-base--line-height: 1.6rem;
+  --text-lg: 1.1875rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.3125rem;
+  --text-xl--line-height: 1.85rem;
+  --text-2xl: 1.625rem;
+  --text-2xl--line-height: 2.1rem;
+
+  /* raios discretos (~8px) */
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
+  --radius-3xl: 0.75rem;
+
+  /* sombras achatadas: o relevo vem da borda, não do desfoque */
+  --shadow-sm: 0 1px 1px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-lg: 0 2px 6px rgba(15, 23, 42, 0.07);
+  --shadow-xl: 0 4px 12px rgba(15, 23, 42, 0.09);
+  --shadow-2xl: 0 8px 24px rgba(15, 23, 42, 0.12);
+
+  /* cores base do projeto com contraste AA */
+  --color-primary: #dc2626; /* erro/perigo */
+  --color-secondary: #2563eb; /* identidade CaixaUp */
+  --color-success: #15803d; /* sucesso/confirmar */
+  --color-accent: #2563eb; /* destaque operacional */
+  --color-dark: #111827;
+  --color-light: #f8fafc;
+
+  /* textos */
+  --color-text-light: #ffffff;
+  --color-text-primary: #111827;
+  --color-text-secondary: #475569;
+  --color-text-tertiary: #64748b;
+
+  /* background */
+  --color-bg-primary: #f8fafc;
+  --color-bg-light: #ffffff;
+  --color-bg-gray-theme: #f1f5f9;
+
+  /* hover */
+  --color-hover-primary: #b91c1c;
+  --color-hover-secondary: #1d4ed8;
+  --color-hover-success: #166534;
+  --color-hover-accent: #1d4ed8;
+  --color-hover-light: #e2e8f0;
+
+  /* bordas (um pouco mais presentes, já que os cards perderam a sombra) */
+  --color-border-primary: #dbe2ea;
+  --color-border-secondary: #cbd5e1;
+
+  /* chat */
+  --color-chat-agent-bg: #e0f2fe;
+  --color-chat-agent-text: #082f49;
+  --color-chat-user-bg: #ffffff;
+  --color-chat-user-text: #111827;
+}
+
+@layer base {
+  :root {
+    --color-action-primary: #dc2626;
+    --color-action-secondary: #2563eb;
+    --color-action-success: #15803d;
+    --color-action-accent: #2563eb;
+    --color-action-dark: #111827;
+    --color-action-hover-primary: #b91c1c;
+    --color-action-hover-secondary: #1d4ed8;
+    --color-action-hover-success: #166534;
+    --color-action-hover-accent: #1d4ed8;
+    --color-action-on-primary: #ffffff;
+    --color-action-on-secondary: #ffffff;
+    --color-action-on-success: #ffffff;
+    --color-action-on-accent: #ffffff;
+    --color-focus-ring: rgba(37, 99, 235, 0.28);
+    --shadow-card: none;
+    --shadow-floating: 0 8px 24px rgba(15, 23, 42, 0.12);
+    --z-layer-fab: 45;
+    --z-layer-mobile-header: 30;
+    --z-layer-sidebar: 40;
+    --z-layer-popover: 120;
+    --z-layer-modal: 180;
+    --z-layer-dialog: 220;
+    --z-layer-toast: 240;
+    --z-layer-loading: 260;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-body);
+    color: var(--color-text-primary);
+    background: var(--color-bg-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition:
+      background-color 0.25s ease,
+      color 0.25s ease;
+  }
+
+  .grecaptcha-badge {
+    visibility: hidden;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: 0;
+  }
+
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    --color-primary: #f87171;
+    --color-secondary: #93c5fd;
+    --color-success: #4ade80;
+    --color-accent: #60a5fa;
+    --color-dark: #020617;
+    --color-light: #0f172a;
+
+    --color-text-light: #ffffff;
+    --color-text-primary: #f8fafc;
+    --color-text-secondary: #cbd5e1;
+    --color-text-tertiary: #94a3b8;
+
+    --color-bg-primary: #0b1120;
+    --color-bg-light: #111827;
+    --color-bg-gray-theme: #1e293b;
+
+    --color-hover-primary: #fb7185;
+    --color-hover-secondary: #bfdbfe;
+    --color-hover-success: #86efac;
+    --color-hover-accent: #3b82f6;
+    --color-hover-light: #273449;
+
+    --color-border-primary: #334155;
+    --color-border-secondary: #475569;
+
+    --color-chat-agent-bg: #0c4a6e;
+    --color-chat-agent-text: #f0f9ff;
+    --color-chat-user-bg: #1e293b;
+    --color-chat-user-text: #f8fafc;
+
+    --color-action-primary: #dc2626;
+    --color-action-secondary: #2563eb;
+    --color-action-success: #15803d;
+    --color-action-accent: #2563eb;
+    --color-action-dark: #020617;
+    --color-action-hover-primary: #b91c1c;
+    --color-action-hover-secondary: #1d4ed8;
+    --color-action-hover-success: #166534;
+    --color-action-hover-accent: #1d4ed8;
+    --color-focus-ring: rgba(96, 165, 250, 0.34);
+    --shadow-card: none;
+    --shadow-floating: 0 8px 24px rgba(0, 0, 0, 0.42);
+  }
+}
+
+@layer utilities {
+  .z-layer-mobile-header {
+    z-index: var(--z-layer-mobile-header);
+  }
+
+  .z-layer-sidebar {
+    z-index: var(--z-layer-sidebar);
+  }
+
+  .z-layer-popover {
+    z-index: var(--z-layer-popover);
+  }
+
+  .z-layer-modal {
+    z-index: var(--z-layer-modal);
+  }
+
+  .z-layer-dialog {
+    z-index: var(--z-layer-dialog);
+  }
+
+  .z-layer-toast {
+    z-index: var(--z-layer-toast);
+  }
+
+  .z-layer-loading {
+    z-index: var(--z-layer-loading);
+  }
+}
+
+/* =====================================================
+   COMPONENTES PADRÃO
+===================================================== */
+
+@layer components {
+  /* INPUT */
+  .input-field {
+    @apply px-4 py-2.5 text-base min-h-[48px]
+    border border-border-secondary rounded-lg bg-bg-light
+    text-text-primary
+    focus:border-accent
+    transition duration-150 ease-in-out;
+  }
+
+  .input-field:disabled,
+  input[disabled] {
+    @apply bg-hover-light text-text-tertiary cursor-not-allowed opacity-80;
+  }
+
+  /* SELECT */
+  .select-field {
+    @apply px-4 py-2.5 text-base min-h-[48px]
+    border border-border-secondary rounded-lg bg-bg-light
+    text-text-primary
+    focus:border-accent
+    transition duration-150 ease-in-out;
+  }
+
+  .select-field:disabled,
+  select[disabled] {
+    @apply bg-hover-light text-text-tertiary cursor-not-allowed opacity-80;
+  }
+
+  /* BOTÃO PRIMÁRIO (AZUL) */
+  .btn-primary {
+    background: var(--color-action-secondary);
+    color: var(--color-action-on-secondary);
+    @apply font-semibold
+    py-3 px-5 text-base min-h-[48px] rounded-lg
+    transition duration-150 ease-in-out;
+  }
+
+  .btn-primary:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  .btn-primary:hover {
+    background: var(--color-action-hover-secondary);
+  }
+
+  /* BOTÃO SUCESSO (VERDE) */
+  .btn-success {
+    background: var(--color-action-success);
+    color: var(--color-action-on-success);
+    @apply font-semibold
+    py-3 px-5 text-base min-h-[48px] rounded-lg
+    transition duration-150 ease-in-out;
+  }
+
+  .btn-success:hover {
+    background: var(--color-action-hover-success);
+  }
+
+  /* BOTÃO CANCELAR (VERMELHO) */
+  .btn-cancel {
+    background: var(--color-action-primary);
+    color: var(--color-action-on-primary);
+    @apply font-semibold
+    py-3 px-5 text-base min-h-[48px] rounded-lg
+    transition duration-150 ease-in-out;
+  }
+
+  .btn-cancel:hover {
+    background: var(--color-action-hover-primary);
+  }
+
+  .btn-cancel:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  /* BOTÃO VOLTAR  */
+  .btn-back {
+    @apply bg-transparent border border-secondary text-secondary
+    font-semibold py-3 px-5 text-base min-h-[48px] rounded-lg
+    transition duration-150 ease-in-out;
+  }
+
+  .btn-back:hover {
+    @apply bg-secondary/10 text-secondary/90;
+  }
+
+  /* BOTÃO OUTLINE AZUL */
+  .btn-outline-secondary {
+    @apply bg-transparent border border-secondary text-secondary
+    font-semibold py-3 px-5 text-base min-h-[48px] rounded-lg
+    transition duration-150 ease-in-out;
+  }
+
+  .btn-outline-secondary:hover {
+    background: var(--color-action-secondary);
+    color: var(--color-action-on-secondary);
+  }
+
+  /* CARD PADRÃO */
+  .card {
+    @apply bg-bg-light rounded-lg border border-border-primary;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* CHAT BUBBLE AGENTE */
+  .chat-agent {
+    background: var(--color-chat-agent-bg);
+    color: var(--color-chat-agent-text);
+    @apply px-4 py-2 rounded-2xl shadow border border-border-primary/40;
+  }
+
+  /* CHAT BUBBLE USUÁRIO */
+  .chat-user {
+    background: var(--color-chat-user-bg);
+    color: var(--color-chat-user-text);
+    @apply px-4 py-2 rounded-2xl shadow border border-border-primary/40;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  button:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+}
+
+/* =====================================================
+   DEPARTMENTS PAGE
+===================================================== */
+
+.departments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.schedules-days-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 1024px) {
+  .schedules-days-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.departments-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 45;
+  height: 64px;
+  width: 64px;
+  border-radius: 9999px;
+  border: 0;
+  background: var(--color-action-success);
+  color: var(--color-action-on-success);
+  box-shadow: var(--shadow-floating);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.departments-fab:hover {
+  transform: translateY(-1px) scale(1.04);
+  background: var(--color-action-hover-success);
+}
+
+.dept-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(2, 6, 23, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: deptFadeIn 0.16s ease-out;
+}
+
+.dept-modal-panel {
+  width: min(860px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-light);
+  box-shadow: var(--shadow-floating);
+  animation: deptZoomIn 0.2s ease-out;
+}
+
+.dept-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 62;
+  background: rgba(2, 6, 23, 0.38);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dept-drawer-panel {
+  height: 100%;
+  width: 96vw;
+  max-width: 760px;
+  background: var(--color-bg-light);
+  border-left: 1px solid var(--color-border-primary);
+  box-shadow: -2px 0 12px rgba(15, 23, 42, 0.1);
+  animation: deptDrawerIn 0.24s ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 1024px) {
+  .dept-drawer-panel {
+    width: 600px;
+  }
+}
+
+/* =====================================================
+   FINANCE PAGE
+===================================================== */
+
+/* =====================================================
+   AUTH / LOGIN PAGE
+===================================================== */
+
+.auth-login-card {
+  animation: authCardIn 0.34s cubic-bezier(0.2, 0.85, 0.25, 1) both;
+}
+
+.auth-login-reveal-1 {
+  animation: authRevealIn 0.32s ease-out both;
+  animation-delay: 0.06s;
+}
+
+.auth-login-reveal-2 {
+  animation: authRevealIn 0.34s ease-out both;
+  animation-delay: 0.11s;
+}
+
+.auth-login-reveal-3 {
+  animation: authRevealIn 0.36s ease-out both;
+  animation-delay: 0.16s;
+}
+
+/* brilhos do fundo do login ficam parados: movimento infinito distrai */
+.auth-login-glow-secondary {
+  animation: none;
+}
+
+.auth-login-glow-accent {
+  animation: none;
+}
+
+/* =====================================================
+   LOADING BAR
+===================================================== */
+
+.loading-bar-shell {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.loading-bar-line {
+  height: 3px;
+  width: 100%;
+  transform-origin: left;
+  background-image: linear-gradient(
+    to right,
+    var(--color-hover-accent),
+    var(--color-accent),
+    var(--color-hover-accent)
+  );
+  background-size: 500% auto;
+  animation: loadingBarPulse 1.15s linear infinite;
+}
+
+@media (min-width: 1024px) {
+  .auth-login-card {
+    animation-duration: 0.44s;
+  }
+
+  .auth-login-reveal-1 {
+    animation-duration: 0.4s;
+    animation-delay: 0.1s;
+  }
+
+  .auth-login-reveal-2 {
+    animation-duration: 0.42s;
+    animation-delay: 0.16s;
+  }
+
+  .auth-login-reveal-3 {
+    animation-duration: 0.44s;
+    animation-delay: 0.22s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-login-card,
+  .auth-login-reveal-1,
+  .auth-login-reveal-2,
+  .auth-login-reveal-3,
+  .auth-login-glow-secondary,
+  .auth-login-glow-accent {
+    animation: none !important;
+  }
+}
+
+.finance-page {
+  @apply flex-1 py-4 md:py-6 lg:py-8;
+}
+
+.finance-page-stack {
+  @apply space-y-4;
+}
+
+.finance-summary-panel {
+  @apply overflow-hidden rounded-2xl border border-border-primary bg-bg-light;
+}
+
+.finance-section-header {
+  @apply border-b border-border-primary bg-bg-gray-theme px-5 py-4;
+}
+
+.finance-summary-grid {
+  @apply grid gap-3 p-5 md:grid-cols-3;
+}
+
+.finance-summary-item {
+  @apply rounded-xl border border-border-primary bg-bg-primary px-4 py-4;
+}
+
+.finance-transactions-panel {
+  @apply overflow-hidden rounded-2xl border border-border-primary bg-bg-light;
+}
+
+.finance-transactions-header {
+  @apply border-b border-border-primary px-5 py-4;
+}
+
+.finance-table-wrap {
+  @apply overflow-x-auto;
+}
+
+.finance-table-actions {
+  @apply flex flex-wrap items-center gap-2;
+}
+
+.finance-table-btn {
+  @apply inline-flex items-center justify-center rounded-md px-3 py-2 text-sm min-h-[40px] font-semibold transition;
+}
+
+.finance-table-btn-primary {
+  background: var(--color-action-secondary);
+  color: var(--color-action-on-secondary);
+}
+
+.finance-table-btn-primary:hover {
+  background: var(--color-action-hover-secondary);
+}
+
+.finance-table-btn-secondary {
+  @apply border border-border-secondary bg-bg-light text-text-primary hover:bg-accent/10;
+}
+
+.finance-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  background: rgba(2, 6, 23, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.finance-modal-panel {
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-primary);
+  background: var(--color-bg-light);
+  box-shadow: var(--shadow-floating);
+}
+
+.finance-modal-header {
+  @apply flex items-start justify-between gap-3 border-b border-border-primary px-5 py-4;
+}
+
+/* =====================================================
+   SCROLLBAR GLOBAL
+===================================================== */
+
+/* barra larga e sólida: alvo fácil de acertar com o mouse */
+* {
+  scrollbar-width: auto;
+  scrollbar-color: var(--color-border-secondary) var(--color-bg-gray-theme);
+}
+
+*::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--color-bg-gray-theme);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-border-secondary);
+  border-radius: 8px;
+  border: 3px solid var(--color-bg-gray-theme);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+.toast-success {
+  background: var(--color-action-success);
+  color: var(--color-action-on-success);
+}
+
+.toast-error {
+  background: var(--color-action-primary);
+  color: var(--color-action-on-primary);
+}
+
+.toast-info {
+  background: var(--color-action-secondary);
+  color: var(--color-action-on-secondary);
+}
+
+.toast-loading {
+  background: var(--color-action-dark);
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .bg-primary.text-white,
+html[data-theme="dark"] .bg-secondary.text-white,
+html[data-theme="dark"] .bg-success.text-white,
+html[data-theme="dark"] .bg-accent.text-white,
+html[data-theme="dark"] .bg-accent.text-text-light {
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .bg-primary.text-white {
+  background-color: var(--color-action-primary);
+}
+
+html[data-theme="dark"] .bg-secondary.text-white {
+  background-color: var(--color-action-secondary);
+}
+
+html[data-theme="dark"] .bg-success.text-white {
+  background-color: var(--color-action-success);
+}
+
+html[data-theme="dark"] .bg-accent.text-white,
+html[data-theme="dark"] .bg-accent.text-text-light {
+  background-color: var(--color-action-accent);
+}
+
+@keyframes deptFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes deptDrawerIn {
+  from {
+    transform: translateX(32px);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes deptZoomIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes authCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes authRevealIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes authGlowFloat {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(8px, -10px, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes loadingBarPulse {
+  0% {
+    background-position: 0% 50%;
+    transform: scaleX(0.08);
+    opacity: 0.6;
+  }
+  45% {
+    transform: scaleX(0.75);
+    opacity: 1;
+  }
+  100% {
+    background-position: 100% 50%;
+    transform: scaleX(1);
+    opacity: 0.95;
+  }
+}
+
+/* =====================================================
+   ANIMAÇÕES E MICRO-INTERAÇÕES GLOBAIS
+===================================================== */
+
+/* Transição de página: fade + subida suave a cada troca de tela */
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: pageIn 0.3s cubic-bezier(0.2, 0.85, 0.25, 1) both;
+}
+
+/* Entrada em cascata de cards (delay definido inline via style) */
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.card-in {
+  animation: cardIn 0.42s cubic-bezier(0.2, 0.85, 0.25, 1) both;
+}
+
+/* Toast: sobe e se acomoda na base da tela */
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.toast-enter {
+  animation: toastIn 0.26s cubic-bezier(0.2, 0.85, 0.25, 1) both;
+}
+
+/* Popover (menu do usuário): abre com leve escala a partir do canto */
+@keyframes popoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.popover-enter {
+  transform-origin: bottom right;
+  animation: popoverIn 0.18s ease-out both;
+}
+
+/* Botões: elevação sutil no hover e "pressão" no clique */
+.btn-primary:hover,
+.btn-success:hover,
+.btn-cancel:hover,
+.btn-back:hover,
+.btn-outline-secondary:hover {
+  transform: translateY(-1px);
+}
+
+.btn-primary:active,
+.btn-success:active,
+.btn-cancel:active,
+.btn-back:active,
+.btn-outline-secondary:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Item de menu lateral: barra ativa animada + feedback de clique */
+.sidebar-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 9999px;
+  background: var(--color-accent);
+  transform: scaleY(0);
+  transition: transform 0.22s ease;
+}
+
+.sidebar-item[aria-current="page"]::before {
+  transform: scaleY(1);
+}
+
+.sidebar-item:active {
+  transform: scale(0.98);
+}
+
+/* Troca de tema mais suave nos principais contêineres */
+.card,
+aside,
+header {
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease;
+}
+
+/* Modal "Venda Feita!": entrada com escala e leve flutuação da sacola */
+@keyframes successPop {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.success-pop {
+  animation: successPop 0.34s cubic-bezier(0.2, 0.85, 0.25, 1) both;
+}
+
+@keyframes bagFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.bag-float {
+  animation: bagFloat 3.2s ease-in-out infinite;
+}
+
+/* Rolagem suave dentro da área de conteúdo */
+main {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter,
+  .card-in,
+  .toast-enter,
+  .popover-enter,
+  .success-pop,
+  .bag-float {
+    animation: none !important;
+  }
+
+  .btn-primary:hover,
+  .btn-success:hover,
+  .btn-cancel:hover,
+  .btn-back:hover,
+  .btn-outline-secondary:hover,
+  .btn-primary:active,
+  .btn-success:active,
+  .btn-cancel:active,
+  .btn-back:active,
+  .btn-outline-secondary:active,
+  .sidebar-item:active {
+    transform: none !important;
+  }
+
+  .sidebar-item::before {
+    transition: none !important;
+  }
+
+  main {
+    scroll-behavior: auto;
+  }
+}
+
+/* =====================================================
+   TABELAS - respiro mínimo
+   :where() tem especificidade 0: só vale onde a página
+   não definiu padding próprio (utility do Tailwind vence).
+===================================================== */
+
+:where(table) :where(td, th) {
+  padding-block: 0.75rem;
+}
+
+/* =====================================================
+   FRENTE DE CAIXA — acabamento visual
+   Só aparência. Nenhuma regra de venda mora aqui; o
+   comportamento continua nos componentes de src/components/Pdv.
+   Tudo é montado sobre os tokens de tema, então o modo escuro
+   acompanha sem uma segunda tabela de cores.
+===================================================== */
+
+/* Marca do canto: o degradê identifica a tela de longe, que é
+   como o operador confere se está no caixa certo. */
+.pdv-brand-mark {
+  background-image: linear-gradient(
+    135deg,
+    var(--color-accent) 0%,
+    var(--color-hover-accent) 100%
+  );
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
+/* Cabeçalhos de painel: degradê de 1 tom só para separar do
+   conteúdo sem gastar uma borda extra. */
+.pdv-panel-header {
+  background-image: linear-gradient(
+    to bottom,
+    var(--color-bg-light) 0%,
+    var(--color-bg-gray-theme) 140%
+  );
+}
+
+/* Cartão de produto: parado fica liso, no hover levanta.
+   O relevo é resposta ao toque, não decoração da grade cheia. */
+.pdv-tile {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease,
+    background-color 0.16s ease;
+}
+
+.pdv-tile:hover,
+.pdv-tile:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
+}
+
+.pdv-tile:active {
+  transform: translateY(0) scale(0.99);
+}
+
+html[data-theme="dark"] .pdv-tile:hover,
+html[data-theme="dark"] .pdv-tile:focus-visible {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+/* Produto sem foto: degradê com um véu de azul em vez de cinza
+   chapado — a grade sem imagem nenhuma parava de parecer produto. */
+.pdv-thumb-empty {
+  background-image: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--color-accent) 10%, var(--color-bg-gray-theme)) 0%,
+    var(--color-bg-gray-theme) 100%
+  );
+}
+
+/* Selo de estoque: herda a cor do tom (vermelho/âmbar/cinza) e
+   monta o fundo a partir dela, então é uma classe para os três casos. */
+.pdv-stock-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.125rem 0.5rem;
+  font-weight: 700;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+/* Linha selecionada do cupom: barra na lateral em vez de só
+   mudar o fundo, que somia no tema escuro. */
+.pdv-cart-row-selected {
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+/* Bloco do total: o número mais lido da tela ganha moldura própria. */
+.pdv-total-block {
+  border-radius: 0.625rem;
+  border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-success) 12%, var(--color-bg-light)) 0%,
+    var(--color-bg-light) 100%
+  );
+}
+
+/* Finalizar: o botão que encerra a venda é o único com brilho
+   na tela, para não competir com nada. */
+.pdv-checkout-btn {
+  background-image: linear-gradient(
+    135deg,
+    var(--color-action-success) 0%,
+    color-mix(in srgb, var(--color-action-success) 80%, #000) 100%
+  );
+  box-shadow: 0 4px 14px
+    color-mix(in srgb, var(--color-action-success) 32%, transparent);
+}
+
+.pdv-checkout-btn:hover:not(:disabled) {
+  box-shadow: 0 6px 20px
+    color-mix(in srgb, var(--color-action-success) 44%, transparent);
+}
+
+.pdv-checkout-btn:disabled {
+  background-image: none;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pdv-tile,
+  .pdv-tile:hover,
+  .pdv-tile:focus-visible,
+  .pdv-tile:active {
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* PAGAMENTO — lista vertical de formas, uma linha por forma           */
+/* ------------------------------------------------------------------ */
+
+/*
+ * A cor serve para o operador achar a linha pelo canto do olho, não para
+ * decorar: cada forma tem um tom fixo e o mesmo tom aparece no ícone. Cada
+ * tom entra por --pdv-tone, então existe UMA regra de caixinha em vez de seis.
+ */
+.pdv-pay-icon {
+  display: grid;
+  place-items: center;
+  height: 2.25rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+  border: 2px solid color-mix(in srgb, var(--pdv-tone) 45%, transparent);
+  background: color-mix(in srgb, var(--pdv-tone) 12%, transparent);
+  color: var(--pdv-tone);
+}
+
+.pdv-tone-cash {
+  --pdv-tone: #16a34a;
+}
+.pdv-tone-credit {
+  --pdv-tone: #d97706;
+}
+.pdv-tone-debit {
+  --pdv-tone: #2563eb;
+}
+.pdv-tone-pix {
+  --pdv-tone: #0d9488;
+}
+.pdv-tone-check {
+  --pdv-tone: #059669;
+}
+.pdv-tone-other {
+  --pdv-tone: #7c3aed;
+}
+
+/* No escuro os mesmos tons são ilegíveis: sobem de luminosidade. */
+html[data-theme="dark"] .pdv-tone-cash {
+  --pdv-tone: #4ade80;
+}
+html[data-theme="dark"] .pdv-tone-credit {
+  --pdv-tone: #fbbf24;
+}
+html[data-theme="dark"] .pdv-tone-debit {
+  --pdv-tone: #60a5fa;
+}
+html[data-theme="dark"] .pdv-tone-pix {
+  --pdv-tone: #2dd4bf;
+}
+html[data-theme="dark"] .pdv-tone-check {
+  --pdv-tone: #34d399;
+}
+html[data-theme="dark"] .pdv-tone-other {
+  --pdv-tone: #c084fc;
+}
+
+.pdv-pay-row {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border-primary);
+  cursor: pointer;
+  transition: background-color 0.14s ease;
+}
+
+.pdv-pay-row:last-child {
+  border-bottom: 0;
+}
+
+.pdv-pay-row:hover {
+  background: var(--color-hover-light);
+}
+
+/* A linha ativa é a que recebe o valor digitado: fundo e barra à esquerda. */
+.pdv-pay-row-active {
+  background: color-mix(in srgb, var(--color-accent) 9%, var(--color-bg-light));
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.pdv-pay-row-active:hover {
+  background: color-mix(in srgb, var(--color-accent) 13%, var(--color-bg-light));
+}
+
+/*
+ * O valor não parece um input de propósito: no caixa ele é o número da linha,
+ * não um formulário. Só a seleção azul mostra que dá para digitar por cima.
+ */
+.pdv-pay-value {
+  width: 8rem;
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  padding: 0.125rem 0;
+  text-align: right;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.pdv-pay-value:focus {
+  outline: none;
+}
+
+.pdv-pay-value::selection {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.pdv-pay-value::placeholder {
+  color: transparent;
+}
+
+/*
+ * O "concluir" do pagamento é azul, não verde: o verde do app significa
+ * "confirmar e sair", e aqui o operador aperta este botão dezenas de vezes por
+ * turno — ele é o botão de trabalho, o mesmo tom do acento operacional.
+ */
+.pdv-confirm-btn {
+  background-image: linear-gradient(
+    135deg,
+    var(--color-accent) 0%,
+    var(--color-hover-accent) 100%
+  );
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-accent) 32%, transparent);
+}
+
+.pdv-confirm-btn:hover:not(:disabled) {
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--color-accent) 44%, transparent);
+}
+
+.pdv-confirm-btn:disabled {
+  background-image: none;
+  background: color-mix(in srgb, var(--color-accent) 30%, var(--color-bg-gray-theme));
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pdv-pay-row {
+    transition: none;
+  }
+}

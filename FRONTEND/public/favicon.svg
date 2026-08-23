@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <!-- seta ascendente -->
+  <path d="M36 46 C 44 44, 50 38, 56 28" fill="none" stroke="#7dd3fc" stroke-width="3" stroke-linecap="round"/>
+  <!-- barras do gráfico -->
+  <rect x="38" y="30" width="5" height="16" rx="2" fill="#bfdbfe"/>
+  <rect x="45" y="24" width="5" height="22" rx="2" fill="#bfdbfe"/>
+  <rect x="52" y="18" width="5" height="28" rx="2" fill="#bfdbfe"/>
+  <!-- rolo de papel -->
+  <circle cx="12" cy="34" r="5" fill="#f8fafc"/>
+  <circle cx="12" cy="34" r="1.6" fill="#94a3b8"/>
+  <!-- tela com código de barras -->
+  <rect x="15" y="17" width="20" height="11" rx="3" fill="#bfdbfe"/>
+  <rect x="18" y="19.5" width="2" height="6" fill="#1d4ed8"/>
+  <rect x="23" y="19.5" width="1.4" height="6" fill="#1d4ed8"/>
+  <rect x="28" y="19.5" width="2.6" height="6" fill="#1d4ed8"/>
+  <!-- corpo do caixa -->
+  <rect x="9" y="28" width="30" height="18" rx="5" fill="#0b1120"/>
+  <!-- teclado -->
+  <circle cx="29" cy="33" r="1.6" fill="#bfdbfe"/>
+  <circle cx="34" cy="33" r="1.6" fill="#bfdbfe"/>
+  <circle cx="29" cy="38" r="1.6" fill="#bfdbfe"/>
+  <circle cx="34" cy="38" r="1.6" fill="#bfdbfe"/>
+  <!-- gaveta aberta -->
+  <rect x="9" y="42" width="17" height="7" rx="3" fill="#60a5fa"/>
+  <circle cx="17" cy="45.5" r="1.5" fill="#f8fafc"/>
+</svg>

@@ -1,0 +1,87 @@
+/**
+ * Arquivo: src/pages/Auth/ForgotPasswordPage.tsx
+ * Objetivo: renderiza fluxo de solicitação de recuperação de senha por CNPJ e e-mail.
+ * Entradas esperadas: recebe callbacks de navegação; envia token de reCAPTCHA e dados para a API.
+ */
+import { KeyRound } from "lucide-react";
+import { useState } from "react";
+import LoadingButton from "@/components/Loading/LoadingButton";
+import useRecaptchaV3 from "@/hooks/Security/useRecaptchaV3";
+import { isValidEmail } from "@/utils/validators";
+import AuthLayout from "./AuthLayout";
+import { EmailField, FeedbackMessage } from "./AuthFields";
+import type { AuthActionResult } from "./types";
+
+type ForgotPasswordPageProps = {
+  onForgotPassword: (
+    cnpj: string,
+    email: string,
+    recaptchaToken?: string,
+  ) => Promise<AuthActionResult>;
+  onOpenLogin: () => void;
+  onOpenResetPassword: (token: string) => void;
+};
+
+export default function ForgotPasswordPage({
+  onForgotPassword,
+  onOpenLogin,
+  onOpenResetPassword,
+}: ForgotPasswordPageProps) {
+  const { executeRecaptcha, isRecaptchaConfigured } = useRecaptchaV3();
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<AuthActionResult | null>(null);
+
+  const handleSubmit = async () => {
+    if (!email.trim() || !isValidEmail(email)) {
+      setFeedback({ success: false, message: "Informe um e-mail válido." });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const recaptchaToken = isRecaptchaConfigured
+        ? await executeRecaptcha("password_forgot_request")
+        : "";
+      const result = await onForgotPassword("", email, recaptchaToken);
+      setFeedback(result);
+      if (result.success && result.data?.resetToken) {
+        onOpenResetPassword(result.data.resetToken);
+      }
+    } catch (error) {
+      setFeedback(toErrorResult(error, "Não foi possível solicitar a recuperação de senha."));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <AuthLayout
+      title="Recuperar senha"
+      description="Informe seu e-mail para receber as instruções de redefinição de senha."
+      onBackToLogin={onOpenLogin}
+    >
+      <EmailField value={email} onChange={setEmail} onEnter={handleSubmit} />
+
+      <LoadingButton
+        type="button"
+        onClick={handleSubmit}
+        isLoading={isSubmitting}
+        loadingLabel="Enviando..."
+        className="btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2"
+      >
+        <KeyRound size={16} />
+        Enviar e-mail
+      </LoadingButton>
+
+      <FeedbackMessage result={feedback} />
+    </AuthLayout>
+  );
+}
+
+function toErrorResult(error: unknown, fallback: string): AuthActionResult {
+  return {
+    success: false,
+    message: error instanceof Error ? error.message : fallback,
+  };
+}

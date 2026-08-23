@@ -1,0 +1,50 @@
+{
+  "name": "horuspdv",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:dev": "vite --mode development",
+    "dev:prod": "vite --mode prod",
+    "build": "tsc -b && vite build --mode prod",
+    "build:dev": "tsc -b && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && vite build --mode development",
+    "build:desktop": "tsc -b && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && vite build --mode desktop",
+    "build:prod": "tsc -b && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && vite build --mode prod",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "smoke": "playwright test --config playwright.config.ts",
+    "smoke:headed": "playwright test --config playwright.config.ts --headed",
+    "smoke:keep": "SMOKE_RUN_ID=SMOKE_CONFERE SMOKE_KEEP_DATA=1 playwright test --config playwright.config.ts --headed",
+    "smoke:install": "playwright install chromium",
+    "demo:video": "playwright test --config playwright.demo.config.ts"
+  },
+  "dependencies": {
+    "@e965/xlsx": "^0.20.3",
+    "@supabase/supabase-js": "^2.112.3",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^1.0.1",
+    "react": "^19.2.4",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.1",
+    "recharts": "^3.8.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.59.1",
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.0",
+    "eslint": "^10.1.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.4.0",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.48.1",
+    "vite": "^8.0.0"
+  }
+}

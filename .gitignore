@@ -1,0 +1,37 @@
+# Ignore environment variables and credentials
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+release/
+DESKTOP/api-build/
+DESKTOP/vendor/
+API/
+caixaup-supabase/
+test-smtp.js
+**/appsettings*.json
+
+# macOS metadata
+.DS_Store
+
+# Tooling caches
+.eslintcache
+*.tsbuildinfo
+.vite/
+.cache/
+test-results/
+playwright-report/
+*.log
+.smtp-test*
+
+#CSharp Build output
+bin/
+obj/
