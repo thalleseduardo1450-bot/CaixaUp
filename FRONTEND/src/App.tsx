@@ -59,6 +59,8 @@ const EditProfilePage = lazy(() => import("@/pages/Admin/EditProfilePage"));
 const PROFILE_AVATAR_STORAGE_KEY = "horuspdv.profile.avatar";
 const ACTIVE_PAGE_STORAGE_KEY = "horuspdv.activePage";
 const THEME_STORAGE_KEY = "horuspdv.theme";
+const LOGIN_ALIAS = String(import.meta.env.VITE_LOGIN_ALIAS || "").trim();
+const LOGIN_ALIAS_EMAIL = String(import.meta.env.VITE_LOGIN_EMAIL || "").trim();
 
 const EmptyPage = () => null;
 
@@ -166,7 +168,7 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     return params.get("resetToken") || params.get("token") || "supabase-recovery";
   });
-  const [loginInitialEmail, setLoginInitialEmail] = useState("");
+  const [loginInitialEmail, setLoginInitialEmail] = useState(LOGIN_ALIAS);
   const [loginNotice, setLoginNotice] = useState("");
   const [installedUpdate, setInstalledUpdate] = useState<DesktopInstalledUpdate | null>(null);
 
@@ -347,14 +349,23 @@ export default function App() {
   };
 
   const handleLogin = async (
-    email: string,
+    login: string,
     password: string,
     remember: boolean,
     recaptchaToken?: string,
   ) => {
     try {
+      const normalizedLogin = login.trim();
+      const email =
+        LOGIN_ALIAS &&
+        LOGIN_ALIAS_EMAIL &&
+        normalizedLogin.localeCompare(LOGIN_ALIAS, "pt-BR", {
+          sensitivity: "base",
+        }) === 0
+          ? LOGIN_ALIAS_EMAIL
+          : normalizedLogin;
       const result = await authService.login({
-        email: email.trim(),
+        email,
         password,
         rememberMe: remember,
         recaptchaToken,

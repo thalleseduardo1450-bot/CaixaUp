@@ -11,6 +11,8 @@ import { EmailField, FeedbackMessage, PasswordField } from "./AuthFields";
 import LoadingButton from "@/components/Loading/LoadingButton";
 import type { AuthActionResult } from "./types";
 
+const DEFAULT_LOGIN = String(import.meta.env.VITE_LOGIN_ALIAS || "").trim();
+
 type LoginPageProps = {
   onLogin: (
     email: string,
@@ -32,7 +34,7 @@ export default function LoginPage({
   notice = "",
 }: LoginPageProps) {
   const { executeRecaptcha, isRecaptchaConfigured } = useRecaptchaV3();
-  const [email, setEmail] = useState(initialEmail);
+  const [email, setEmail] = useState(initialEmail || DEFAULT_LOGIN);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
@@ -74,7 +76,14 @@ export default function LoginPage({
       title="Bem-vindo de volta!"
       description="Faça login para acessar sua conta."
     >
-      <EmailField value={email} onChange={setEmail} onEnter={handleLogin} />
+      <EmailField
+        value={email}
+        onChange={setEmail}
+        onEnter={handleLogin}
+        label="Usuário ou e-mail"
+        placeholder="Empório ou seu e-mail"
+        inputType="text"
+      />
       <PasswordField
         label="Senha"
         value={password}

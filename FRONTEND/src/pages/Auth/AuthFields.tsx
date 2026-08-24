@@ -10,6 +10,9 @@ type FieldProps = {
   value: string;
   onChange: (value: string) => void;
   onEnter: () => void;
+  label?: string;
+  placeholder?: string;
+  inputType?: "email" | "text";
 };
 
 export function CnpjField({ value, onChange, onEnter }: FieldProps) {
@@ -39,11 +42,18 @@ export function CnpjField({ value, onChange, onEnter }: FieldProps) {
   );
 }
 
-export function EmailField({ value, onChange, onEnter }: FieldProps) {
+export function EmailField({
+  value,
+  onChange,
+  onEnter,
+  label = "E-mail",
+  placeholder = "usuario@exemplo.com",
+  inputType = "email",
+}: FieldProps) {
   return (
     <label className="block">
       <span className="mb-1 block text-sm font-semibold text-text-primary">
-        E-mail
+        {label}
       </span>
       <div className="relative">
         <Mail
@@ -51,11 +61,11 @@ export function EmailField({ value, onChange, onEnter }: FieldProps) {
           className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-tertiary"
         />
         <input
-          type="email"
+          type={inputType}
           className="input-field w-full pl-10"
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          placeholder="usuario@hpdv.com.br"
+          placeholder={placeholder}
           onKeyDown={(event) => {
             if (event.key === "Enter") void onEnter();
           }}
