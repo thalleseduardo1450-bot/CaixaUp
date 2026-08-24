@@ -88,6 +88,11 @@ export default function DesktopBehaviorCard() {
     try {
       const next = await desktop.setPreference(key, value);
       setPreferences(next);
+      if (key === "fitSmallScreens") {
+        window.dispatchEvent(
+          new CustomEvent("caixaup-fit-small-screens-change", { detail: value }),
+        );
+      }
       Toast.success("Preferência salva.");
     } catch (error) {
       Toast.error(error instanceof Error ? error.message : "Não foi possível salvar.");
@@ -122,7 +127,7 @@ export default function DesktopBehaviorCard() {
       />
       <PreferenceRow
         title="Adaptar para telas menores"
-        description="Reduz a interface inteira para caber sem cortes em 1024 × 768."
+        description="Organiza espaços, colunas e textos para caber melhor em 1024 × 768."
         icon={<Maximize2 size={19} />}
         checked={preferences.fitSmallScreens}
         disabled={!desktop}

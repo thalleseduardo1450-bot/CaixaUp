@@ -4,7 +4,7 @@
  * Entradas esperadas: não recebe props; opera com estado local de lista e formulário de produto.
  */
 
-import { Pencil, Plus, Search, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, PackageOpen, Pencil, Plus, RefreshCw, Search, Trash2, Upload, X } from "lucide-react";
 import { type ClipboardEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import PageHeader from "@/components/Admin/PageHeader";
 import RowActionsMenu from "@/components/Admin/RowActionsMenu";
@@ -586,6 +586,8 @@ function ProductFormDrawer({
 export default function ProductRegisterPage() {
   const statusDialog = useStatusDialog();
   const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [productsError, setProductsError] = useState("");
   const [supplierOptions, setSupplierOptions] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -601,10 +603,18 @@ export default function ProductRegisterPage() {
   const nextarFileRef = useRef<HTMLInputElement | null>(null);
 
   const loadProducts = async () => {
+    setLoadingProducts(true);
+    setProductsError("");
     try {
       setProducts(await productService.list());
-    } catch {
+    } catch (error) {
+      setProducts([]);
+      setProductsError(
+        error instanceof Error ? error.message : "Não foi possível carregar produtos.",
+      );
       Toast.error("Não foi possível carregar produtos da API.");
+    } finally {
+      setLoadingProducts(false);
     }
   };
 
@@ -922,7 +932,7 @@ export default function ProductRegisterPage() {
   };
 
   return (
-    <PageLayout className="space-y-4 py-4 md:space-y-6 md:py-6 lg:py-8">
+    <PageLayout size="wide" className="space-y-4 py-4 md:space-y-6 md:py-6 lg:py-8">
       <PageHeader
         title="Cadastro de Produto"
         description="Cadastre manualmente ou importe seu catálogo de produtos do Nex."
@@ -957,7 +967,8 @@ export default function ProductRegisterPage() {
       />
 
       <section className="card p-4 md:p-5">
-        <label className="relative mx-auto block w-full max-w-xl">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <label className="relative block w-full flex-1">
           <Search
             size={16}
             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
@@ -973,7 +984,36 @@ export default function ProductRegisterPage() {
             placeholder="Pesquise por nome ou código do produto"
           />
         </label>
+        <div className="flex items-center justify-between gap-3 md:justify-end">
+          <span className="text-sm font-semibold text-text-secondary">
+            {filteredProducts.length} produto(s)
+          </span>
+          <button
+            type="button"
+            onClick={() => void loadProducts()}
+            disabled={loadingProducts}
+            className="btn-outline-secondary inline-flex items-center gap-2"
+          >
+            <RefreshCw size={16} className={loadingProducts ? "animate-spin" : ""} />
+            Atualizar
+          </button>
+        </div>
+        </div>
       </section>
+
+      {productsError ? (
+        <div className="rounded-xl border border-primary/25 bg-primary/10 p-4 text-sm text-primary" role="alert">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2">
+              <AlertTriangle size={18} />
+              Não foi possível carregar os produtos. {productsError}
+            </span>
+            <button type="button" onClick={() => void loadProducts()} className="btn-outline-secondary">
+              Tentar novamente
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <section className="card overflow-hidden">
         {selectedProductIds.size > 0 ? (
@@ -994,7 +1034,7 @@ export default function ProductRegisterPage() {
           </div>
         ) : null}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] text-sm">
+          <table className="w-full min-w-[980px] text-base">
             <thead className="bg-bg-primary text-left text-text-secondary">
               <tr>
                 <th className="w-12 px-4 py-3">
@@ -1016,7 +1056,25 @@ export default function ProductRegisterPage() {
               </tr>
             </thead>
             <tbody>
-              {paginatedProducts.map((product) => (
+              {loadingProducts ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-16 text-center text-text-secondary">
+                    Carregando produtos...
+                  </td>
+                </tr>
+              ) : paginatedProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-16 text-center">
+                    <PackageOpen size={34} className="mx-auto text-text-tertiary" />
+                    <p className="mt-3 font-semibold text-text-primary">
+                      {search ? "Nenhum produto encontrado" : "Nenhum produto cadastrado"}
+                    </p>
+                    <p className="mt-1 text-sm text-text-secondary">
+                      {search ? "Tente outro nome ou código." : "Cadastre ou importe produtos do Nex para começar."}
+                    </p>
+                  </td>
+                </tr>
+              ) : paginatedProducts.map((product) => (
                 <tr key={product.id} className="border-t border-border-primary">
                   <td className="px-4 py-3">
                     <input
@@ -1028,7 +1086,7 @@ export default function ProductRegisterPage() {
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <div className="h-12 w-12 overflow-hidden rounded-lg border border-border-primary bg-bg-light">
+                    <div className="h-14 w-14 overflow-hidden rounded-lg border border-border-primary bg-bg-light">
                       <img
                         src={
                           product.productImageUrl ||
@@ -1046,7 +1104,7 @@ export default function ProductRegisterPage() {
                       />
                     </div>
                   </td>
-                  <td className="px-4 py-3">{product.productName}</td>
+                  <td className="px-4 py-3 font-semibold text-text-primary">{product.productName}</td>
                   <td className="px-4 py-3">{product.productCode}</td>
                   <td className="px-4 py-3">{product.productSupplier}</td>
                   <td className="px-4 py-3">{product.productQnt}</td>

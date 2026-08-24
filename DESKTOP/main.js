@@ -145,7 +145,7 @@ function createSplash() {
 }
 
 function createMainWindow() {
-  zoomAtual = computeZoom();
+  zoomAtual = 1;
   const wa = screen.getPrimaryDisplay().workAreaSize;
 
   mainWindow = new BrowserWindow({
@@ -162,7 +162,7 @@ function createMainWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       preload: path.join(__dirname, "preload.js"),
-      zoomFactor: zoomAtual,
+      zoomFactor: 1,
     },
   });
 
@@ -194,15 +194,8 @@ function createMainWindow() {
   setTimeout(() => exibirJanela("prazo maximo"), 20000);
 
   mainWindow.webContents.on("did-finish-load", () => {
-    mainWindow.webContents.setZoomFactor(zoomAtual);
+    mainWindow.webContents.setZoomFactor(1);
     mainWindow.webContents.setVisualZoomLevelLimits(1, 1);
-  });
-
-  screen.on("display-metrics-changed", () => {
-    const novo = computeZoom();
-    if (novo === zoomAtual) return;
-    zoomAtual = novo;
-    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.setZoomFactor(novo);
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -293,8 +286,8 @@ function applyDesktopPreferences() {
   }
   configureGlobalShortcuts();
   if (mainWindow && !mainWindow.isDestroyed()) {
-    zoomAtual = computeZoom();
-    mainWindow.webContents.setZoomFactor(zoomAtual);
+    zoomAtual = 1;
+    mainWindow.webContents.setZoomFactor(1);
   }
 }
 

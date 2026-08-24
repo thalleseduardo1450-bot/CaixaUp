@@ -4,7 +4,7 @@
  * Entradas esperadas: valores escolhidos pelo operador na própria tela do PDV.
  *
  * Separado de pdvPreferences.ts de propósito: aquele arquivo guarda preferências
- * que mudam REGRA de venda (imprimir cupom, vender sem estoque) e é lido também
+ * que mudam REGRA de venda (como vender sem estoque) e é lido também
  * pela tela de Configurações. Aqui ficam só preferências de APARÊNCIA, que o
  * operador troca no meio do expediente sem consequência fiscal.
  */

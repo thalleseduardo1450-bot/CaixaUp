@@ -548,6 +548,38 @@
   }
 }
 
+@media (min-width: 1024px) and (max-width: 1279px) {
+  html[data-fit-small-screens="true"] [data-app-sidebar] {
+    width: 15rem;
+  }
+
+  html[data-fit-small-screens="true"] main[data-active-page] > section {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+}
+
+@media (max-width: 1366px), (max-height: 768px) {
+  html[data-fit-small-screens="true"] .card {
+    border-radius: 0.5rem;
+  }
+
+  html[data-fit-small-screens="true"] .pdv-panel-header {
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  html[data-fit-small-screens="true"] .pdv-panel-header button {
+    min-height: 2.5rem;
+  }
+}
+
+@media (max-width: 1099px) {
+  html[data-fit-small-screens="true"] .dept-drawer-panel {
+    width: min(100%, 46rem);
+  }
+}
+
 .finance-page {
   @apply flex-1 py-4 md:py-6 lg:py-8;
 }

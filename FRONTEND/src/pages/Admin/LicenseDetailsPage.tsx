@@ -1,98 +1,48 @@
-/**
- * Arquivo: src/pages/Admin/LicenseDetailsPage.tsx
- * Objetivo: documenta o modelo de licença open source, créditos obrigatórios e status de uso da versão atual.
- * Entradas esperadas: não recebe props; renderiza conteúdo estático sobre termos de uso do projeto.
- */
-
-import { BadgeCheck, BookMarked, Copyright, Scale } from "lucide-react";
+import { Copyright, FileLock2, ShieldCheck } from "lucide-react";
 import PageHeader from "@/components/Admin/PageHeader";
 import PageLayout from "@/layout/PageLayout";
 
 export default function LicenseDetailsPage() {
   return (
-    <PageLayout className="space-y-4 py-4 md:space-y-6 md:py-6 lg:py-8">
+    <PageLayout>
       <PageHeader
-        title="Detalhes da Licença"
-        description="Informações de uso do CaixaUp como projeto open source."
+        title="Detalhes da licença"
+        description="Condições de uso desta instalação do CaixaUp."
       />
 
       <section className="card overflow-hidden">
-        <div className="border-b border-border-primary bg-gradient-to-r from-secondary/8 via-bg-light to-accent/8 px-4 py-4 md:px-5">
-          <h2 className="text-lg font-semibold text-text-primary">Licença de uso da versão atual</h2>
+        <div className="border-b border-border-primary bg-gradient-to-r from-secondary/8 via-bg-light to-accent/8 px-5 py-5">
+          <h2 className="text-xl font-bold text-text-primary">Licença proprietária</h2>
           <p className="mt-1 text-sm text-text-secondary">
-            Esta instalação está vinculada ao modelo gratuito com atribuição de créditos.
+            Esta cópia é destinada exclusivamente ao uso autorizado do estabelecimento.
           </p>
         </div>
 
-        <div className="space-y-3 p-4 md:p-5">
-          <article className="rounded-xl border border-border-primary bg-bg-primary p-4">
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-text-primary">
-              <Scale size={16} className="text-accent" />
-              Modelo
-            </p>
-            <p className="mt-2 text-sm text-text-secondary">
-              O CaixaUp pode ser utilizado gratuitamente nesta versão, para estudo, operação
-              e evolução do projeto.
+        <div className="space-y-4 p-5">
+          <article className="rounded-xl border border-success/25 bg-success/10 p-4">
+            <p className="inline-flex items-center gap-2 font-bold text-success">
+              <ShieldCheck size={18} />
+              Software proprietário. Todos os direitos reservados.
             </p>
           </article>
 
           <article className="rounded-xl border border-border-primary bg-bg-primary p-4">
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-text-primary">
-              <Copyright size={16} className="text-accent" />
-              Créditos obrigatórios
+            <p className="inline-flex items-center gap-2 font-bold text-text-primary">
+              <Copyright size={18} className="text-accent" />
+              Titularidade
             </p>
             <p className="mt-2 text-sm text-text-secondary">
-              Ao usar, adaptar ou redistribuir, mantenha a referência ao projeto original e ao
-              autor nos devidos pontos de documentação e interface.
+              Desenvolvido e mantido por Thalles Eduardo. A autorização de uso não transfere a propriedade intelectual do sistema.
             </p>
-            <div className="mt-3 space-y-1 text-sm text-text-secondary">
-              <p>
-                Autor: <strong className="text-text-primary">Flávio Oliveira</strong>
-              </p>
-              <p>
-                GitHub:{" "}
-                <a
-                  href="https://github.com/flaviooliveira-code"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-accent hover:underline"
-                >
-                  github.com/flaviooliveira-code
-                </a>
-              </p>
-              <p>
-                LinkedIn:{" "}
-                <a
-                  href="https://www.linkedin.com/in/fladoliveira"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-accent hover:underline"
-                >
-                  linkedin.com/in/fladoliveira
-                </a>
-              </p>
-            </div>
           </article>
 
           <article className="rounded-xl border border-border-primary bg-bg-primary p-4">
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-text-primary">
-              <BookMarked size={16} className="text-accent" />
-              Evolução do projeto
+            <p className="inline-flex items-center gap-2 font-bold text-text-primary">
+              <FileLock2 size={18} className="text-accent" />
+              Uso autorizado
             </p>
             <p className="mt-2 text-sm text-text-secondary">
-              Criado em 2020 e evoluído continuamente até esta versão de 2026, com melhorias de
-              arquitetura e experiência de uso.
-            </p>
-          </article>
-
-          <article className="rounded-xl border border-success/30 bg-success/10 p-4">
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-success">
-              <BadgeCheck size={16} />
-              Status da licença atual
-            </p>
-            <p className="mt-2 text-sm text-success">
-              Uso gratuito ativo para esta versão open source, respeitando os créditos e termos
-              definidos pelo mantenedor.
+              Não é permitida a cópia, redistribuição, publicação ou comercialização sem autorização expressa do titular.
             </p>
           </article>
         </div>

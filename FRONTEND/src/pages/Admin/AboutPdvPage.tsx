@@ -1,98 +1,64 @@
-/**
- * Arquivo: src/pages/Admin/AboutPdvPage.tsx
- * Objetivo: apresenta informações institucionais do projeto (história, autoria, licença e visão futura).
- * Entradas esperadas: não recebe props; exibe conteúdo estático/documental do CaixaUp.
- */
-
-import { BookOpenText, Code2, HeartHandshake, Rocket } from "lucide-react";
+import { BadgeCheck, Code2, Rocket, ShieldCheck } from "lucide-react";
 import PageHeader from "@/components/Admin/PageHeader";
 import PageLayout from "@/layout/PageLayout";
 
+const GITHUB_URL = "https://github.com/thalleseduardo1450-bot/CaixaUp";
+
 export default function AboutPdvPage() {
   return (
-    <PageLayout className="space-y-4 py-4 md:space-y-6 md:py-6 lg:py-8">
+    <PageLayout>
       <PageHeader
-        title="Sobre PDV"
-        description="História, propósito e modelo de uso do projeto CaixaUp."
+        title="Sobre o CaixaUp"
+        description="Informações do sistema, autoria e modelo de licenciamento."
       />
 
       <section className="card overflow-hidden">
-        <div className="border-b border-border-primary bg-gradient-to-r from-secondary/8 via-bg-light to-accent/8 px-4 py-4 md:px-5">
-          <h2 className="text-lg font-semibold text-text-primary">Projeto open source</h2>
+        <div className="border-b border-border-primary bg-gradient-to-r from-secondary/8 via-bg-light to-accent/8 px-5 py-5">
+          <h2 className="text-xl font-bold text-text-primary">CaixaUp PDV</h2>
           <p className="mt-1 text-sm text-text-secondary">
-            O CaixaUp é um projeto aberto, desenvolvido para estudo e uso da comunidade.
+            Sistema de caixa e gestão desenvolvido para uma operação simples, rápida e confiável.
           </p>
         </div>
 
-        <div className="space-y-4 p-4 md:p-5">
-          <article className="rounded-xl border border-border-primary bg-bg-primary p-4">
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-text-primary">
-              <BookOpenText size={16} className="text-accent" />
-              Linha do tempo
-            </p>
-            <p className="mt-2 text-sm text-text-secondary">
-              O projeto foi criado em <strong>2020</strong> e evoluiu com várias melhorias de
-              arquitetura, usabilidade e organização até esta versão de <strong>2026</strong>.
+        <div className="grid gap-4 p-5 md:grid-cols-2">
+          <article className="rounded-xl border border-border-primary bg-bg-primary p-5">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-secondary/10 text-secondary">
+              <BadgeCheck size={20} />
+            </span>
+            <h3 className="mt-3 font-bold text-text-primary">Desenvolvedor</h3>
+            <p className="mt-1 text-sm text-text-secondary">Thalles Eduardo</p>
+          </article>
+
+          <a
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-xl border border-border-primary bg-bg-primary p-5 transition hover:border-accent hover:bg-hover-light"
+          >
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 text-accent">
+              <Code2 size={20} />
+            </span>
+            <h3 className="mt-3 font-bold text-text-primary">GitHub — Thalles Eduardo</h3>
+            <p className="mt-1 break-all text-sm text-accent">{GITHUB_URL}</p>
+          </a>
+
+          <article className="rounded-xl border border-border-primary bg-bg-primary p-5">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-success/10 text-success">
+              <ShieldCheck size={20} />
+            </span>
+            <h3 className="mt-3 font-bold text-text-primary">Licenciamento</h3>
+            <p className="mt-1 text-sm text-text-secondary">
+              Software proprietário. Todos os direitos reservados.
             </p>
           </article>
 
-          <article className="rounded-xl border border-border-primary bg-bg-primary p-4">
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-text-primary">
-              <HeartHandshake size={16} className="text-accent" />
-              Uso gratuito
-            </p>
-            <p className="mt-2 text-sm text-text-secondary">
-              Esta versão pode ser usada gratuitamente, desde que sejam mantidos os devidos
-              créditos ao projeto e ao autor.
-            </p>
-            <div className="mt-3 space-y-1 text-sm text-text-secondary">
-              <p>
-                Autor: <strong className="text-text-primary">Flávio Oliveira</strong>
-              </p>
-              <p>
-                GitHub:{" "}
-                <a
-                  href="https://github.com/flaviooliveira-code"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-accent hover:underline"
-                >
-                  github.com/flaviooliveira-code
-                </a>
-              </p>
-              <p>
-                LinkedIn:{" "}
-                <a
-                  href="https://www.linkedin.com/in/fladoliveira"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-accent hover:underline"
-                >
-                  linkedin.com/in/fladoliveira
-                </a>
-              </p>
-            </div>
-          </article>
-
-          <article className="rounded-xl border border-border-primary bg-bg-primary p-4">
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-text-primary">
-              <Code2 size={16} className="text-accent" />
-              Objetivo da versão atual
-            </p>
-            <p className="mt-2 text-sm text-text-secondary">
-              Entregar uma base sólida para operação de PDV, com foco em produtividade, clareza
-              de fluxo e facilidade de evolução.
-            </p>
-          </article>
-
-          <article className="rounded-xl border border-border-primary bg-bg-primary p-4">
-            <p className="inline-flex items-center gap-2 text-sm font-semibold text-text-primary">
-              <Rocket size={16} className="text-accent" />
-              Próximos passos
-            </p>
-            <p className="mt-2 text-sm text-text-secondary">
-              Futuramente poderá existir uma versão paga com módulos adicionais e recursos
-              avançados, mantendo a versão atual como referência aberta.
+          <article className="rounded-xl border border-border-primary bg-bg-primary p-5">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Rocket size={20} />
+            </span>
+            <h3 className="mt-3 font-bold text-text-primary">Evolução contínua</h3>
+            <p className="mt-1 text-sm text-text-secondary">
+              Atualizações são distribuídas pelo aplicativo para melhorar estabilidade, segurança e operação.
             </p>
           </article>
         </div>

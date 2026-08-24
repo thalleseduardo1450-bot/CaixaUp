@@ -250,10 +250,10 @@ export const TOUR_STEPS_BY_PAGE: Partial<Record<TourPageKey, TourStep[]>> = {
 
   "minha-empresa": withCommonPageSteps("minha-empresa", [
     {
-      id: "empresa-email",
-      title: "Configuração de e-mail",
+      id: "empresa-dados",
+      title: "Dados da empresa",
       description:
-        "Configure SMTP da empresa para disparos de recuperação de senha e comunicações operacionais.",
+        "Revise os dados cadastrais, endereço e contatos usados nos comprovantes do caixa.",
       selectors: [
         pageSelector("minha-empresa", "form"),
         pageSelector("minha-empresa", "input"),

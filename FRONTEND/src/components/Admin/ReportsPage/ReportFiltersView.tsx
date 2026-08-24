@@ -16,6 +16,7 @@ import type {
   ReportResultRow,
 } from "./reportResultTypes";
 import { reportService } from "@/services/api/reportService";
+import { Toast } from "@/hooks/Dialog";
 
 type FilterValue = string | string[] | boolean;
 
@@ -278,14 +279,23 @@ export default function ReportFiltersView({ report, onBack }: ReportFiltersViewP
     event.preventDefault();
     setIsLoading(true);
 
-    const result = await reportService.generate(report.id, values);
-
-    setSubmittedValues({ ...values });
-    setResultColumns(result.columns);
-    setResultRows(result.rows);
-    setHasGenerated(true);
-    setCurrentPage(1);
-    setIsLoading(false);
+    try {
+      const result = await reportService.generate(report.id, values);
+      setSubmittedValues({ ...values });
+      setResultColumns(result.columns);
+      setResultRows(result.rows);
+      setHasGenerated(true);
+      setCurrentPage(1);
+    } catch (error) {
+      setResultColumns([]);
+      setResultRows([]);
+      setHasGenerated(false);
+      Toast.error(
+        error instanceof Error ? error.message : "Não foi possível gerar o relatório.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const totalPages = Math.max(1, Math.ceil(resultRows.length / Math.max(1, rowsPerPage)));

@@ -6,12 +6,15 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ToastContainer } from "@/hooks/Dialog";
+import AppErrorBoundary from "@/components/ErrorBoundary/AppErrorBoundary";
 import "./index.css";
 import App from "./App.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ToastContainer />
-    <App />
+    <AppErrorBoundary title="O CaixaUp encontrou um problema">
+      <App />
+    </AppErrorBoundary>
   </StrictMode>,
 );

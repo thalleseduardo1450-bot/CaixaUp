@@ -37,6 +37,7 @@ export type SaleReceipt = {
   customerCpf: string;
   paymentType: PaymentType;
   paymentLabel: string;
+  paymentLines?: Array<{ label: string; amount: number }>;
   operatorName: string;
   /** Soma dos itens, sem desconto. */
   subtotal: number;

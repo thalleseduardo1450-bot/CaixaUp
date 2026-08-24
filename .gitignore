@@ -14,7 +14,7 @@ dist/
 release/
 DESKTOP/api-build/
 DESKTOP/vendor/
-API/
+/API/
 caixaup-supabase/
 test-smtp.js
 **/appsettings*.json

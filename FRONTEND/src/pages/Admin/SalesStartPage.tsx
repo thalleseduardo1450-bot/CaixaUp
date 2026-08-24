@@ -64,7 +64,6 @@ import { salesHistoryService } from "@/services/api/salesHistoryService";
 import type { PdvProduct, PdvProductViewMode } from "@/types/pdv";
 import { centsToApi, formatCentsBrl, toReais } from "@/utils/pdvMoney";
 import {
-  getPrintPreviewEnabled,
   getSellWithoutStockEnabled,
 } from "@/utils/pdvPreferences";
 import { playBeepError, playBeepSuccess, playSaleComplete } from "@/utils/pdvSound";
@@ -134,9 +133,6 @@ export default function SalesStartPage({
   const [gridColumns] = useState(() => getGridColumns());
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const [printPreviewEnabled, setPrintPreviewEnabled] = useState(() =>
-    getPrintPreviewEnabled(),
-  );
   const [sellWithoutStockEnabled, setSellWithoutStockEnabled] = useState(() =>
     getSellWithoutStockEnabled(),
   );
@@ -229,18 +225,11 @@ export default function SalesStartPage({
 
   /** Preferências mudam na tela de Configurações; aqui só escutamos os avisos. */
   useEffect(() => {
-    const syncPrint = () => setPrintPreviewEnabled(getPrintPreviewEnabled());
     const syncStock = () => setSellWithoutStockEnabled(getSellWithoutStockEnabled());
 
-    window.addEventListener("focus", syncPrint);
-    window.addEventListener("storage", syncPrint);
-    window.addEventListener("horus-pdv-print-preview-change", syncPrint);
     window.addEventListener("horus-pdv-sell-without-stock-change", syncStock);
 
     return () => {
-      window.removeEventListener("focus", syncPrint);
-      window.removeEventListener("storage", syncPrint);
-      window.removeEventListener("horus-pdv-print-preview-change", syncPrint);
       window.removeEventListener("horus-pdv-sell-without-stock-change", syncStock);
     };
   }, []);
@@ -497,6 +486,19 @@ export default function SalesStartPage({
           customerCpf: documentOnReceipt,
           paymentType: payment.paymentType,
           paymentLabel: payment.paymentLabel,
+          paymentLines: payment.lines.map((line) => ({
+            label:
+              ({
+                dinheiro: "Dinheiro",
+                pix: "Pix",
+                debito: "Cartão de débito",
+                credito: "Cartão de crédito",
+                cheque: "Cheque",
+                fiado: "Fiado",
+                outros: "Outros meios",
+              } as Record<string, string>)[line.type] ?? line.type,
+            amount: toReais(line.amountCents),
+          })),
           operatorName,
           subtotal: toReais(cart.totalCents),
           discount: toReais(payment.discountCents),
@@ -535,7 +537,6 @@ export default function SalesStartPage({
         setSuccessSale(receipt);
         void products.reload();
 
-        if (printPreviewEnabled) printSaleReceipt(receipt, formatMoneyBr);
       } catch (error) {
         Toast.error(
           error instanceof Error ? error.message : "Erro ao registrar a venda.",
@@ -552,7 +553,6 @@ export default function SalesStartPage({
       isSubmitting,
       loadCashStatus,
       operatorName,
-      printPreviewEnabled,
       products,
       sellWithoutStockEnabled,
       soundEnabled,

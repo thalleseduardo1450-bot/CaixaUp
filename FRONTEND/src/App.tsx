@@ -9,6 +9,7 @@ import AppSidebar, { type PageKey } from "@/components/AppSidebar/AppSidebar";
 import LoadingBar from "@/components/Loading/LoadingBar";
 import GuidedTour from "@/components/Tour/GuidedTour";
 import InstalledUpdateModal from "@/components/Update/InstalledUpdateModal";
+import AppErrorBoundary from "@/components/ErrorBoundary/AppErrorBoundary";
 import { APP_OPEN_TOUR_EVENT } from "@/domain/navigation/events";
 import { Toast, useStatusDialog } from "@/hooks/Dialog";
 import ForgotPasswordPage from "@/pages/Auth/ForgotPasswordPage";
@@ -571,6 +572,28 @@ export default function App() {
   }, [themeMode]);
 
   useEffect(() => {
+    const applySmallScreenPreference = (enabled: boolean) => {
+      document.documentElement.setAttribute(
+        "data-fit-small-screens",
+        enabled ? "true" : "false",
+      );
+    };
+    const desktop = window.caixaUpDesktop;
+    if (desktop) {
+      void desktop.getPreferences().then((preferences) => {
+        applySmallScreenPreference(preferences.fitSmallScreens);
+      });
+    } else {
+      applySmallScreenPreference(true);
+    }
+    const listener = (event: Event) => {
+      applySmallScreenPreference((event as CustomEvent<boolean>).detail);
+    };
+    window.addEventListener("caixaup-fit-small-screens-change", listener);
+    return () => window.removeEventListener("caixaup-fit-small-screens-change", listener);
+  }, []);
+
+  useEffect(() => {
     if (!window.caixaUpDesktop) return;
     return window.caixaUpDesktop.onUpdateInstalled(setInstalledUpdate);
   }, []);
@@ -758,7 +781,8 @@ export default function App() {
           data-active-page={activePage}
           className="flex-1 h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden pt-14 lg:pt-0"
         >
-          <div key={activePage} className="page-enter min-h-full">
+          <AppErrorBoundary key={activePage} title="Não foi possível abrir esta página">
+          <div className="page-enter min-h-full">
             {activePage === "editar-perfil" ? (
               <EditProfilePage
                 userName={currentUser.name}
@@ -785,6 +809,7 @@ export default function App() {
               <CurrentPage />
             )}
           </div>
+          </AppErrorBoundary>
           <GuidedTour
             open={tourOpen}
             page={activePage}
