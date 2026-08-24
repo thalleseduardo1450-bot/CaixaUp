@@ -271,7 +271,7 @@ function ProductFormDrawer({
               {isEditMode ? "Editar produto" : "Novo produto"}
             </h3>
             <p className="mt-1 text-sm text-text-secondary">
-              Cadastre produto com fornecedor, preços e quantidade.
+              Cadastre nome, preços e quantidade. O fornecedor é opcional.
             </p>
           </div>
           <button
@@ -371,13 +371,13 @@ function ProductFormDrawer({
                 />
               </label>
               <SearchableSelectField
-                label="Fornecedor *"
+                label="Fornecedor (opcional)"
                 value={value.productSupplier}
                 options={supplierOptions}
                 onChange={(nextValue) => setField("productSupplier", nextValue)}
                 getOptionValue={(supplier) => supplier}
                 getOptionLabel={(supplier) => supplier}
-                placeholder="Pesquisar fornecedor"
+                placeholder="Deixe vazio ou pesquise um fornecedor"
                 emptyMessage="Nenhum fornecedor encontrado."
                 createActionLabel="Cadastrar fornecedor"
                 onCreateOption={openSupplierModal}
@@ -869,7 +869,6 @@ export default function ProductRegisterPage() {
     const requiredFields: Array<keyof ProductFormData> = [
       "productName",
       "productCode",
-      "productSupplier",
       "productDescription",
       "productQnt",
       "productUnitPrice",
@@ -890,11 +889,6 @@ export default function ProductRegisterPage() {
 
     if (Number(form.productQnt) < 0) {
       Toast.error("A quantidade do produto não pode ser negativa.");
-      return false;
-    }
-
-    if (!form.productSupplier) {
-      Toast.error("Selecione um fornecedor.");
       return false;
     }
 
