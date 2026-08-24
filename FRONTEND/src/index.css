@@ -1216,6 +1216,17 @@ html[data-theme="dark"] .pdv-tone-other {
   transition: background-color 0.14s ease;
 }
 
+.pdv-search-highlight {
+  border: 2px solid var(--color-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 12%, transparent);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.pdv-search-highlight:focus-within {
+  border-color: var(--color-hover-accent);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
 .pdv-pay-row:last-child {
   border-bottom: 0;
 }

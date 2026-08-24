@@ -27,7 +27,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Printer, RotateCcw, X } from "lucide-react";
+import { Printer, RotateCcw, Search, X } from "lucide-react";
 
 import type { PageKey } from "@/components/AppSidebar/AppSidebar";
 import {
@@ -61,7 +61,7 @@ import {
 import { companyService, type CompanyDto } from "@/services/api/companyService";
 import { customerService, type CustomerDto } from "@/services/api/customerService";
 import { salesHistoryService } from "@/services/api/salesHistoryService";
-import type { PdvProduct, PdvProductViewMode } from "@/types/pdv";
+import type { PdvProduct } from "@/types/pdv";
 import { centsToApi, formatCentsBrl, toReais } from "@/utils/pdvMoney";
 import {
   getSellWithoutStockEnabled,
@@ -71,10 +71,8 @@ import {
   getDensity,
   getGridColumns,
   getSoundEnabled,
-  getViewMode,
   setDensity as persistDensity,
   setSoundEnabled as persistSoundEnabled,
-  setViewMode as persistViewMode,
 } from "@/utils/pdvViewPreferences";
 
 type SalesStartPageProps = {
@@ -127,7 +125,6 @@ export default function SalesStartPage({
 
   /* ------------------------- preferências do operador ------------------------- */
 
-  const [viewMode, setViewMode] = useState<PdvProductViewMode>(() => getViewMode());
   const [density, setDensity] = useState(() => getDensity());
   const [soundEnabled, setSoundEnabled] = useState(() => getSoundEnabled());
   const [gridColumns] = useState(() => getGridColumns());
@@ -154,7 +151,6 @@ export default function SalesStartPage({
 
   const [query, setQuery] = useState("");
   const [quantityInput, setQuantityInput] = useState("1");
-  const [activeCategory, setActiveCategory] = useState("");
   const [selectedCartId, setSelectedCartId] = useState<string | null>(null);
   const [customerId, setCustomerId] = useState("");
   const [cpfOnReceipt, setCpfOnReceipt] = useState("");
@@ -260,9 +256,13 @@ export default function SalesStartPage({
     return Math.floor(parsed);
   }, [quantityInput]);
 
+  const isSearchingProduct = query.trim().length > 0;
   const visibleProducts = useMemo(
-    () => products.filter({ query, category: activeCategory, viewMode }),
-    [activeCategory, products, query, viewMode],
+    () =>
+      isSearchingProduct
+        ? products.filter({ query, category: "", viewMode: "grade" })
+        : [],
+    [isSearchingProduct, products, query],
   );
 
   const idsInCart = useMemo(() => cart.items.map((item) => item.id), [cart.items]);
@@ -581,11 +581,6 @@ export default function SalesStartPage({
     });
   }, []);
 
-  const handleViewModeChange = useCallback((mode: PdvProductViewMode) => {
-    setViewMode(mode);
-    persistViewMode(mode);
-  }, []);
-
   const toggleDensity = useCallback(() => {
     setDensity((current) => {
       const next = current === "confortavel" ? "compacta" : "confortavel";
@@ -793,49 +788,38 @@ export default function SalesStartPage({
         onSubmit={submitSearch}
         quantity={quantityInput}
         onQuantityChange={setQuantityInput}
-        viewMode={viewMode}
-        onViewModeChange={handleViewModeChange}
-        categories={products.categories}
-        activeCategory={activeCategory}
-        onCategoryChange={setActiveCategory}
         resultCount={visibleProducts.length}
       />
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* Catálogo sempre visível */}
+        {/* Resultados aparecem somente durante uma pesquisa. */}
         <section className="flex min-h-0 flex-1 flex-col">
+          {isSearchingProduct ? (
             <PdvProductGrid
               products={visibleProducts}
-              viewMode={viewMode === "lista" ? "lista" : "grade"}
+              viewMode="grade"
               density={density}
               columns={gridColumns}
               favoriteIds={products.favoriteIds}
               idsInCart={idsInCart}
               onSelectProduct={(product) => addProduct(product, quantityToAdd)}
               onToggleFavorite={products.toggleFavorite}
-              emptyTitle={
-                viewMode === "favoritos"
-                  ? "Nenhum favorito ainda"
-                  : viewMode === "mais-vendidos"
-                    ? "Sem histórico neste terminal"
-                    : "Nenhum produto encontrado"
-              }
-              emptyHint={
-                viewMode === "favoritos"
-                  ? "Toque na estrela de um produto para deixá-lo sempre à mão aqui."
-                  : viewMode === "mais-vendidos"
-                    ? "Depois das primeiras vendas, os itens que você mais lança aparecem aqui."
-                    : query || activeCategory
-                      ? "Confira a escrita ou limpe o filtro de categoria."
-                      : "Cadastre produtos para começar a vender."
-              }
-              emptyActionLabel={
-                viewMode === "grade" && !query && !activeCategory
-                  ? "Importar produtos do Nex"
-                  : undefined
-              }
-              onEmptyAction={() => onNavigate?.("cadastro-produto")}
+              emptyTitle="Nenhum produto encontrado"
+              emptyHint="Confira o nome ou o código digitado e tente novamente."
             />
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center">
+              <div className="grid h-20 w-20 place-items-center rounded-2xl bg-accent/10 text-accent">
+                <Search size={38} aria-hidden="true" />
+              </div>
+              <p className="font-display text-2xl font-bold text-text-primary">
+                Pesquise um produto
+              </p>
+              <p className="max-w-md text-base text-text-secondary">
+                Digite o nome no campo azul acima ou bipe o código de barras. Os produtos aparecem somente durante a pesquisa.
+              </p>
+            </div>
+          )}
         </section>
 
         {/* Cupom divide a tela com o catálogo */}
@@ -853,8 +837,6 @@ export default function SalesStartPage({
             onSuspendSale={suspendSale}
             onOpenSuspended={() => setSuspendedOpen(true)}
             suspendedCount={cart.suspended.length}
-            customerName={selectedCustomer?.customerName ?? ""}
-            onOpenCustomer={() => void openCheckout()}
             checkoutDisabled={!cashCanSell || isSubmitting}
             isSubmitting={isSubmitting}
           />

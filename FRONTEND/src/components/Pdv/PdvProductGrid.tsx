@@ -11,11 +11,10 @@
  * O modo lista existe para mercearia com muito item parecido, onde a foto não
  * ajuda e o que importa é varrer nomes rápido.
  */
-import { ImageOff, PackageX, Plus, Star } from "lucide-react";
+import { PackageX, Plus, Star } from "lucide-react";
 
 import type { PdvDensity, PdvProduct } from "@/types/pdv";
 import { formatCentsBrl } from "@/utils/pdvMoney";
-import { generateProductImage } from "@/utils/productImage";
 
 type PdvProductGridProps = {
   products: PdvProduct[];
@@ -43,40 +42,6 @@ function stockTone(stock: number): { className: string; label: string } {
     return { className: "text-[#b45309]", label: `Resta ${stock}` };
   }
   return { className: "text-text-tertiary", label: `${stock} em estoque` };
-}
-
-function ProductThumb({
-  product,
-  size,
-}: {
-  product: PdvProduct;
-  size: "sm" | "lg";
-}) {
-  const box = size === "lg" ? "h-24" : "h-12 w-12";
-
-  if (!product.imageUrl) {
-    return (
-      <div
-        className={`${box} pdv-thumb-empty grid w-full place-items-center rounded-lg text-text-tertiary`}
-        aria-hidden="true"
-      >
-        <ImageOff size={size === "lg" ? 26 : 18} />
-      </div>
-    );
-  }
-
-  return (
-    <img
-      src={product.imageUrl}
-      alt=""
-      loading="lazy"
-      onError={(event) => {
-        event.currentTarget.onerror = null;
-        event.currentTarget.src = generateProductImage(product.name, product.code);
-      }}
-      className={`${box} w-full rounded-lg bg-bg-gray-theme object-cover`}
-    />
-  );
 }
 
 export default function PdvProductGrid({
@@ -129,8 +94,6 @@ export default function PdvProductGrid({
                   density === "compacta" ? "py-2" : "py-3"
                 }`}
               >
-                <ProductThumb product={product} size="sm" />
-
                 <button
                   type="button"
                   onClick={() => onSelectProduct(product)}
@@ -209,16 +172,12 @@ export default function PdvProductGrid({
               <button
                 type="button"
                 onClick={() => onSelectProduct(product)}
-                className={`pdv-tile flex h-full w-full flex-col gap-2 rounded-xl border bg-bg-light text-left hover:border-accent focus-visible:border-accent ${
+                className={`pdv-tile flex h-full w-full flex-col gap-2 rounded-xl border-2 border-accent/35 bg-accent/[0.025] text-left shadow-sm hover:border-accent hover:bg-accent/[0.06] focus-visible:border-accent ${
                   density === "compacta" ? "p-2.5" : "p-3"
                 } ${
-                  inCart ? "border-accent" : "border-border-primary"
+                  inCart ? "border-accent bg-accent/10" : ""
                 } ${outOfStock ? "opacity-70" : ""}`}
               >
-                {density === "confortavel" && (
-                  <ProductThumb product={product} size="lg" />
-                )}
-
                 <p
                   className="line-clamp-2 min-h-[2.9rem] text-base font-semibold leading-snug text-text-primary"
                   title={product.name}

@@ -12,7 +12,7 @@
  * itens não pode empurrar o botão de pagamento para fora da tela.
  */
 import { useEffect, useRef } from "react";
-import { Minus, Plus, ReceiptText, Trash2, User, Wallet, X } from "lucide-react";
+import { Minus, Plus, ReceiptText, Trash2, Wallet, X } from "lucide-react";
 
 import type { PdvCartItem } from "@/types/pdv";
 import { formatCentsBrl } from "@/utils/pdvMoney";
@@ -30,8 +30,6 @@ type PdvCartProps = {
   onSuspendSale: () => void;
   onOpenSuspended: () => void;
   suspendedCount: number;
-  customerName: string;
-  onOpenCustomer: () => void;
   /** Bloqueia finalizar quando o caixa está fechado ou a venda está em envio. */
   checkoutDisabled: boolean;
   isSubmitting: boolean;
@@ -50,8 +48,6 @@ export default function PdvCart({
   onSuspendSale,
   onOpenSuspended,
   suspendedCount,
-  customerName,
-  onOpenCustomer,
   checkoutDisabled,
   isSubmitting,
 }: PdvCartProps) {
@@ -73,25 +69,6 @@ export default function PdvCart({
 
   return (
     <aside className="flex h-full w-full flex-col border-l border-border-primary bg-bg-light">
-      {/* Cliente */}
-      <button
-        type="button"
-        onClick={onOpenCustomer}
-        className="flex shrink-0 items-center gap-2 border-b border-border-primary px-4 py-2.5 text-left transition hover:bg-hover-light"
-      >
-        <User size={17} className="text-text-tertiary" aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate text-sm text-text-secondary">
-          {customerName ? (
-            <span className="font-semibold text-text-primary">{customerName}</span>
-          ) : (
-            "Identificar cliente (F3)"
-          )}
-        </span>
-        <span className="shrink-0 text-xs font-semibold text-accent">
-          {customerName ? "alterar" : "opcional"}
-        </span>
-      </button>
-
       {/* Itens */}
       {isEmpty ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
@@ -103,7 +80,7 @@ export default function PdvCart({
           </div>
           <p className="mt-1 text-base font-semibold text-text-primary">Venda vazia</p>
           <p className="text-sm text-text-secondary">
-            Bipe o código de barras ou toque em um produto ao lado.
+            Bipe o código de barras ou pesquise o produto no campo acima.
           </p>
         </div>
       ) : (
