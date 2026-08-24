@@ -19,7 +19,6 @@ import { productService, type ProductDto } from "@/services/api/productService";
 import { supplierService, type SupplierPayload } from "@/services/api/supplierService";
 import { lookupAddressByCep } from "@/utils/cepLookup";
 import { onlyDigits } from "@/utils/inputMasks";
-import { generateProductImage, productImagePath } from "@/utils/productImage";
 import { isValidCnpj, isValidEmail } from "@/utils/validators";
 import {
   formatImportMoney,
@@ -110,8 +109,6 @@ function ProductFormDrawer({
     formatMoneyBr,
     sanitizeIntegerInput,
   } = useInputMasks();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [isDragActive, setIsDragActive] = useState(false);
   const [supplierModalOpen, setSupplierModalOpen] = useState(false);
   const [supplierDraft, setSupplierDraft] = useState<QuickSupplierDraft>(EMPTY_SUPPLIER_DRAFT);
   const [savingSupplier, setSavingSupplier] = useState(false);
@@ -127,21 +124,6 @@ function ProductFormDrawer({
     const unitPrice = parseMoneyBr(next.productUnitPrice);
     next.totalPriceOnProduct = quantity >= 0 ? formatMoneyBr(quantity * unitPrice) : "";
     onChange(next);
-  };
-
-  const applyImage = (file: File | null) => {
-    if (!file || !file.type.startsWith("image/")) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      onChange({
-        ...value,
-        productImageName: file.name,
-        productImageUrl: result,
-      });
-    };
-    reader.readAsDataURL(file);
   };
 
   const setMoneyField = (
@@ -288,70 +270,6 @@ function ProductFormDrawer({
           <section className="card rounded-2xl p-4">
             <h4 className="text-sm font-semibold text-text-secondary">Dados do produto</h4>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <label className="block md:col-span-2">
-                <span className="mb-1.5 block text-sm text-text-secondary">Imagem do Produto</span>
-                <div
-                  onDragEnter={(event) => {
-                    event.preventDefault();
-                    setIsDragActive(true);
-                  }}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    setIsDragActive(true);
-                  }}
-                  onDragLeave={(event) => {
-                    event.preventDefault();
-                    setIsDragActive(false);
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    setIsDragActive(false);
-                    applyImage(event.dataTransfer.files?.[0] ?? null);
-                  }}
-                  className={`flex flex-col items-center justify-center rounded-xl border border-dashed p-4 transition ${
-                    isDragActive
-                      ? "border-accent bg-accent/10"
-                      : "border-border-secondary bg-bg-primary/50"
-                  }`}
-                >
-                  <div className="mb-3 h-24 w-24 overflow-hidden rounded-2xl border border-border-primary bg-bg-light shadow-sm">
-                    <img
-                      src={
-                        value.productImageUrl ||
-                        productImagePath(value.productName, value.productCode)
-                      }
-                      alt="Pré-visualização do produto"
-                      onError={(event) => {
-                        event.currentTarget.onerror = null;
-                        event.currentTarget.src = generateProductImage(
-                          value.productName,
-                          value.productCode,
-                        );
-                      }}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(event) => applyImage(event.target.files?.[0] ?? null)}
-                  />
-                  <button
-                    type="button"
-                    className="btn-outline-secondary"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    Arraste e solte ou clique para enviar
-                  </button>
-                  {value.productImageName ? (
-                    <span className="mt-2 text-xs text-text-secondary">
-                      Arquivo: {value.productImageName}
-                    </span>
-                  ) : null}
-                </div>
-              </label>
               <label className="block">
                 <span className="mb-1.5 block text-sm text-text-secondary">Nome do Produto *</span>
                 <input
@@ -1028,7 +946,7 @@ export default function ProductRegisterPage() {
           </div>
         ) : null}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-base">
+          <table className="w-full min-w-[860px] text-base">
             <thead className="bg-bg-primary text-left text-text-secondary">
               <tr>
                 <th className="w-12 px-4 py-3">
@@ -1040,7 +958,6 @@ export default function ProductRegisterPage() {
                     className="h-4 w-4 rounded border-border-secondary accent-accent"
                   />
                 </th>
-                <th className="px-4 py-3">Imagem</th>
                 <th className="px-4 py-3">Produto</th>
                 <th className="px-4 py-3">Código</th>
                 <th className="px-4 py-3">Fornecedor</th>
@@ -1052,13 +969,13 @@ export default function ProductRegisterPage() {
             <tbody>
               {loadingProducts ? (
                 <tr>
-                  <td colSpan={8} className="px-5 py-16 text-center text-text-secondary">
+                  <td colSpan={7} className="px-5 py-16 text-center text-text-secondary">
                     Carregando produtos...
                   </td>
                 </tr>
               ) : paginatedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-5 py-16 text-center">
+                  <td colSpan={7} className="px-5 py-16 text-center">
                     <PackageOpen size={34} className="mx-auto text-text-tertiary" />
                     <p className="mt-3 font-semibold text-text-primary">
                       {search ? "Nenhum produto encontrado" : "Nenhum produto cadastrado"}
@@ -1078,25 +995,6 @@ export default function ProductRegisterPage() {
                       aria-label={`Selecionar ${product.productName}`}
                       className="h-4 w-4 rounded border-border-secondary accent-accent"
                     />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="h-14 w-14 overflow-hidden rounded-lg border border-border-primary bg-bg-light">
-                      <img
-                        src={
-                          product.productImageUrl ||
-                          productImagePath(product.productName, product.productCode)
-                        }
-                        alt={product.productName}
-                        onError={(event) => {
-                          event.currentTarget.onerror = null;
-                          event.currentTarget.src = generateProductImage(
-                            product.productName,
-                            product.productCode,
-                          );
-                        }}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
                   </td>
                   <td className="px-4 py-3 font-semibold text-text-primary">{product.productName}</td>
                   <td className="px-4 py-3">{product.productCode}</td>
