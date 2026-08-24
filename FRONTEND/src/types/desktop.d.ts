@@ -3,7 +3,6 @@ export {};
 declare global {
   type DesktopPreferenceKey =
     | "startWithWindows"
-    | "closeToTray"
     | "globalShortcuts"
     | "automaticUpdates"
     | "fitSmallScreens";

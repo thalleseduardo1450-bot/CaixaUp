@@ -1,5 +1,16 @@
 # Novidades do CaixaUp
 
+## 3.3.3
+
+### Correção do atualizador
+
+- Corrigida a atualização que baixava, mas não executava o instalador.
+- O CaixaUp agora encerra todos os processos antes de instalar a nova versão.
+- Clicar no `X` ou usar `Alt + F4` fecha completamente o aplicativo.
+- Removido o funcionamento em segundo plano pela bandeja do Windows.
+- Mensagens de erro da atualização agora aparecem nas configurações.
+- Novo arquivo de diagnóstico local para facilitar futuras verificações.
+
 ## 3.3.2
 
 ### Compatibilidade com telas menores

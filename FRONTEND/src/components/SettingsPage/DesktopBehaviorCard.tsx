@@ -2,7 +2,6 @@ import {
   Download,
   Keyboard,
   Maximize2,
-  PanelTopClose,
   Power,
   RefreshCw,
 } from "lucide-react";
@@ -11,7 +10,6 @@ import { Toast } from "@/hooks/Dialog";
 
 const DEFAULT_PREFERENCES: DesktopPreferences = {
   startWithWindows: false,
-  closeToTray: false,
   globalShortcuts: false,
   automaticUpdates: true,
   fitSmallScreens: true,
@@ -121,14 +119,6 @@ export default function DesktopBehaviorCard() {
         checked={preferences.startWithWindows}
         disabled={!desktop}
         onChange={(value) => void changePreference("startWithWindows", value)}
-      />
-      <PreferenceRow
-        title="Fechar para a bandeja"
-        description="O botão fechar mantém o CaixaUp ao lado do relógio."
-        icon={<PanelTopClose size={19} />}
-        checked={preferences.closeToTray}
-        disabled={!desktop}
-        onChange={(value) => void changePreference("closeToTray", value)}
       />
       <PreferenceRow
         title="Adaptar para telas menores"

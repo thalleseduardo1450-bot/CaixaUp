@@ -9,8 +9,6 @@
 const {
   app,
   BrowserWindow,
-  Menu,
-  Tray,
   dialog,
   globalShortcut,
   ipcMain,
@@ -34,13 +32,11 @@ let webServer = null;
 let splash = null;
 let mainWindow = null;
 let updatePromptShown = false;
-let tray = null;
 let appIsQuitting = false;
 let updateStatus = { status: "idle", message: "Atualizações automáticas ativas" };
 
 const DEFAULT_DESKTOP_PREFERENCES = {
   startWithWindows: false,
-  closeToTray: true,
   globalShortcuts: true,
   automaticUpdates: true,
   fitSmallScreens: true,
@@ -214,10 +210,11 @@ function createMainWindow() {
     return { action: "deny" };
   });
 
-  mainWindow.on("close", (event) => {
-    if (!desktopPreferences.closeToTray || appIsQuitting) return;
-    event.preventDefault();
-    mainWindow.hide();
+  mainWindow.on("close", () => {
+    appIsQuitting = true;
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== mainWindow && !window.isDestroyed()) window.destroy();
+    });
   });
 }
 
@@ -232,6 +229,21 @@ function sanitizarUserAgent() {
 
 function getUpdateStatePath() {
   return path.join(app.getPath("userData"), "caixaup-update.json");
+}
+
+function getUpdateLogPath() {
+  return path.join(app.getPath("userData"), "caixaup-updater.log");
+}
+
+function logUpdate(message, error) {
+  const detail = error ? `: ${error.message || error}` : "";
+  const line = `[${new Date().toISOString()}] ${message}${detail}`;
+  console.log(`[atualizacao] ${message}${detail}`);
+  try {
+    fs.appendFileSync(getUpdateLogPath(), `${line}\n`, "utf8");
+  } catch {
+    // O log é auxiliar e não pode interromper o aplicativo.
+  }
 }
 
 function getDesktopPreferencesPath() {
@@ -266,31 +278,6 @@ function showMainWindow() {
   mainWindow.focus();
 }
 
-function configureTray() {
-  if (!desktopPreferences.closeToTray) {
-    if (tray) tray.destroy();
-    tray = null;
-    return;
-  }
-  if (tray) return;
-  tray = new Tray(path.join(__dirname, "build", "icon.png"));
-  tray.setToolTip("CaixaUp");
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: "Abrir CaixaUp", click: showMainWindow },
-      { type: "separator" },
-      {
-        label: "Sair",
-        click: () => {
-          appIsQuitting = true;
-          app.quit();
-        },
-      },
-    ]),
-  );
-  tray.on("double-click", showMainWindow);
-}
-
 function configureGlobalShortcuts() {
   globalShortcut.unregisterAll();
   if (!desktopPreferences.globalShortcuts) return;
@@ -304,7 +291,6 @@ function applyDesktopPreferences() {
       path: process.execPath,
     });
   }
-  configureTray();
   configureGlobalShortcuts();
   if (mainWindow && !mainWindow.isDestroyed()) {
     zoomAtual = computeZoom();
@@ -369,17 +355,24 @@ function configureAutoUpdater() {
   if (!packaged) return;
 
   autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.autoInstallOnAppQuit = false;
   autoUpdater.allowPrerelease = false;
   autoUpdater.fullChangelog = true;
 
   autoUpdater.on("error", (error) => {
-    console.log(`[atualizacao] falha: ${error.message || error}`);
-    sendUpdateStatus({ status: "error", message: "Não foi possível verificar atualizações" });
+    logUpdate("Falha no atualizador", error);
+    sendUpdateStatus({
+      status: "error",
+      message: `Falha na atualização: ${error.message || error}`,
+    });
+  });
+
+  autoUpdater.on("before-quit-for-update", () => {
+    appIsQuitting = true;
   });
 
   autoUpdater.on("update-available", (info) => {
-    console.log(`[atualizacao] versao ${info.version} encontrada; baixando`);
+    logUpdate(`Versão ${info.version} encontrada; iniciando download`);
     sendUpdateStatus({
       status: "downloading",
       version: info.version,
@@ -389,7 +382,7 @@ function configureAutoUpdater() {
   });
 
   autoUpdater.on("update-not-available", () => {
-    console.log("[atualizacao] CaixaUp ja esta atualizado");
+    logUpdate("CaixaUp já está atualizado");
     sendUpdateStatus({ status: "updated", message: "CaixaUp está atualizado", percent: 100 });
   });
 
@@ -412,14 +405,19 @@ function configureAutoUpdater() {
       percent: 100,
       message: `Instalando a versão ${info.version}`,
     });
-    setTimeout(() => autoUpdater.quitAndInstall(false, true), 1800);
+    logUpdate(`Versão ${info.version} baixada; encerrando para instalar`);
+    appIsQuitting = true;
+    setTimeout(() => {
+      logUpdate(`Executando instalador da versão ${info.version}`);
+      autoUpdater.quitAndInstall(true, true);
+    }, 700);
   });
 
   const checkForUpdates = () => {
     if (!desktopPreferences.automaticUpdates) return;
     sendUpdateStatus({ status: "checking", message: "Procurando atualizações" });
     autoUpdater.checkForUpdates().catch((error) => {
-      console.log(`[atualizacao] nao foi possivel verificar: ${error.message || error}`);
+      logUpdate("Não foi possível verificar atualizações", error);
     });
   };
 
@@ -471,7 +469,6 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
-  if (desktopPreferences.closeToTray && !appIsQuitting) return;
   if (webServer) webServer.close();
   app.quit();
 });
