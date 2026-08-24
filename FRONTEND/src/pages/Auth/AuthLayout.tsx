@@ -6,6 +6,7 @@
 import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import CaixaUpLogo from "@/components/Brand/CaixaUpLogo";
+import { SUPPORT_EMAIL } from "@/config/brand";
 
 type AuthLayoutProps = {
   title: string;
@@ -70,6 +71,16 @@ export default function AuthLayout({
               </p>
 
               <div className="auth-login-reveal-3 mt-6 space-y-4">{children}</div>
+
+              <p className="mt-6 text-center text-xs text-text-tertiary">
+                Precisa de ajuda?{" "}
+                <a
+                  href={`mailto:${SUPPORT_EMAIL}`}
+                  className="font-semibold text-secondary hover:text-hover-secondary"
+                >
+                  {SUPPORT_EMAIL}
+                </a>
+              </p>
             </div>
           </div>
         </section>

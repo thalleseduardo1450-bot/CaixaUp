@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <title>CaixaUp · Segurança da conta</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #f4f7fb; color: #172033; font-family: "Segoe UI", Arial, sans-serif; }
+      main { width: min(100%, 460px); padding: 32px; border: 1px solid #dce5f2; border-radius: 18px; background: #fff; box-shadow: 0 18px 50px rgba(37, 99, 235, .12); }
+      .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; color: #2563eb; font-size: 25px; font-weight: 800; }
+      .mark { display: grid; width: 46px; height: 46px; place-items: center; border-radius: 13px; background: #2563eb; color: #fff; font-size: 25px; }
+      h1 { margin: 0 0 10px; font-size: 26px; }
+      p { margin: 0 0 22px; color: #607089; line-height: 1.55; }
+      label { display: block; margin-bottom: 14px; font-weight: 650; }
+      input { width: 100%; min-height: 50px; margin-top: 7px; padding: 0 14px; border: 1px solid #cbd7e7; border-radius: 10px; font: inherit; }
+      input:focus { outline: 3px solid rgba(37, 99, 235, .2); border-color: #2563eb; }
+      button { width: 100%; min-height: 50px; border: 0; border-radius: 10px; background: #2563eb; color: #fff; font: inherit; font-weight: 750; cursor: pointer; }
+      button:disabled { cursor: wait; opacity: .65; }
+      .message { padding: 14px; border-radius: 10px; background: #eef4ff; color: #27446d; }
+      .success { background: #eaf8ef; color: #176b38; }
+      .error { background: #fff0f0; color: #a62626; }
+      .hidden { display: none; }
+      small { display: block; margin-top: 20px; text-align: center; color: #7a8799; }
+      a { color: #2563eb; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="brand"><span class="mark">C</span>CaixaUp</div>
+
+      <section id="loading">
+        <h1>Validando seu acesso</h1>
+        <p class="message">Aguarde alguns segundos.</p>
+      </section>
+
+      <section id="reset" class="hidden">
+        <h1>Crie uma nova senha</h1>
+        <p>Digite a nova senha da sua conta CaixaUp.</p>
+        <form id="reset-form">
+          <label>Nova senha<input id="password" type="password" minlength="8" autocomplete="new-password" required /></label>
+          <label>Confirmar senha<input id="confirm-password" type="password" minlength="8" autocomplete="new-password" required /></label>
+          <button id="submit" type="submit">Salvar nova senha</button>
+        </form>
+      </section>
+
+      <section id="result" class="hidden">
+        <h1 id="result-title"></h1>
+        <p id="result-message" class="message"></p>
+      </section>
+
+      <small>Dúvidas? <a href="mailto:contato@caixaup.dpdns.org">contato@caixaup.dpdns.org</a></small>
+    </main>
+
+    <script type="module">
+      import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+      const supabase = createClient(
+        "https://tugtruobxcfulbcipbkh.supabase.co",
+        "sb_publishable_SQdUlF0ytdANtZZRt8FkTQ_xD429GIs",
+        { auth: { detectSessionInUrl: true, persistSession: false } },
+      );
+
+      const loading = document.querySelector("#loading");
+      const reset = document.querySelector("#reset");
+      const result = document.querySelector("#result");
+      const form = document.querySelector("#reset-form");
+      const submit = document.querySelector("#submit");
+
+      function showResult(title, message, success = true) {
+        loading.classList.add("hidden");
+        reset.classList.add("hidden");
+        result.classList.remove("hidden");
+        document.querySelector("#result-title").textContent = title;
+        const messageBox = document.querySelector("#result-message");
+        messageBox.textContent = message;
+        messageBox.className = `message ${success ? "success" : "error"}`;
+      }
+
+      async function initialize() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("confirmed") === "1") {
+          showResult("E-mail confirmado", "Sua conta está pronta. Você já pode fechar esta página e entrar no CaixaUp.");
+          setTimeout(() => window.close(), 2500);
+          return;
+        }
+
+        const { data, error } = await supabase.auth.getSession();
+        if (error || !data.session) {
+          showResult("Link inválido ou expirado", "Solicite um novo e-mail de recuperação pelo aplicativo CaixaUp.", false);
+          return;
+        }
+
+        loading.classList.add("hidden");
+        reset.classList.remove("hidden");
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const password = document.querySelector("#password").value;
+        const confirmation = document.querySelector("#confirm-password").value;
+        if (password !== confirmation) {
+          showResult("As senhas não conferem", "Volte ao aplicativo e solicite um novo link para tentar novamente.", false);
+          return;
+        }
+
+        submit.disabled = true;
+        submit.textContent = "Salvando...";
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) {
+          showResult("Não foi possível salvar", "O link pode ter expirado. Solicite outro e-mail pelo CaixaUp.", false);
+          return;
+        }
+
+        await supabase.auth.signOut();
+        showResult("Senha atualizada", "Tudo certo. Esta página será fechada e você já poderá entrar no CaixaUp.");
+        setTimeout(() => window.close(), 2500);
+      });
+
+      initialize();
+    </script>
+  </body>
+</html>
