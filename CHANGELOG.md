@@ -1,5 +1,14 @@
 # Novidades do CaixaUp
 
+## 3.3.2
+
+### Compatibilidade com telas menores
+
+- Nova opção **Adaptar para telas menores** nas configurações.
+- Interface completa ajustada automaticamente para monitores `1024 × 768`.
+- Menus, caixa, botões e janelas permanecem visíveis sem cortes.
+- A escala é recalculada imediatamente quando a preferência é alterada.
+
 ## 3.3.1
 
 ### Atualizações

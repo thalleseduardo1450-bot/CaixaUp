@@ -5,7 +5,8 @@ declare global {
     | "startWithWindows"
     | "closeToTray"
     | "globalShortcuts"
-    | "automaticUpdates";
+    | "automaticUpdates"
+    | "fitSmallScreens";
 
   type DesktopPreferences = Record<DesktopPreferenceKey, boolean>;
 

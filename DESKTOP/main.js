@@ -43,6 +43,7 @@ const DEFAULT_DESKTOP_PREFERENCES = {
   closeToTray: true,
   globalShortcuts: true,
   automaticUpdates: true,
+  fitSmallScreens: true,
 };
 
 let desktopPreferences = { ...DEFAULT_DESKTOP_PREFERENCES };
@@ -113,7 +114,7 @@ const REF_W = 1440;
 const REF_H = 810;
 const MIN_CSS_W = 1024;
 const MIN_CSS_H = 620;
-const ZOOM_MIN = 1.0;
+const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 1.5;
 
 let zoomAtual = 1;
@@ -121,6 +122,9 @@ let zoomAtual = 1;
 function computeZoom() {
   const display = screen.getPrimaryDisplay();
   const { width: w, height: h } = display.workAreaSize;
+  if (!desktopPreferences.fitSmallScreens) {
+    return Math.min(ZOOM_MAX, Math.max(1, Math.round(Math.min(w / REF_W, h / REF_H) * 20) / 20));
+  }
   const alvo = Math.min(w / REF_W, h / REF_H);
   const teto = Math.min(w / MIN_CSS_W, h / MIN_CSS_H);
   const z = Math.min(alvo, teto, ZOOM_MAX);
@@ -302,6 +306,10 @@ function applyDesktopPreferences() {
   }
   configureTray();
   configureGlobalShortcuts();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    zoomAtual = computeZoom();
+    mainWindow.webContents.setZoomFactor(zoomAtual);
+  }
 }
 
 function sendUpdateStatus(nextStatus) {

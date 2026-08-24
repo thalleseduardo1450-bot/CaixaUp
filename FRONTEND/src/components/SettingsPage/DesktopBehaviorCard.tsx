@@ -1,6 +1,7 @@
 import {
   Download,
   Keyboard,
+  Maximize2,
   PanelTopClose,
   Power,
   RefreshCw,
@@ -13,6 +14,7 @@ const DEFAULT_PREFERENCES: DesktopPreferences = {
   closeToTray: false,
   globalShortcuts: false,
   automaticUpdates: true,
+  fitSmallScreens: true,
 };
 
 type PreferenceRowProps = {
@@ -127,6 +129,14 @@ export default function DesktopBehaviorCard() {
         checked={preferences.closeToTray}
         disabled={!desktop}
         onChange={(value) => void changePreference("closeToTray", value)}
+      />
+      <PreferenceRow
+        title="Adaptar para telas menores"
+        description="Reduz a interface inteira para caber sem cortes em 1024 × 768."
+        icon={<Maximize2 size={19} />}
+        checked={preferences.fitSmallScreens}
+        disabled={!desktop}
+        onChange={(value) => void changePreference("fitSmallScreens", value)}
       />
       <PreferenceRow
         title="Atalho global"
