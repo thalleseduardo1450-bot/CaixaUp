@@ -1,5 +1,12 @@
 # Novidades do CaixaUp
 
+## 3.3.4
+
+### Validação final
+
+- Versão publicada para confirmar o fluxo automático corrigido.
+- Mantém o fechamento completo e a adaptação para telas `1024 × 768`.
+
 ## 3.3.3
 
 ### Correção do atualizador
