@@ -40,7 +40,7 @@ const PRODUCT_HEADERS = {
 const CUSTOMER_HEADERS = {
   name: ["cliente", "nome", "nome do cliente", "razao social", "razão social"],
   document: ["cpf/cnpj", "cpf / cnpj", "cpf cnpj", "documento", "cpf", "cnpj"],
-  birthDate: ["data de nascimento", "nascimento", "data nascimento", "dn"],
+  birthDate: ["data de nascimento", "data nasc.", "data nasc", "nascimento", "data nascimento", "dn"],
   cep: ["cep", "codigo postal", "código postal"],
   city: ["cidade", "municipio", "município"],
   state: ["estado", "uf"],
@@ -137,13 +137,17 @@ export async function readNextarRows(file: File) {
   const firstSheetName = workbook.SheetNames[0];
   if (!firstSheetName) return [];
   return utils
-    .sheet_to_json<Array<string | number | boolean>>(workbook.Sheets[firstSheetName], {
+    .sheet_to_json<Array<string | number | boolean | Date>>(workbook.Sheets[firstSheetName], {
       header: 1,
-      raw: false,
+      raw: true,
       defval: "",
       dateNF: "yyyy-mm-dd",
     })
-    .map((row) => row.map((cell) => String(cell).trim()))
+    .map((row) =>
+      row.map((cell) =>
+        cell instanceof Date ? cell.toISOString().slice(0, 10) : String(cell).trim(),
+      ),
+    )
     .filter((row) => row.some(Boolean));
 }
 
@@ -167,6 +171,14 @@ function parseNumber(value: string) {
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeIdentifier(value: string) {
+  const clean = value.trim();
+  if (!/^[-+]?\d+(?:[.,]\d+)?e[-+]?\d+$/i.test(clean)) return clean;
+
+  const parsed = Number(clean.replace(",", "."));
+  return Number.isSafeInteger(parsed) ? parsed.toLocaleString("fullwide", { useGrouping: false }) : clean;
 }
 
 function findColumn(headers: string[], aliases: readonly string[]) {
@@ -200,9 +212,15 @@ function normalizeDate(value: string) {
   const clean = value.trim();
   if (!clean) return "";
   if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
-  const match = clean.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);
+  const match = clean.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/);
   if (!match) return "";
-  return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+  const first = Number(match[1]);
+  const second = Number(match[2]);
+  const day = first > 12 ? first : second > 12 ? second : first;
+  const month = first > 12 ? second : second > 12 ? first : second;
+  const shortYear = Number(match[3]);
+  const year = match[3].length === 2 ? (shortYear > 30 ? 1900 + shortYear : 2000 + shortYear) : shortYear;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 export function parseNextarProducts(rows: string[][]): NextarImportResult<NextarProductRow> {
@@ -233,7 +251,7 @@ export function parseNextarProducts(rows: string[][]): NextarImportResult<Nextar
 
   for (const cells of expandedRows.slice(headerIndex + 1)) {
     const name = cells[columns.name]?.trim() ?? "";
-    const code = cells[columns.code]?.trim() ?? "";
+    const code = normalizeIdentifier(cells[columns.code]?.trim() ?? "");
     const salePrice = parseNumber(cells[columns.salePrice] ?? "");
     if (name.length < 2 || !code || salePrice <= 0) {
       skipped += 1;

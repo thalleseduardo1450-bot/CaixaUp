@@ -19,6 +19,7 @@ import { productService, type ProductDto } from "@/services/api/productService";
 import { supplierService, type SupplierPayload } from "@/services/api/supplierService";
 import { lookupAddressByCep } from "@/utils/cepLookup";
 import { onlyDigits } from "@/utils/inputMasks";
+import { generateProductImage, productImagePath } from "@/utils/productImage";
 import { isValidCnpj, isValidEmail } from "@/utils/validators";
 import {
   formatImportMoney,
@@ -314,17 +315,21 @@ function ProductFormDrawer({
                   }`}
                 >
                   <div className="mb-3 h-24 w-24 overflow-hidden rounded-2xl border border-border-primary bg-bg-light shadow-sm">
-                    {value.productImageUrl ? (
-                      <img
-                        src={value.productImageUrl}
-                        alt="Pré-visualização do produto"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-center text-sm font-medium text-text-tertiary">
-                        Sem imagem
-                      </div>
-                    )}
+                    <img
+                      src={
+                        value.productImageUrl ||
+                        productImagePath(value.productName, value.productCode)
+                      }
+                      alt="Pré-visualização do produto"
+                      onError={(event) => {
+                        event.currentTarget.onerror = null;
+                        event.currentTarget.src = generateProductImage(
+                          value.productName,
+                          value.productCode,
+                        );
+                      }}
+                      className="h-full w-full object-cover"
+                    />
                   </div>
                   <input
                     ref={fileInputRef}
@@ -789,56 +794,23 @@ export default function ProductRegisterPage() {
         throw new Error("Nenhum produto válido foi encontrado no arquivo.");
       }
 
-      const [currentProducts, currentSuppliers] = await Promise.all([
-        productService.list(),
-        supplierService.list(),
-      ]);
-      let fallbackSupplier = currentSuppliers.find(
-        (supplier) =>
-          supplier.fantasyName.toLowerCase() === "importado do nex" ||
-          supplier.fantasyName.toLowerCase() === "importado do nextar",
-      );
-      if (!fallbackSupplier) {
-        fallbackSupplier = await supplierService.create({
-          companyName: "Importação Nex",
-          fantasyName: "Importado do Nex",
-          cnpj: "00000000000191",
-          cep: "",
-          city: "",
-          state: "",
-          address: "",
-          neighborhood: "",
-          streetComplement: "",
-          number: "",
-          referencePoint: "Cadastro técnico criado na importação",
-          telephone: "",
-          cellphone: "00000000000",
-          email: "",
-        });
-      }
-      if (!fallbackSupplier) throw new Error("Não foi possível preparar o fornecedor da importação.");
-
-      const suppliers = [...currentSuppliers, fallbackSupplier];
+      const currentProducts = await productService.list();
       const productsByCode = new Map(
         currentProducts.map((product) => [product.productCode.trim().toLowerCase(), product]),
       );
       let created = 0;
       let updated = 0;
       let failed = 0;
+      let firstFailure = "";
 
       for (const imported of parsed.records) {
         const existing = productsByCode.get(imported.code.trim().toLowerCase());
-        const matchingSupplier = suppliers.find(
-          (supplier) =>
-            supplier.fantasyName.toLowerCase() === imported.supplier.toLowerCase() ||
-            supplier.companyName.toLowerCase() === imported.supplier.toLowerCase(),
-        );
         const payload: Omit<ProductDto, "id"> = {
           productImageUrl: existing?.productImageUrl || "",
           productImageName: existing?.productImageName || "",
           productName: imported.name,
           productCode: imported.code,
-          productSupplier: matchingSupplier?.fantasyName || fallbackSupplier.fantasyName,
+          productSupplier: existing?.productSupplier || imported.supplier || "Importado do Nex",
           productDescription: existing?.productDescription || "Importado do Nex",
           productQnt: String(imported.quantity),
           productUnitPrice: formatImportMoney(imported.unitPrice),
@@ -853,8 +825,11 @@ export default function ProductRegisterPage() {
           if (saved) productsByCode.set(saved.productCode.trim().toLowerCase(), saved);
           if (existing) updated += 1;
           else created += 1;
-        } catch {
+        } catch (error) {
           failed += 1;
+          if (!firstFailure) {
+            firstFailure = error instanceof Error ? error.message : String(error);
+          }
         }
       }
 
@@ -864,9 +839,12 @@ export default function ProductRegisterPage() {
           .map((supplier) => supplier.fantasyName || supplier.companyName)
           .filter((supplier) => supplier.trim().length > 0),
       );
+      if (created === 0 && updated === 0 && failed > 0) {
+        throw new Error(`Não foi possível salvar os produtos. ${firstFailure}`);
+      }
       Toast.success(
         `Nex importado: ${created} novos, ${updated} atualizados` +
-          (failed > 0 ? `, ${failed} com erro` : "") +
+          (failed > 0 ? `, ${failed} com erro (${firstFailure})` : "") +
           (parsed.skipped > 0 ? `, ${parsed.skipped} linhas ignoradas.` : "."),
       );
     } catch (error) {
@@ -1051,17 +1029,21 @@ export default function ProductRegisterPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="h-12 w-12 overflow-hidden rounded-lg border border-border-primary bg-bg-light">
-                      {product.productImageUrl ? (
-                        <img
-                          src={product.productImageUrl}
-                          alt={product.productName}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-[10px] text-text-tertiary">
-                          Sem
-                        </div>
-                      )}
+                      <img
+                        src={
+                          product.productImageUrl ||
+                          productImagePath(product.productName, product.productCode)
+                        }
+                        alt={product.productName}
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.src = generateProductImage(
+                            product.productName,
+                            product.productCode,
+                          );
+                        }}
+                        className="h-full w-full object-cover"
+                      />
                     </div>
                   </td>
                   <td className="px-4 py-3">{product.productName}</td>

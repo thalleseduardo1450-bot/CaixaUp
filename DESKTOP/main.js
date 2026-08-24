@@ -6,7 +6,17 @@
  * com o Supabase (nuvem), protegido pelo RLS. O app só precisa de internet.
  * Serve o frontend em 127.0.0.1:4173 e abre a janela do PDV.
  */
-const { app, BrowserWindow, shell, dialog, screen } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  Tray,
+  dialog,
+  globalShortcut,
+  ipcMain,
+  screen,
+  shell,
+} = require("electron");
 const { autoUpdater } = require("electron-updater");
 const http = require("http");
 const fs = require("fs");
@@ -24,6 +34,18 @@ let webServer = null;
 let splash = null;
 let mainWindow = null;
 let updatePromptShown = false;
+let tray = null;
+let appIsQuitting = false;
+let updateStatus = { status: "idle", message: "Atualizações automáticas ativas" };
+
+const DEFAULT_DESKTOP_PREFERENCES = {
+  startWithWindows: false,
+  closeToTray: true,
+  globalShortcuts: true,
+  automaticUpdates: true,
+};
+
+let desktopPreferences = { ...DEFAULT_DESKTOP_PREFERENCES };
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -136,7 +158,12 @@ function createMainWindow() {
     autoHideMenuBar: true,
     icon: path.join(__dirname, "build", "icon.png"),
     title: "CaixaUp",
-    webPreferences: { contextIsolation: true, nodeIntegration: false, zoomFactor: zoomAtual },
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, "preload.js"),
+      zoomFactor: zoomAtual,
+    },
   });
 
   mainWindow.setMenuBarVisibility(false);
@@ -182,6 +209,12 @@ function createMainWindow() {
     shell.openExternal(url);
     return { action: "deny" };
   });
+
+  mainWindow.on("close", (event) => {
+    if (!desktopPreferences.closeToTray || appIsQuitting) return;
+    event.preventDefault();
+    mainWindow.hide();
+  });
 }
 
 function sanitizarUserAgent() {
@@ -195,6 +228,87 @@ function sanitizarUserAgent() {
 
 function getUpdateStatePath() {
   return path.join(app.getPath("userData"), "caixaup-update.json");
+}
+
+function getDesktopPreferencesPath() {
+  return path.join(app.getPath("userData"), "caixaup-preferences.json");
+}
+
+function loadDesktopPreferences() {
+  try {
+    const preferencesPath = getDesktopPreferencesPath();
+    if (!fs.existsSync(preferencesPath)) return;
+    desktopPreferences = {
+      ...DEFAULT_DESKTOP_PREFERENCES,
+      ...JSON.parse(fs.readFileSync(preferencesPath, "utf8")),
+    };
+  } catch (error) {
+    console.log(`[preferencias] nao foi possivel carregar: ${error.message || error}`);
+  }
+}
+
+function saveDesktopPreferences() {
+  fs.writeFileSync(
+    getDesktopPreferencesPath(),
+    JSON.stringify(desktopPreferences, null, 2),
+    "utf8",
+  );
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function configureTray() {
+  if (!desktopPreferences.closeToTray) {
+    if (tray) tray.destroy();
+    tray = null;
+    return;
+  }
+  if (tray) return;
+  tray = new Tray(path.join(__dirname, "build", "icon.png"));
+  tray.setToolTip("CaixaUp");
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: "Abrir CaixaUp", click: showMainWindow },
+      { type: "separator" },
+      {
+        label: "Sair",
+        click: () => {
+          appIsQuitting = true;
+          app.quit();
+        },
+      },
+    ]),
+  );
+  tray.on("double-click", showMainWindow);
+}
+
+function configureGlobalShortcuts() {
+  globalShortcut.unregisterAll();
+  if (!desktopPreferences.globalShortcuts) return;
+  globalShortcut.register("CommandOrControl+Shift+C", showMainWindow);
+}
+
+function applyDesktopPreferences() {
+  if (packaged) {
+    app.setLoginItemSettings({
+      openAtLogin: desktopPreferences.startWithWindows,
+      path: process.execPath,
+    });
+  }
+  configureTray();
+  configureGlobalShortcuts();
+}
+
+function sendUpdateStatus(nextStatus) {
+  updateStatus = { ...updateStatus, ...nextStatus };
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("desktop:update-status", updateStatus);
+  }
 }
 
 function formatReleaseNotes(releaseNotes) {
@@ -234,14 +348,9 @@ async function showInstalledUpdate() {
     const state = JSON.parse(fs.readFileSync(statePath, "utf8"));
     if (state.version !== app.getVersion()) return;
     fs.unlinkSync(statePath);
-    await dialog.showMessageBox(mainWindow, {
-      type: "info",
-      title: "CaixaUp atualizado",
-      message: `Atualização concluída: versão ${state.version}`,
-      detail: state.notes || "A nova versão foi instalada com sucesso.",
-      buttons: ["Continuar"],
-      defaultId: 0,
-      noLink: true,
+    mainWindow.webContents.send("desktop:update-installed", {
+      version: state.version,
+      notes: state.notes || "A nova versão foi instalada com sucesso.",
     });
   } catch (error) {
     console.log(`[atualizacao] nao foi possivel mostrar o resumo: ${error.message || error}`);
@@ -254,17 +363,34 @@ function configureAutoUpdater() {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
+  autoUpdater.fullChangelog = true;
 
   autoUpdater.on("error", (error) => {
     console.log(`[atualizacao] falha: ${error.message || error}`);
+    sendUpdateStatus({ status: "error", message: "Não foi possível verificar atualizações" });
   });
 
   autoUpdater.on("update-available", (info) => {
     console.log(`[atualizacao] versao ${info.version} encontrada; baixando`);
+    sendUpdateStatus({
+      status: "downloading",
+      version: info.version,
+      percent: 0,
+      message: `Baixando a versão ${info.version}`,
+    });
   });
 
   autoUpdater.on("update-not-available", () => {
     console.log("[atualizacao] CaixaUp ja esta atualizado");
+    sendUpdateStatus({ status: "updated", message: "CaixaUp está atualizado", percent: 100 });
+  });
+
+  autoUpdater.on("download-progress", (progress) => {
+    sendUpdateStatus({
+      status: "downloading",
+      percent: Math.round(progress.percent),
+      message: `Baixando atualização: ${Math.round(progress.percent)}%`,
+    });
   });
 
   autoUpdater.on("update-downloaded", async (info) => {
@@ -272,44 +398,61 @@ function configureAutoUpdater() {
     updatePromptShown = true;
     savePendingUpdate(info);
 
-    let installing = false;
-    const installUpdate = () => {
-      if (installing) return;
-      installing = true;
-      autoUpdater.quitAndInstall(false, true);
-    };
-    const installTimer = setTimeout(installUpdate, 8000);
-
-    await dialog.showMessageBox(mainWindow, {
-      type: "info",
-      title: "Atualização pronta",
-      message: `A versão ${info.version} será instalada automaticamente.`,
-      detail:
-        "O CaixaUp vai reiniciar sozinho em alguns segundos. Depois ele mostrará o que mudou nesta versão.",
-      buttons: ["Atualizar agora"],
-      defaultId: 0,
-      noLink: true,
+    sendUpdateStatus({
+      status: "installing",
+      version: info.version,
+      percent: 100,
+      message: `Instalando a versão ${info.version}`,
     });
-    clearTimeout(installTimer);
-    installUpdate();
+    setTimeout(() => autoUpdater.quitAndInstall(false, true), 1800);
   });
 
   const checkForUpdates = () => {
+    if (!desktopPreferences.automaticUpdates) return;
+    sendUpdateStatus({ status: "checking", message: "Procurando atualizações" });
     autoUpdater.checkForUpdates().catch((error) => {
       console.log(`[atualizacao] nao foi possivel verificar: ${error.message || error}`);
     });
   };
 
-  setTimeout(checkForUpdates, 10000);
-  setInterval(checkForUpdates, 4 * 60 * 60 * 1000);
+  setTimeout(checkForUpdates, 3000);
+}
+
+function configureDesktopIpc() {
+  ipcMain.handle("desktop:preferences:get", () => ({ ...desktopPreferences }));
+  ipcMain.handle("desktop:preferences:set", (_event, { key, value }) => {
+    if (!Object.hasOwn(DEFAULT_DESKTOP_PREFERENCES, key) || typeof value !== "boolean") {
+      throw new Error("Preferência inválida.");
+    }
+    desktopPreferences[key] = value;
+    saveDesktopPreferences();
+    applyDesktopPreferences();
+    return { ...desktopPreferences };
+  });
+  ipcMain.handle("desktop:app-info", () => ({
+    version: app.getVersion(),
+    packaged,
+  }));
+  ipcMain.handle("desktop:update-status", () => updateStatus);
+  ipcMain.handle("desktop:update-check", async () => {
+    if (!packaged) {
+      return { status: "development", message: "Disponível somente no aplicativo instalado" };
+    }
+    sendUpdateStatus({ status: "checking", message: "Procurando atualizações" });
+    await autoUpdater.checkForUpdates();
+    return updateStatus;
+  });
 }
 
 app.whenReady().then(async () => {
   sanitizarUserAgent();
+  loadDesktopPreferences();
+  configureDesktopIpc();
   createSplash();
   try {
     webServer = await startWebServer();
     createMainWindow();
+    applyDesktopPreferences();
     configureAutoUpdater();
     setTimeout(() => void showInstalledUpdate(), 2500);
   } catch (err) {
@@ -320,6 +463,13 @@ app.whenReady().then(async () => {
 });
 
 app.on("window-all-closed", () => {
+  if (desktopPreferences.closeToTray && !appIsQuitting) return;
   if (webServer) webServer.close();
   app.quit();
+});
+
+app.on("before-quit", () => {
+  appIsQuitting = true;
+  globalShortcut.unregisterAll();
+  if (webServer) webServer.close();
 });

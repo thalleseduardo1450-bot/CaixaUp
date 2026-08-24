@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { productService } from "@/services/api/productService";
+import { productImagePath } from "@/utils/productImage";
 import type { PdvProduct, PdvProductViewMode } from "@/types/pdv";
 import { centsFromApi } from "@/utils/pdvMoney";
 import {
@@ -58,7 +59,7 @@ export function usePdvProducts() {
           code: item.productCode,
           stock: Number(item.productQnt || 0),
           unitPriceCents: centsFromApi(item.productSalePrice),
-          imageUrl: item.productImageUrl,
+          imageUrl: item.productImageUrl || productImagePath(item.productName, item.productCode),
           supplier: item.productSupplier,
         })),
       );

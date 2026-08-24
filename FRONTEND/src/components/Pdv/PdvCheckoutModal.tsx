@@ -24,10 +24,7 @@
  * O QUE O BANCO GUARDA
  * A tabela `pagamentos` aceita uma linha por forma (forma + valor), então a
  * divisão do pagamento é gravada de verdade — não mais concatenada numa string.
- * Uma exceção honesta, sinalizada na própria tela:
- *  - "deixar em débito na conta" está desabilitado: não existe tabela de contas
- *    a receber. Um checkbox que aceita a venda e não registra a dívida perde
- *    dinheiro em silêncio, então ele fica visível e travado.
+ * O fiado exige cliente identificado e registra a dívida na conta dele.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -164,6 +161,7 @@ export default function PdvCheckoutModal({
   const [discountCents, setDiscountCents] = useState(0);
   const [discountOpen, setDiscountOpen] = useState(false);
   const [extrasOpen, setExtrasOpen] = useState(false);
+  const [onAccount, setOnAccount] = useState(false);
   const [customerId, setCustomerId] = useState(initialCustomerId);
   const [error, setError] = useState("");
 
@@ -223,8 +221,10 @@ export default function PdvCheckoutModal({
   /* ------------------------- estado de validade ------------------------- */
 
   const blockingReason = (() => {
-    if (totalCents <= 0) return "Cupom vazio.";
+    if (totalCents <= 0) return "Venda vazia.";
     if (discountCents >= totalCents) return "O desconto não pode zerar a venda.";
+    if (onAccount && !customerId) return "Identifique o cliente para deixar a venda fiada.";
+    if (onAccount) return "";
     if (overCents > 0) return `Passou ${formatCentsBrl(overCents)} do total.`;
     if (missingCents > 0) return `Falta ${formatCentsBrl(missingCents)}.`;
     return "";
@@ -267,6 +267,13 @@ export default function PdvCheckoutModal({
       if (event.key === "F3") {
         event.preventDefault();
         setDiscountOpen((current) => !current);
+        return;
+      }
+
+      if (event.key === "F4") {
+        event.preventDefault();
+        setOnAccount((current) => !current);
+        setExtrasOpen(true);
         return;
       }
 
@@ -317,7 +324,10 @@ export default function PdvCheckoutModal({
 
     /* Linhas do banco: valor APLICADO, para a soma fechar com o total. */
     const lines: PdvPaymentLine[] = [];
-    for (const method of PDV_PAYMENT_METHODS) {
+    if (onAccount) {
+      lines.push({ id: nextLineId(), type: "fiado", amountCents: dueCents });
+    }
+    for (const method of onAccount ? [] : PDV_PAYMENT_METHODS) {
       const applied =
         method.value === "dinheiro" ? appliedCashCents : valueOf(method.value);
       if (applied > 0) {
@@ -336,8 +346,8 @@ export default function PdvCheckoutModal({
             return `${label} R$ ${formatCents(line.amountCents)}`;
           })
           .join(" + ") || "Dinheiro",
-      cashGivenCents: cashCents,
-      changeCents,
+      cashGivenCents: onAccount ? 0 : cashCents,
+      changeCents: onAccount ? 0 : changeCents,
       discountCents,
       totalToPayCents: dueCents,
       customerId,
@@ -542,13 +552,19 @@ export default function PdvCheckoutModal({
           {/* Fiado e o "..." — mesma posição da referência */}
           <div className="flex items-center gap-3 px-4 py-3">
             <label
-              className="flex cursor-not-allowed items-center gap-2 text-sm text-text-tertiary"
-              title="Precisa de uma tabela de contas a receber no banco. Ainda não disponível."
+              className={`flex cursor-pointer items-center gap-2 text-sm font-semibold ${
+                onAccount ? "text-primary" : "text-text-secondary"
+              }`}
             >
               <input
                 type="checkbox"
-                disabled
-                className="h-4 w-4 cursor-not-allowed"
+                checked={onAccount}
+                onChange={(event) => {
+                  setOnAccount(event.target.checked);
+                  setExtrasOpen(true);
+                  setError("");
+                }}
+                className="h-4 w-4"
               />
               Deixar em débito na conta do cliente (F4).
             </label>

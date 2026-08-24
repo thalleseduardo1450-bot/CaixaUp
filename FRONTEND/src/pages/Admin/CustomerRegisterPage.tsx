@@ -497,6 +497,7 @@ export default function CustomerRegisterPage() {
       let created = 0;
       let updated = 0;
       let failed = 0;
+      let firstFailure = "";
 
       for (const imported of parsed.records) {
         const importedPhone = imported.cellphone || imported.telephone;
@@ -538,16 +539,22 @@ export default function CustomerRegisterPage() {
           );
           if (existing) updated += 1;
           else created += 1;
-        } catch {
+        } catch (error) {
           failed += 1;
+          if (!firstFailure) {
+            firstFailure = error instanceof Error ? error.message : String(error);
+          }
         }
       }
 
       setCustomers(await customerService.list());
       setCurrentPage(1);
+      if (created === 0 && updated === 0 && failed > 0) {
+        throw new Error(`Não foi possível salvar os clientes. ${firstFailure}`);
+      }
       Toast.success(
         `Nex importado: ${created} novos, ${updated} atualizados` +
-          (failed > 0 ? `, ${failed} com erro` : "") +
+          (failed > 0 ? `, ${failed} com erro (${firstFailure})` : "") +
           (parsed.skipped > 0 ? `, ${parsed.skipped} linhas ignoradas.` : "."),
       );
     } catch (error) {

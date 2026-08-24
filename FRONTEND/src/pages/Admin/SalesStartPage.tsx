@@ -455,6 +455,7 @@ export default function SalesStartPage({
           payment.customerDocument || cpfOnReceipt.trim() || "-";
 
         const result = await salesHistoryService.register({
+          customerId: payment.customerId,
           customerName: payment.customerName || "Consumidor",
           customerCpf: documentOnReceipt,
           paymentType: payment.paymentType,
@@ -842,7 +843,6 @@ export default function SalesStartPage({
           <PdvCart
             items={cart.items}
             totalCents={cart.totalCents}
-            itemCount={cart.itemCount}
             selectedId={selectedCartId ?? cart.lastTouchedId}
             onSelect={setSelectedCartId}
             onIncrement={cart.increment}

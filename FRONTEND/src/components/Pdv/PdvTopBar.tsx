@@ -22,6 +22,7 @@ import {
   VolumeX,
 } from "lucide-react";
 
+import { CaixaUpMark } from "@/components/Brand/CaixaUpLogo";
 import type { PdvDensity } from "@/types/pdv";
 
 type PdvTopBarProps = {
@@ -96,9 +97,7 @@ export default function PdvTopBar({
     <header className="pdv-panel-header flex shrink-0 flex-wrap items-center gap-3 border-b border-border-primary px-4 py-2.5">
       {/* Identificação da tela */}
       <div className="flex items-center gap-3">
-        <span className="pdv-brand-mark grid h-11 w-11 place-items-center rounded-lg text-lg font-bold text-white">
-          C
-        </span>
+        <CaixaUpMark height={44} />
         <div className="leading-tight">
           <p className="font-display text-lg font-bold text-text-primary">
             Frente de caixa

@@ -12,15 +12,7 @@
  * itens não pode empurrar o botão de pagamento para fora da tela.
  */
 import { useEffect, useRef } from "react";
-import {
-  Minus,
-  Plus,
-  ReceiptText,
-  Trash2,
-  User,
-  Wallet,
-  X,
-} from "lucide-react";
+import { Minus, Plus, ReceiptText, Trash2, User, Wallet, X } from "lucide-react";
 
 import type { PdvCartItem } from "@/types/pdv";
 import { formatCentsBrl } from "@/utils/pdvMoney";
@@ -28,7 +20,6 @@ import { formatCentsBrl } from "@/utils/pdvMoney";
 type PdvCartProps = {
   items: PdvCartItem[];
   totalCents: number;
-  itemCount: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onIncrement: (id: string) => void;
@@ -49,7 +40,6 @@ type PdvCartProps = {
 export default function PdvCart({
   items,
   totalCents,
-  itemCount,
   selectedId,
   onSelect,
   onIncrement,
@@ -83,20 +73,6 @@ export default function PdvCart({
 
   return (
     <aside className="flex h-full w-full flex-col border-l border-border-primary bg-bg-light">
-      {/* Cabeçalho do cupom */}
-      <div className="pdv-panel-header flex shrink-0 items-center gap-2 border-b border-border-primary px-4 py-3">
-        <span
-          className="pdv-brand-mark grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white"
-          aria-hidden="true"
-        >
-          <ReceiptText size={18} />
-        </span>
-        <h2 className="font-display text-lg font-bold text-text-primary">Cupom</h2>
-        <span className="ml-auto rounded-full border border-border-primary bg-bg-gray-theme px-2.5 py-1 text-xs font-semibold text-text-secondary">
-          {itemCount} {itemCount === 1 ? "item" : "itens"}
-        </span>
-      </div>
-
       {/* Cliente */}
       <button
         type="button"
@@ -125,7 +101,7 @@ export default function PdvCart({
           >
             <ReceiptText size={32} />
           </div>
-          <p className="mt-1 text-base font-semibold text-text-primary">Cupom vazio</p>
+          <p className="mt-1 text-base font-semibold text-text-primary">Venda vazia</p>
           <p className="text-sm text-text-secondary">
             Bipe o código de barras ou toque em um produto ao lado.
           </p>

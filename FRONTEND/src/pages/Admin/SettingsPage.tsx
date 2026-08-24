@@ -7,6 +7,7 @@ import { Package } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { YesNoSegmentedControl } from "@/components/Form";
 import {
+  DesktopBehaviorCard,
   SecuritySessionsCard,
   ThemeSettingsCard,
   type ActiveSession,
@@ -89,6 +90,7 @@ export default function SettingsPage({
 
           <div className="space-y-4 px-6 py-6">
             <ThemeSettingsCard themeMode={themeMode} onToggleTheme={onToggleTheme} />
+            <DesktopBehaviorCard />
             <div className="rounded-xl border border-border-primary bg-bg-primary p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="flex gap-3">

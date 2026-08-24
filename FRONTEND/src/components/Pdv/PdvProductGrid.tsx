@@ -15,6 +15,7 @@ import { ImageOff, PackageX, Plus, Star } from "lucide-react";
 
 import type { PdvDensity, PdvProduct } from "@/types/pdv";
 import { formatCentsBrl } from "@/utils/pdvMoney";
+import { generateProductImage } from "@/utils/productImage";
 
 type PdvProductGridProps = {
   products: PdvProduct[];
@@ -69,6 +70,10 @@ function ProductThumb({
       src={product.imageUrl}
       alt=""
       loading="lazy"
+      onError={(event) => {
+        event.currentTarget.onerror = null;
+        event.currentTarget.src = generateProductImage(product.name, product.code);
+      }}
       className={`${box} w-full rounded-lg bg-bg-gray-theme object-cover`}
     />
   );

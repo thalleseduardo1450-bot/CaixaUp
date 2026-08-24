@@ -8,6 +8,7 @@ import { CircleHelp, Menu } from "lucide-react";
 import AppSidebar, { type PageKey } from "@/components/AppSidebar/AppSidebar";
 import LoadingBar from "@/components/Loading/LoadingBar";
 import GuidedTour from "@/components/Tour/GuidedTour";
+import InstalledUpdateModal from "@/components/Update/InstalledUpdateModal";
 import { APP_OPEN_TOUR_EVENT } from "@/domain/navigation/events";
 import { Toast, useStatusDialog } from "@/hooks/Dialog";
 import ForgotPasswordPage from "@/pages/Auth/ForgotPasswordPage";
@@ -166,6 +167,7 @@ export default function App() {
   });
   const [loginInitialEmail, setLoginInitialEmail] = useState("");
   const [loginNotice, setLoginNotice] = useState("");
+  const [installedUpdate, setInstalledUpdate] = useState<DesktopInstalledUpdate | null>(null);
 
   const pageTitleByKey: Record<PageKey, string> = {
     home: "Home",
@@ -569,6 +571,11 @@ export default function App() {
   }, [themeMode]);
 
   useEffect(() => {
+    if (!window.caixaUpDesktop) return;
+    return window.caixaUpDesktop.onUpdateInstalled(setInstalledUpdate);
+  }, []);
+
+  useEffect(() => {
     if (activePage === "vendas" && isStandalonePos) {
       document.title = "CaixaUp - Frente de caixa";
       return;
@@ -649,37 +656,46 @@ export default function App() {
 
   if (activePage === "vendas") {
     return (
-      <div className="page-enter min-h-screen bg-bg-primary text-text-primary font-sans">
-        <Suspense
-          fallback={
-            <div className="flex min-h-screen items-center justify-center text-text-secondary">
-              <LoadingBar />
-            </div>
-          }
-        >
-          <SalesStartPage
-            standalone={isStandalonePos}
-            operatorName={currentUser.name}
-            themeMode={themeMode}
-            onToggleTheme={handleToggleTheme}
-            onNavigate={setActivePage}
-            onExit={() => {
-              if (isStandalonePos) {
-                window.close();
-                window.location.href = `${window.location.origin}${window.location.pathname}`;
-                return;
-              }
-              setActivePage("home");
-              window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "home");
-            }}
+      <>
+        <div className="page-enter min-h-screen bg-bg-primary text-text-primary font-sans">
+          <Suspense
+            fallback={
+              <div className="flex min-h-screen items-center justify-center text-text-secondary">
+                <LoadingBar />
+              </div>
+            }
+          >
+            <SalesStartPage
+              standalone={isStandalonePos}
+              operatorName={currentUser.name}
+              themeMode={themeMode}
+              onToggleTheme={handleToggleTheme}
+              onNavigate={setActivePage}
+              onExit={() => {
+                if (isStandalonePos) {
+                  window.close();
+                  window.location.href = `${window.location.origin}${window.location.pathname}`;
+                  return;
+                }
+                setActivePage("home");
+                window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "home");
+              }}
+            />
+          </Suspense>
+        </div>
+        {installedUpdate ? (
+          <InstalledUpdateModal
+            {...installedUpdate}
+            onClose={() => setInstalledUpdate(null)}
           />
-        </Suspense>
-      </div>
+        ) : null}
+      </>
     );
   }
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-bg-primary text-text-primary font-sans">
+    <>
+      <div className="relative flex h-screen overflow-hidden bg-bg-primary text-text-primary font-sans">
       <header className="lg:hidden fixed top-0 left-0 right-0 z-layer-mobile-header h-14 bg-bg-light border-b border-border-primary px-3 shadow-sm">
         <div className="h-full flex items-center justify-between">
           <button
@@ -776,7 +792,14 @@ export default function App() {
           />
         </main>
       </Suspense>
-      {statusDialog.Dialog}
-    </div>
+        {statusDialog.Dialog}
+      </div>
+      {installedUpdate ? (
+        <InstalledUpdateModal
+          {...installedUpdate}
+          onClose={() => setInstalledUpdate(null)}
+        />
+      ) : null}
+    </>
   );
 }
