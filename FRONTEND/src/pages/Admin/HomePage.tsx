@@ -180,7 +180,7 @@ export default function HomePage({ onNavigate, onOpenSalesInNewTab }: HomePagePr
   const hasProducts = topProducts.length > 0;
 
   return (
-    <PageLayout className="space-y-4 py-4 md:space-y-6 md:py-6 lg:py-8">
+    <PageLayout size="full" className="space-y-4 py-4 md:space-y-6 md:py-6 lg:py-8">
       <PageHeader
         title="Dashboard"
         description="Acompanhe vendas, faturamento e desempenho do seu negócio em tempo real."

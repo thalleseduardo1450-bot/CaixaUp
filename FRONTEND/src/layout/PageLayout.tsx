@@ -6,7 +6,7 @@
  */
 import type { ReactNode } from "react";
 
-type PageLayoutSize = "default" | "wide";
+type PageLayoutSize = "default" | "wide" | "full";
 
 type PageLayoutProps = {
   children: ReactNode;
@@ -17,6 +17,7 @@ type PageLayoutProps = {
 const SIZE_CLASS: Record<PageLayoutSize, string> = {
   default: "max-w-[1180px]",
   wide: "max-w-[1360px]",
+  full: "max-w-none",
 };
 
 // Ritmo vertical padrão de todas as páginas: um único ponto de definição.
