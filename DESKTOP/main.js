@@ -22,6 +22,11 @@ const path = require("path");
 
 const WEB_PORT = 4173;
 const WEB_ORIGIN = `http://127.0.0.1:${WEB_PORT}`;
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!hasSingleInstanceLock) {
+  app.quit();
+}
 
 const packaged = app.isPackaged;
 const webDir = packaged
@@ -271,6 +276,8 @@ function showMainWindow() {
   mainWindow.focus();
 }
 
+app.on("second-instance", showMainWindow);
+
 function configureGlobalShortcuts() {
   globalShortcut.unregisterAll();
   if (!desktopPreferences.globalShortcuts) return;
@@ -444,6 +451,7 @@ function configureDesktopIpc() {
 }
 
 app.whenReady().then(async () => {
+  if (!hasSingleInstanceLock) return;
   sanitizarUserAgent();
   loadDesktopPreferences();
   configureDesktopIpc();
