@@ -33,7 +33,108 @@ type PdvCartProps = {
   /** Bloqueia finalizar quando o caixa está fechado ou a venda está em envio. */
   checkoutDisabled: boolean;
   isSubmitting: boolean;
+  summaryOnly?: boolean;
 };
+
+type PdvCartItemsProps = Pick<
+  PdvCartProps,
+  "items" | "selectedId" | "onSelect" | "onIncrement" | "onDecrement" | "onRemove"
+> & {
+  wide?: boolean;
+};
+
+export function PdvCartItems({
+  items,
+  selectedId,
+  onSelect,
+  onIncrement,
+  onDecrement,
+  onRemove,
+  wide = false,
+}: PdvCartItemsProps) {
+  const listRef = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    if (!selectedId || !listRef.current) return;
+    listRef.current
+      .querySelector<HTMLElement>(`[data-cart-item="${selectedId}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [selectedId, items.length]);
+
+  return (
+    <ul ref={listRef} className="flex-1 overflow-y-auto">
+      {items.map((item, index) => {
+        const isSelected = item.id === selectedId;
+        const lineTotal = item.unitPriceCents * item.quantity;
+
+        return (
+          <li
+            key={item.id}
+            data-cart-item={item.id}
+            onClick={() => onSelect(item.id)}
+            className={`cursor-pointer border-b border-border-primary px-4 py-2.5 transition ${
+              isSelected ? "pdv-cart-row-selected bg-accent/10" : "hover:bg-hover-light"
+            } ${wide ? "sm:flex sm:items-center sm:gap-4" : ""}`}
+          >
+            <div className={`flex min-w-0 items-start gap-2 ${wide ? "sm:flex-1" : ""}`}>
+              <span className="mt-0.5 w-6 shrink-0 font-mono text-xs text-text-tertiary">
+                {index + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-base font-semibold text-text-primary">{item.name}</p>
+                <p className="font-mono text-xs text-text-tertiary">
+                  {item.code} · {formatCentsBrl(item.unitPriceCents)} un
+                </p>
+              </div>
+            </div>
+
+            <div className={`mt-1.5 flex items-center gap-2 pl-8 ${wide ? "sm:mt-0 sm:pl-0" : ""}`}>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDecrement(item.id);
+                }}
+                aria-label={`Diminuir quantidade de ${item.name}`}
+                className="grid h-9 w-9 place-items-center rounded-md border border-border-secondary bg-bg-light text-text-secondary transition hover:border-accent hover:text-accent"
+              >
+                <Minus size={16} />
+              </button>
+              <span className="w-11 text-center font-mono text-lg font-bold text-text-primary">
+                {item.quantity}
+              </span>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onIncrement(item.id);
+                }}
+                aria-label={`Aumentar quantidade de ${item.name}`}
+                className="grid h-9 w-9 place-items-center rounded-md border border-border-secondary bg-bg-light text-text-secondary transition hover:border-accent hover:text-accent"
+              >
+                <Plus size={16} />
+              </button>
+              <span className="min-w-28 text-right font-mono text-lg font-bold text-text-primary">
+                {formatCentsBrl(lineTotal)}
+              </span>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRemove(item.id);
+                }}
+                aria-label={`Remover ${item.name} da venda`}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-text-tertiary transition hover:bg-primary/10 hover:text-primary"
+              >
+                <X size={17} />
+              </button>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 export default function PdvCart({
   items,
@@ -50,27 +151,22 @@ export default function PdvCart({
   suspendedCount,
   checkoutDisabled,
   isSubmitting,
+  summaryOnly = false,
 }: PdvCartProps) {
-  const listRef = useRef<HTMLUListElement>(null);
-
-  /**
-   * Mantém o item selecionado visível quando o operador navega com ↑/↓ ou quando
-   * um item novo entra pelo leitor — sem isso o cupom "some" para baixo.
-   */
-  useEffect(() => {
-    if (!selectedId || !listRef.current) return;
-    const node = listRef.current.querySelector<HTMLElement>(
-      `[data-cart-item="${selectedId}"]`,
-    );
-    node?.scrollIntoView({ block: "nearest" });
-  }, [selectedId, items.length]);
-
   const isEmpty = items.length === 0;
 
   return (
     <aside className="flex h-full w-full flex-col border-l border-border-primary bg-bg-light">
       {/* Itens */}
-      {isEmpty ? (
+      {summaryOnly ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 border-b border-border-primary px-6 text-center">
+          <ReceiptText size={36} className="text-accent" aria-hidden="true" />
+          <p className="text-xl font-bold text-text-primary">Venda</p>
+          <p className="text-sm text-text-secondary">
+            {items.length} {items.length === 1 ? "produto" : "produtos"}
+          </p>
+        </div>
+      ) : isEmpty ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
           <div
             className="pdv-thumb-empty grid h-20 w-20 place-items-center rounded-full text-text-tertiary"
@@ -84,89 +180,14 @@ export default function PdvCart({
           </p>
         </div>
       ) : (
-        <ul ref={listRef} className="flex-1 overflow-y-auto">
-          {items.map((item, index) => {
-            const isSelected = item.id === selectedId;
-            const lineTotal = item.unitPriceCents * item.quantity;
-
-            return (
-              <li
-                key={item.id}
-                data-cart-item={item.id}
-                onClick={() => onSelect(item.id)}
-                className={`cursor-pointer border-b border-border-primary px-4 py-2.5 transition ${
-                  isSelected
-                    ? "pdv-cart-row-selected bg-accent/10"
-                    : "hover:bg-hover-light"
-                }`}
-              >
-                <div className="flex items-start gap-2">
-                  <span className="mt-0.5 w-6 shrink-0 font-mono text-xs text-text-tertiary">
-                    {index + 1}
-                  </span>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-base font-semibold text-text-primary">
-                      {item.name}
-                    </p>
-                    <p className="font-mono text-xs text-text-tertiary">
-                      {item.code} · {formatCentsBrl(item.unitPriceCents)} un
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onRemove(item.id);
-                    }}
-                    aria-label={`Remover ${item.name} do cupom`}
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-text-tertiary transition hover:bg-primary/10 hover:text-primary"
-                  >
-                    <X size={17} />
-                  </button>
-                </div>
-
-                <div className="mt-1.5 flex items-center gap-2 pl-8">
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDecrement(item.id);
-                      }}
-                      aria-label={`Diminuir quantidade de ${item.name}`}
-                      className="grid h-9 w-9 place-items-center rounded-md border border-border-secondary bg-bg-light text-text-secondary transition hover:border-accent hover:text-accent"
-                    >
-                      <Minus size={16} />
-                    </button>
-                    <span
-                      className="w-11 text-center font-mono text-lg font-bold text-text-primary"
-                      aria-label={`Quantidade ${item.quantity}`}
-                    >
-                      {item.quantity}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onIncrement(item.id);
-                      }}
-                      aria-label={`Aumentar quantidade de ${item.name}`}
-                      className="grid h-9 w-9 place-items-center rounded-md border border-border-secondary bg-bg-light text-text-secondary transition hover:border-accent hover:text-accent"
-                    >
-                      <Plus size={16} />
-                    </button>
-                  </div>
-
-                  <span className="ml-auto font-mono text-lg font-bold text-text-primary">
-                    {formatCentsBrl(lineTotal)}
-                  </span>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        <PdvCartItems
+          items={items}
+          selectedId={selectedId}
+          onSelect={onSelect}
+          onIncrement={onIncrement}
+          onDecrement={onDecrement}
+          onRemove={onRemove}
+        />
       )}
 
       {/* Rodapé fixo: total e ações */}

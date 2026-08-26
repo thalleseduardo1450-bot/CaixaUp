@@ -81,24 +81,20 @@ export default function PdvProductGrid({
   /* ------------------------------- LISTA ------------------------------- */
   if (viewMode === "lista") {
     return (
-      <ul className="flex-1 overflow-y-auto px-4 pb-4">
+      <ul className="flex-1 overflow-y-auto px-3 py-2">
         {products.map((product) => {
-          const stock = stockTone(product.stock);
-          const isFavorite = favoriteIds.includes(product.id);
           const inCart = idsInCart.includes(product.id);
 
           return (
             <li key={product.id}>
-              <div
-                className={`group flex items-center gap-3 rounded-lg border-b border-border-primary/70 px-2 transition hover:bg-hover-light ${
+              <button
+                type="button"
+                onClick={() => onSelectProduct(product)}
+                className={`group flex w-full items-center gap-4 rounded-lg border-b border-border-primary/70 px-3 text-left transition hover:bg-accent/10 focus-visible:bg-accent/10 ${
                   density === "compacta" ? "py-2" : "py-3"
                 }`}
               >
-                <button
-                  type="button"
-                  onClick={() => onSelectProduct(product)}
-                  className="min-w-0 flex-1 text-left"
-                >
+                <span className="min-w-0 flex-1">
                   <p className="truncate text-base font-semibold text-text-primary">
                     {product.name}
                   </p>
@@ -110,43 +106,17 @@ export default function PdvProductGrid({
                       </span>
                     )}
                   </p>
-                </button>
-
-                <span className={`pdv-stock-pill shrink-0 text-xs ${stock.className}`}>
-                  {stock.label}
                 </span>
 
-                <span className="shrink-0 font-mono text-lg font-bold text-text-primary">
-                  {formatCentsBrl(product.unitPriceCents)}
+                <span className="shrink-0 text-right">
+                  <span className="block text-xs font-semibold uppercase tracking-wide text-text-tertiary">
+                    Preço de venda
+                  </span>
+                  <span className="font-mono text-xl font-bold text-text-primary">
+                    {formatCentsBrl(product.unitPriceCents)}
+                  </span>
                 </span>
-
-                <button
-                  type="button"
-                  onClick={() => onToggleFavorite(product.id)}
-                  aria-label={
-                    isFavorite
-                      ? `Remover ${product.name} dos favoritos`
-                      : `Marcar ${product.name} como favorito`
-                  }
-                  aria-pressed={isFavorite}
-                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-md transition ${
-                    isFavorite
-                      ? "text-[#d97706]"
-                      : "text-text-tertiary hover:text-[#d97706]"
-                  }`}
-                >
-                  <Star size={17} fill={isFavorite ? "currentColor" : "none"} />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onSelectProduct(product)}
-                  aria-label={`Lançar ${product.name}`}
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-accent text-white transition hover:bg-hover-accent"
-                >
-                  <Plus size={20} />
-                </button>
-              </div>
+              </button>
             </li>
           );
         })}

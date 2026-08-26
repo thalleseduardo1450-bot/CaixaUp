@@ -1,5 +1,14 @@
 # Novidades do CaixaUp
 
+## 3.3.14
+
+### Caixa mais rápido
+
+- Pesquisa mostra produtos em lista leve com nome, código e preço de venda.
+- Produtos selecionados permanecem visíveis em lista no centro da tela.
+- Painel lateral mostra somente resumo, total e ações da venda.
+- Resultados são limitados aos 80 mais relevantes para resposta imediata.
+
 ## 3.3.13
 
 ### Importação Nex

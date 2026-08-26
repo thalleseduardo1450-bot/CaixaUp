@@ -35,7 +35,7 @@ import {
   type SaleReceipt,
 } from "@/components/Admin/ReceiptPreviewModal";
 import SaleSuccessModal from "@/components/Admin/SaleSuccessModal";
-import PdvCart from "@/components/Pdv/PdvCart";
+import PdvCart, { PdvCartItems } from "@/components/Pdv/PdvCart";
 import PdvCheckoutModal, {
   type PdvCheckoutResult,
 } from "@/components/Pdv/PdvCheckoutModal";
@@ -260,7 +260,7 @@ export default function SalesStartPage({
   const visibleProducts = useMemo(
     () =>
       isSearchingProduct
-        ? products.filter({ query, category: "", viewMode: "grade" })
+        ? products.filter({ query, category: "", viewMode: "grade" }).slice(0, 80)
         : [],
     [isSearchingProduct, products, query],
   );
@@ -797,7 +797,7 @@ export default function SalesStartPage({
           {isSearchingProduct ? (
             <PdvProductGrid
               products={visibleProducts}
-              viewMode="grade"
+              viewMode="lista"
               density={density}
               columns={gridColumns}
               favoriteIds={products.favoriteIds}
@@ -807,6 +807,27 @@ export default function SalesStartPage({
               emptyTitle="Nenhum produto encontrado"
               emptyHint="Confira o nome ou o código digitado e tente novamente."
             />
+          ) : cart.items.length > 0 ? (
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="flex items-center justify-between border-b border-border-primary bg-bg-light px-4 py-3">
+                <div>
+                  <p className="text-lg font-bold text-text-primary">Produtos da venda</p>
+                  <p className="text-sm text-text-secondary">Toque no produto para ajustar a quantidade.</p>
+                </div>
+                <span className="rounded-lg bg-accent/10 px-3 py-1.5 text-sm font-bold text-accent">
+                  {cart.itemCount} {cart.itemCount === 1 ? "item" : "itens"}
+                </span>
+              </div>
+              <PdvCartItems
+                items={cart.items}
+                selectedId={selectedCartId ?? cart.lastTouchedId}
+                onSelect={setSelectedCartId}
+                onIncrement={cart.increment}
+                onDecrement={cart.decrement}
+                onRemove={cart.removeItem}
+                wide
+              />
+            </div>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center">
               <div className="grid h-20 w-20 place-items-center rounded-2xl bg-accent/10 text-accent">
@@ -839,6 +860,7 @@ export default function SalesStartPage({
             suspendedCount={cart.suspended.length}
             checkoutDisabled={!cashCanSell || isSubmitting}
             isSubmitting={isSubmitting}
+            summaryOnly
           />
         </div>
       </div>
