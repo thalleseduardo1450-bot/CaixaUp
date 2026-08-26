@@ -61,6 +61,11 @@ export function receiptTotal(receipt: SaleReceipt) {
   return Math.max(0, receipt.subtotal - (receipt.discount ?? 0));
 }
 
+function receiptPayments(receipt: SaleReceipt) {
+  if (receipt.paymentLines?.length) return receipt.paymentLines;
+  return [{ label: receipt.paymentLabel || "Não informado", amount: receiptTotal(receipt) }];
+}
+
 function formatReceiptDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
@@ -108,17 +113,28 @@ function buildReceiptPrintHtml(receipt: SaleReceipt, formatMoney: (value: number
   const discount = receipt.discount ?? 0;
   const totalFormatted = formatMoney(receiptTotal(receipt));
   const totalSizeCls = moneySizeClass(totalFormatted);
+  const payments = receiptPayments(receipt);
+  const paymentsTotal = payments.reduce((sum, payment) => sum + payment.amount, 0);
   const rows = receipt.items
     .map(
       (item, index) => `
         <div class="item">
-          <div class="line grid">
-            <span>${String(index + 1).padStart(2, "0")}</span>
-            <span>${escapeHtml(item.name)}</span>
-            <span class="right">${item.quantity}</span>
-            <span class="right">${formatMoney(item.total)}</span>
+          <div class="item-name"><span>${String(index + 1).padStart(2, "0")}</span> ${escapeHtml(item.name)}</div>
+          <div class="item-code">COD: ${escapeHtml(item.code)}</div>
+          <div class="line item-values">
+            <span>${item.quantity} x R$ ${formatMoney(item.unitPrice)}</span>
+            <strong>R$ ${formatMoney(item.total)}</strong>
           </div>
-          <div class="item-meta">${escapeHtml(item.code)} - UN ${formatMoney(item.unitPrice)}</div>
+        </div>
+      `,
+    )
+    .join("");
+  const paymentRows = payments
+    .map(
+      (payment) => `
+        <div class="line payment-line">
+          <span>${escapeHtml(payment.label)}</span>
+          <strong>R$ ${formatMoney(payment.amount)}</strong>
         </div>
       `,
     )
@@ -130,41 +146,35 @@ function buildReceiptPrintHtml(receipt: SaleReceipt, formatMoney: (value: number
     <meta charset="utf-8" />
     <title>Cupom ${escapeHtml(receipt.saleNumber)}</title>
     <style>
-      @page { size: 80mm auto; margin: 4mm; }
+      @page { size: 58mm auto; margin: 3mm 5mm; }
       * { box-sizing: border-box; }
-      body { margin: 0; color: #020617; font: 12px/1.25 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-      .receipt { width: 72mm; margin: 0 auto; overflow: visible; }
+      body { margin: 0; color: #000; font: 13px/1.3 Arial, Helvetica, sans-serif; }
+      .receipt { width: 48mm; margin: 0 auto; overflow: visible; }
       .center { text-align: center; }
-      .brand { font-size: 14px; font-weight: 800; text-transform: uppercase; overflow-wrap: anywhere; }
-      .divider { border-top: 1px dashed #475569; margin: 10px 0; }
-      .line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-      /* Valores nunca quebram linha nem sofrem corte: cada coluna numérica
-         mede o próprio conteúdo (max-content) em vez de largura fixa — foi a
-         coluna fixa de 54px que cortava o último dígito de "R$ 10,00". */
+      .brand { font-size: 17px; font-weight: 900; text-transform: uppercase; overflow-wrap: anywhere; }
+      .divider { border-top: 1px dashed #000; margin: 9px 0; }
+      .line { display: flex; justify-content: space-between; align-items: baseline; gap: 5px; }
       .line > span { white-space: nowrap; }
       .line > span:first-child { flex-shrink: 1; min-width: 0; overflow-wrap: break-word; }
-      .grid { display: grid; grid-template-columns: 20px minmax(0, 1fr) 30px max-content; gap: 4px; }
       .right { text-align: right; white-space: nowrap; }
-      .bold { font-weight: 800; }
-      .item { margin-top: 7px; }
-      .item-meta { padding-left: 24px; font-size: 11px; white-space: nowrap; }
-      /* Nome longo do produto quebra dentro da própria coluna em vez de
-         empurrar o valor para fora da bobina. */
-      .grid > span:nth-child(2) { overflow-wrap: anywhere; }
-      /* Totais: levemente menores que o corpo e com passo automático — valores
-         maiores descem meio ponto, mas nunca perdem dígitos. */
-      .totals { font-size: 11.5px; }
-      .totals .line { line-height: 1.45; }
-      .money-sm { font-size: 11px; }
-      .money-xs { font-size: 10.5px; }
-      .total-line { font-size: 12.5px; letter-spacing: 0.02em; }
-      .total-line.money-sm { font-size: 11.5px; }
-      .total-line.money-xs { font-size: 11px; }
-      /* Área imprimível: sem margens extras do navegador nem cor de fundo. */
+      .bold { font-weight: 900; }
+      .item { margin-top: 9px; padding-bottom: 2px; }
+      .item-name { font-size: 13px; font-weight: 800; overflow-wrap: anywhere; }
+      .item-code { margin: 2px 0; font-size: 11px; overflow-wrap: anywhere; }
+      .item-values { font-size: 13px; }
+      .totals { font-size: 13px; }
+      .totals .line { line-height: 1.5; }
+      .money-sm { font-size: 16px; }
+      .money-xs { font-size: 14px; }
+      .total-line { margin: 3px 0; border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 5px 0; font-size: 19px; letter-spacing: 0.01em; }
+      .total-line.money-sm { font-size: 16px; }
+      .total-line.money-xs { font-size: 14px; }
+      .payment-title { margin-top: 7px; font-size: 12px; font-weight: 900; text-align: center; }
+      .payment-line { font-size: 13px; }
       @media print {
-        html, body { width: 80mm; margin: 0 !important; padding: 0 !important;
+        html, body { width: 58mm; margin: 0 !important; padding: 0 !important;
           background: #fff !important; -webkit-print-color-adjust: exact; }
-        .receipt { width: 100%; max-width: none; }
+        .receipt { width: 48mm; max-width: 48mm; }
       }
     </style>
   </head>
@@ -188,19 +198,17 @@ function buildReceiptPrintHtml(receipt: SaleReceipt, formatMoney: (value: number
       </section>
       <div class="divider"></div>
       <section>
-        <div class="grid bold"><span>#</span><span>ITEM</span><span class="right">QTD</span><span class="right">TOTAL</span></div>
+        <div class="bold center">ITENS DA VENDA</div>
         ${rows}
       </section>
       <div class="divider"></div>
       <section class="totals">
-        ${
-          discount > 0
-            ? `<div class="line"><span>Subtotal</span><span>R$ ${formatMoney(receipt.subtotal)}</span></div>
-               <div class="line"><span>Desconto</span><span>- R$ ${formatMoney(discount)}</span></div>`
-            : ""
-        }
+        <div class="line"><span>Soma dos itens</span><strong>R$ ${formatMoney(receipt.subtotal)}</strong></div>
+        ${discount > 0 ? `<div class="line"><span>Desconto</span><strong>- R$ ${formatMoney(discount)}</strong></div>` : ""}
         <div class="line bold total-line ${totalSizeCls}"><span>TOTAL</span><span>R$ ${totalFormatted}</span></div>
-        <div class="line"><span>Pagamento</span><span>${escapeHtml(receipt.paymentLabel || "-")}</span></div>
+        <div class="payment-title">FORMA DE PAGAMENTO</div>
+        ${paymentRows}
+        ${payments.length > 1 ? `<div class="line bold"><span>Total pago</span><span>R$ ${formatMoney(paymentsTotal)}</span></div>` : ""}
         ${
           receipt.cashGiven > 0
             ? `<div class="line"><span>Valor recebido</span><span>R$ ${formatMoney(receipt.cashGiven)}</span></div>
@@ -269,6 +277,8 @@ export default function ReceiptPreviewModal({
     .filter(Boolean)
     .join(", ");
   const companyCity = [receipt.company?.city, receipt.company?.uf].filter(Boolean).join(" - ");
+  const payments = receiptPayments(receipt);
+  const paymentsTotal = payments.reduce((sum, payment) => sum + payment.amount, 0);
 
   const { closing, requestClose } = useModalExit(onClose);
   const printReceipt = () => printSaleReceipt(receipt, formatMoney);
@@ -334,24 +344,18 @@ export default function ReceiptPreviewModal({
 
               <div className="my-3 border-t border-dashed border-slate-500" />
 
-              <div className="grid grid-cols-[24px_minmax(0,1fr)_40px_max-content] gap-1 font-bold">
-                <span>#</span>
-                <span>ITEM</span>
-                <span className="text-right whitespace-nowrap">QTD</span>
-                <span className="text-right whitespace-nowrap">TOTAL</span>
-              </div>
+              <p className="text-center text-sm font-black">ITENS DA VENDA</p>
               <div className="mt-1 space-y-2">
                 {receipt.items.map((item, index) => (
                   <div key={`${item.id}-${index}`}>
-                    <div className="grid grid-cols-[24px_minmax(0,1fr)_40px_max-content] gap-1">
-                      <span>{String(index + 1).padStart(2, "0")}</span>
-                      <span className="truncate">{item.name}</span>
-                      <span className="text-right whitespace-nowrap">{item.quantity}</span>
-                      <span className="text-right whitespace-nowrap">{formatMoney(item.total)}</span>
-                    </div>
-                    <p className="pl-6 text-[11px] whitespace-nowrap">
-                      {item.code} - UN {formatMoney(item.unitPrice)}
+                    <p className="font-bold break-words">
+                      {String(index + 1).padStart(2, "0")} {item.name}
                     </p>
+                    <p className="text-[11px] break-all">COD: {item.code}</p>
+                    <div className="flex justify-between gap-2">
+                      <span>{item.quantity} x R$ {formatMoney(item.unitPrice)}</span>
+                      <strong className="whitespace-nowrap">R$ {formatMoney(item.total)}</strong>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -359,26 +363,33 @@ export default function ReceiptPreviewModal({
               <div className="my-3 border-t border-dashed border-slate-500" />
 
               <div className="space-y-1">
+                <div className="flex justify-between">
+                  <span>Soma dos itens</span>
+                  <strong className="whitespace-nowrap font-mono">R$ {formatMoney(receipt.subtotal)}</strong>
+                </div>
                 {(receipt.discount ?? 0) > 0 ? (
-                  <>
-                    <div className="flex justify-between">
-                      <span>Subtotal</span>
-                      <span className="whitespace-nowrap font-mono">R$ {formatMoney(receipt.subtotal)}</span>
-                    </div>
                     <div className="flex justify-between">
                       <span>Desconto</span>
                       <span className="whitespace-nowrap font-mono">- R$ {formatMoney(receipt.discount ?? 0)}</span>
                     </div>
-                  </>
                 ) : null}
-                <div className="flex justify-between font-bold">
+                <div className="my-2 flex justify-between border-y-2 border-slate-950 py-2 text-lg font-black">
                   <span>TOTAL</span>
                   <span className="whitespace-nowrap font-mono">R$ {formatMoney(receiptTotal(receipt))}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Pagamento</span>
-                  <span>{receipt.paymentLabel}</span>
-                </div>
+                <p className="pt-1 text-center font-black">FORMA DE PAGAMENTO</p>
+                {payments.map((payment, index) => (
+                  <div key={`${payment.label}-${index}`} className="flex justify-between gap-2">
+                    <span>{payment.label}</span>
+                    <strong className="whitespace-nowrap">R$ {formatMoney(payment.amount)}</strong>
+                  </div>
+                ))}
+                {payments.length > 1 ? (
+                  <div className="flex justify-between font-black">
+                    <span>Total pago</span>
+                    <span className="whitespace-nowrap">R$ {formatMoney(paymentsTotal)}</span>
+                  </div>
+                ) : null}
                 {receipt.cashGiven > 0 ? (
                   <>
                     <div className="flex justify-between">
