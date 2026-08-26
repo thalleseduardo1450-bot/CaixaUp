@@ -1,5 +1,6 @@
 import { Check, Eye, Printer, ShoppingCart } from "lucide-react";
 import { useState } from "react";
+import { useModalExit } from "@/hooks/useModalExit";
 import { receiptTotal, type SaleReceipt } from "./ReceiptPreviewModal";
 
 type SaleSuccessModalProps = {
@@ -16,17 +17,24 @@ export default function SaleSuccessModal({
   onStartNewSale,
 }: SaleSuccessModalProps) {
   const [showDetails, setShowDetails] = useState(false);
+  const { closing, requestClose } = useModalExit(onStartNewSale);
   const itemCount = receipt.items.reduce((sum, item) => sum + item.quantity, 0);
   const total = receiptTotal(receipt);
 
   return (
     <div
-      className="fixed inset-0 z-layer-dialog grid place-items-center bg-slate-950/55 p-4"
+      className={`fixed inset-0 z-layer-dialog grid place-items-center bg-slate-950/55 p-4 ${
+        closing ? "modal-overlay-out" : "modal-overlay-in"
+      }`}
       role="dialog"
       aria-modal="true"
       aria-label="Venda finalizada"
     >
-      <div className="success-pop w-full max-w-md overflow-hidden rounded-2xl border border-[#d9e8f1] bg-white shadow-2xl">
+      <div
+        className={`success-pop w-full max-w-md overflow-hidden rounded-2xl border border-[#d9e8f1] bg-white shadow-2xl ${
+          closing ? "modal-panel-out" : ""
+        }`}
+      >
         <div className="px-6 pb-5 pt-7 text-center">
           <div className="bag-float relative mx-auto h-24 w-24">
             <div className="absolute inset-0 flex items-center justify-center rounded-full bg-[#c6fac9]">
@@ -104,7 +112,7 @@ export default function SaleSuccessModal({
         <div className="px-6 pb-6">
           <button
             type="button"
-            onClick={onStartNewSale}
+            onClick={requestClose}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0871ef] py-3.5 text-base font-black text-white shadow-md transition hover:bg-[#075cbf] active:scale-[0.98]"
           >
             <ShoppingCart size={19} />

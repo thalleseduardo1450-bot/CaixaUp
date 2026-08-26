@@ -5,6 +5,7 @@
  */
 
 import { Search } from "lucide-react";
+import Reveal from "@/components/Reveal";
 import type { ReportDefinition } from "./reportsConfig";
 
 type ReportCardsGridProps = {
@@ -22,7 +23,8 @@ export default function ReportCardsGrid({
 }: ReportCardsGridProps) {
   return (
     <div className="space-y-5">
-      <div className="card px-4 py-4 md:px-6">
+      <Reveal>
+        <div className="card px-4 py-4 md:px-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-text-primary md:text-2xl">
@@ -46,41 +48,46 @@ export default function ReportCardsGrid({
             />
           </label>
         </div>
-      </div>
+        </div>
+      </Reveal>
 
       {reports.length === 0 ? (
-        <div className="card px-4 py-10 text-center">
-          <p className="text-sm font-medium text-text-primary">Nenhum relatório encontrado</p>
-          <p className="mt-1 text-sm text-text-secondary">
-            Ajuste o termo de busca para localizar os relatórios disponíveis.
-          </p>
-        </div>
+        <Reveal delay={80}>
+          <div className="card px-4 py-10 text-center">
+            <p className="text-sm font-medium text-text-primary">Nenhum relatório encontrado</p>
+            <p className="mt-1 text-sm text-text-secondary">
+              Ajuste o termo de busca para localizar os relatórios disponíveis.
+            </p>
+          </div>
+        </Reveal>
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {reports.map((report) => {
-            const Icon = report.icon;
-            return (
-              <button
-                key={report.id}
-                type="button"
-                onClick={() => onSelectReport(report)}
-                className="card flex min-h-[132px] w-full items-start gap-3 px-6 py-5 text-left transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg"
-              >
-                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
-                  <Icon size={18} />
-                </span>
-                <div className="min-w-0 space-y-2">
-                  <p className="font-display text-xl font-semibold leading-snug text-text-primary">
-                    {report.title}
-                  </p>
-                  <p className="line-clamp-2 text-base leading-relaxed text-text-secondary">
-                    {report.description}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <Reveal delay={80}>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {reports.map((report) => {
+              const Icon = report.icon;
+              return (
+                <button
+                  key={report.id}
+                  type="button"
+                  onClick={() => onSelectReport(report)}
+                  className="card flex min-h-[132px] w-full items-start gap-3 px-6 py-5 text-left transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg"
+                >
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                    <Icon size={18} />
+                  </span>
+                  <div className="min-w-0 space-y-2">
+                    <p className="font-display text-xl font-semibold leading-snug text-text-primary">
+                      {report.title}
+                    </p>
+                    <p className="line-clamp-2 text-base leading-relaxed text-text-secondary">
+                      {report.description}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </Reveal>
       )}
     </div>
   );

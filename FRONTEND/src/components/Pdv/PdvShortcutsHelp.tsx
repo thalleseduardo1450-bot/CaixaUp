@@ -8,19 +8,26 @@
  */
 import { Keyboard, X } from "lucide-react";
 
+import { useModalExit } from "@/hooks/useModalExit";
 import { PDV_SHORTCUT_HINTS } from "@/hooks/Pdv/usePdvShortcuts";
 
 export default function PdvShortcutsHelp({ onClose }: { onClose: () => void }) {
+  const { closing, requestClose } = useModalExit(onClose);
+
   return (
     <div
-      className="fixed inset-0 z-layer-dialog grid place-items-center bg-black/45 p-4"
+      className={`fixed inset-0 z-layer-dialog grid place-items-center bg-black/45 p-4 ${
+        closing ? "modal-overlay-out" : "modal-overlay-in"
+      }`}
       role="dialog"
       aria-modal="true"
       aria-label="Atalhos do teclado"
-      onClick={onClose}
+      onClick={requestClose}
     >
       <div
-        className="w-full max-w-lg overflow-hidden rounded-xl border border-border-primary bg-bg-light"
+        className={`w-full max-w-lg overflow-hidden rounded-xl border border-border-primary bg-bg-light ${
+          closing ? "modal-panel-out" : "modal-panel-in"
+        }`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-border-primary px-5 py-3.5">
@@ -30,7 +37,7 @@ export default function PdvShortcutsHelp({ onClose }: { onClose: () => void }) {
           </h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             aria-label="Fechar atalhos"
             className="ml-auto grid h-9 w-9 place-items-center rounded-md text-text-tertiary transition hover:bg-hover-light hover:text-primary"
           >

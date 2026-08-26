@@ -7,6 +7,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { CircleHelp, Menu } from "lucide-react";
 import AppSidebar, { type PageKey } from "@/components/AppSidebar/AppSidebar";
 import LoadingBar from "@/components/Loading/LoadingBar";
+import AppSplash from "@/components/Loading/AppSplash";
 import GuidedTour from "@/components/Tour/GuidedTour";
 import InstalledUpdateModal from "@/components/Update/InstalledUpdateModal";
 import AppErrorBoundary from "@/components/ErrorBoundary/AppErrorBoundary";
@@ -171,6 +172,9 @@ export default function App() {
   const [loginInitialEmail, setLoginInitialEmail] = useState(LOGIN_ALIAS);
   const [loginNotice, setLoginNotice] = useState("");
   const [installedUpdate, setInstalledUpdate] = useState<DesktopInstalledUpdate | null>(null);
+  // Abertura: o splash fica na frente até a sessão ser checada E a animação
+  // mínima terminar. Recuperação de senha vem de link de e-mail e abre direto.
+  const [splashGone, setSplashGone] = useState(isRecoveryFlow);
 
   const pageTitleByKey: Record<PageKey, string> = {
     home: "Home",
@@ -628,6 +632,12 @@ export default function App() {
           !navigator.userAgent.toLowerCase().includes("electron")
         }
       />
+    );
+  }
+
+  if (!splashGone) {
+    return (
+      <AppSplash ready={!isCheckingAuth} onFinished={() => setSplashGone(true)} />
     );
   }
 

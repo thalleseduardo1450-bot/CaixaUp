@@ -10,6 +10,7 @@ import PageHeader from "@/components/Admin/PageHeader";
 import ReceiptPreviewModal, { type SaleReceipt } from "@/components/Admin/ReceiptPreviewModal";
 import RowActionsMenu from "@/components/Admin/RowActionsMenu";
 import TablePagination from "@/components/Pagination/TablePagination";
+import Reveal from "@/components/Reveal";
 import { Toast } from "@/hooks/Dialog";
 import useInputMasks from "@/hooks/InputMasks/useInputMasks";
 import PageLayout from "@/layout/PageLayout";
@@ -171,25 +172,28 @@ export default function SalesHistoryPage() {
         description="Consulta de vendas com detalhes por cliente e itens vendidos."
       />
 
-      <section className="card p-4 md:p-5">
-        <label className="relative mx-auto block w-full max-w-xl">
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
-          />
-          <input
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setCurrentPage(1);
-            }}
-            className="input-field w-full pl-9"
-            placeholder="Pesquise pelo número da venda ou cliente"
-          />
-        </label>
-      </section>
+      <Reveal>
+        <section className="card p-4 md:p-5">
+          <label className="relative mx-auto block w-full max-w-xl">
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
+            />
+            <input
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setCurrentPage(1);
+              }}
+              className="input-field w-full pl-9"
+              placeholder="Pesquise pelo número da venda ou cliente"
+            />
+          </label>
+        </section>
+      </Reveal>
 
-      <section className="card overflow-hidden">
+      <Reveal delay={80}>
+        <section className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] table-fixed text-sm">
             <thead className="bg-bg-primary text-left text-text-secondary">
@@ -288,7 +292,8 @@ export default function SalesHistoryPage() {
             }}
           />
         </div>
-      </section>
+        </section>
+      </Reveal>
 
       {receiptPreview ? (
         <ReceiptPreviewModal

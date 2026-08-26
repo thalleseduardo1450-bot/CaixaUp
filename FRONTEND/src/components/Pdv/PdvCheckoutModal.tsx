@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 
 import type { CustomerDto } from "@/services/api/customerService";
+import { useModalExit } from "@/hooks/useModalExit";
 import type { PdvPaymentLine } from "@/types/pdv";
 import {
   formatCents,
@@ -155,6 +156,10 @@ export default function PdvCheckoutModal({
   onConfirm,
   onClose,
 }: PdvCheckoutModalProps) {
+  // Saída animada: fecha no clique, no Escape, mas só sai do DOM depois
+  // que a animação de descida terminar.
+  const { closing, requestClose } = useModalExit(onClose);
+
   /** Valores digitados pelo operador. Forma ausente = nunca digitada. */
   const [typed, setTyped] = useState<Record<string, number>>({});
   const [active, setActive] = useState("dinheiro");
@@ -254,7 +259,7 @@ export default function PdvCheckoutModal({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        requestClose();
         return;
       }
 
@@ -289,7 +294,7 @@ export default function PdvCheckoutModal({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [methodIndex, onClose]);
+  }, [methodIndex, requestClose]);
 
   /* ---------------------------- comandos ---------------------------- */
 
@@ -361,17 +366,23 @@ export default function PdvCheckoutModal({
 
   return (
     <div
-      className="fixed inset-0 z-layer-dialog grid place-items-center bg-black/50 p-3"
+      className={`fixed inset-0 z-layer-dialog grid place-items-center bg-black/50 p-3 ${
+        closing ? "modal-overlay-out" : "modal-overlay-in"
+      }`}
       role="dialog"
       aria-modal="true"
       aria-label="Pagamento"
     >
-      <div className="flex max-h-[96vh] w-full max-w-[560px] flex-col overflow-hidden rounded-xl border border-border-primary bg-bg-light shadow-2xl">
+      <div
+        className={`flex max-h-[96vh] w-full max-w-[560px] flex-col overflow-hidden rounded-xl border border-border-primary bg-bg-light shadow-2xl ${
+          closing ? "modal-panel-out" : "modal-panel-in"
+        }`}
+      >
         {/* Total: o maior número da tela, porque é o que o cliente pergunta */}
         <div className="relative shrink-0 px-5 pb-4 pt-5 text-center">
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             aria-label="Fechar pagamento"
             className="absolute right-3.5 top-3.5 grid h-9 w-9 place-items-center rounded-lg text-text-tertiary transition hover:bg-hover-light hover:text-primary"
           >

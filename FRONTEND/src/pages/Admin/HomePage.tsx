@@ -26,6 +26,7 @@ import {
 import type { PageKey } from "@/components/AppSidebar/AppSidebar";
 import PageHeader from "@/components/Admin/PageHeader";
 import KpiTrendCard from "@/components/Admin/KpiTrendCard";
+import Reveal from "@/components/Reveal";
 import PageLayout from "@/layout/PageLayout";
 import { homeService, type HomeKpiDto } from "@/services/api/homeService";
 import { reportService } from "@/services/api/reportService";
@@ -221,7 +222,8 @@ export default function HomePage({ onNavigate, onOpenSalesInNewTab }: HomePagePr
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)]">
-        <div className="card overflow-hidden rounded-2xl">
+        <Reveal className="min-w-0">
+          <div className="card h-full overflow-hidden rounded-2xl">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-primary p-4">
             <div>
               <h2 className="text-base font-semibold text-text-primary">Gráfico de vendas</h2>
@@ -286,9 +288,11 @@ export default function HomePage({ onNavigate, onOpenSalesInNewTab }: HomePagePr
               </div>
             )}
           </div>
-        </div>
+          </div>
+        </Reveal>
 
-        <div className="card overflow-hidden rounded-2xl">
+        <Reveal className="min-w-0" delay={90}>
+          <div className="card h-full overflow-hidden rounded-2xl">
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border-primary p-4">
             <div>
               <h2 className="text-base font-semibold text-text-primary">Produtos mais vendidos</h2>
@@ -337,7 +341,8 @@ export default function HomePage({ onNavigate, onOpenSalesInNewTab }: HomePagePr
               </div>
             )}
           </div>
-        </div>
+          </div>
+        </Reveal>
       </section>
 
       <section className="card p-4 md:p-5">

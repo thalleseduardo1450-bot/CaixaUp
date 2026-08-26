@@ -9,6 +9,7 @@
  */
 import { PauseCircle, Play, Trash2, X } from "lucide-react";
 
+import { useModalExit } from "@/hooks/useModalExit";
 import type { PdvSuspendedSale } from "@/types/pdv";
 import { formatCentsBrl } from "@/utils/pdvMoney";
 
@@ -31,16 +32,22 @@ export default function PdvSuspendedSalesModal({
   onDiscard,
   onClose,
 }: PdvSuspendedSalesModalProps) {
+  const { closing, requestClose } = useModalExit(onClose);
+
   return (
     <div
-      className="fixed inset-0 z-layer-dialog grid place-items-center bg-black/45 p-4"
+      className={`fixed inset-0 z-layer-dialog grid place-items-center bg-black/45 p-4 ${
+        closing ? "modal-overlay-out" : "modal-overlay-in"
+      }`}
       role="dialog"
       aria-modal="true"
       aria-label="Vendas suspensas"
-      onClick={onClose}
+      onClick={requestClose}
     >
       <div
-        className="w-full max-w-xl overflow-hidden rounded-xl border border-border-primary bg-bg-light"
+        className={`w-full max-w-xl overflow-hidden rounded-xl border border-border-primary bg-bg-light ${
+          closing ? "modal-panel-out" : "modal-panel-in"
+        }`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-border-primary px-5 py-3.5">
@@ -53,7 +60,7 @@ export default function PdvSuspendedSalesModal({
           </span>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             aria-label="Fechar vendas suspensas"
             className="ml-auto grid h-9 w-9 place-items-center rounded-md text-text-tertiary transition hover:bg-hover-light hover:text-primary"
           >
