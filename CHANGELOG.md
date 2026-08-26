@@ -1,5 +1,15 @@
 # Novidades do CaixaUp
 
+## 3.3.15
+
+### Visual mais moderno e cupom corrigido
+
+- Nova tela de abertura animada do CaixaUp.
+- Janelas abrem e fecham com transição suave.
+- Cupom não corta mais os últimos dígitos dos valores (ex.: R$ 10,00).
+- Páginas iniciais, relatórios e histórico revelam conteúdo ao rolar.
+- Botões, cards e menus com respostas visuais mais claras.
+
 ## 3.3.14
 
 ### Caixa mais rápido
