@@ -13,6 +13,7 @@ export type PdvProduct = {
   id: string;
   name: string;
   code: string;
+  alternateCodes?: string[];
   /** Estoque disponível. Pode ser fracionado no cadastro, por isso number. */
   stock: number;
   unitPriceCents: number;

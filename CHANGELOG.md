@@ -1,5 +1,13 @@
 # Novidades do CaixaUp
 
+## 3.3.12
+
+### Leitor de código de barras
+
+- Códigos com hífen, espaços, prefixo do leitor ou zero inicial agora são reconhecidos.
+- Importação do Nex usa EAN/GTIN como código de barras e preserva o código interno.
+- Produtos podem ser encontrados pelo EAN/GTIN ou pelo código interno do Nex.
+
 ## 3.3.4
 
 ### Validação final

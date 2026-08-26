@@ -1,6 +1,7 @@
 export type NextarProductRow = {
   name: string;
   code: string;
+  internalCode: string;
   quantity: number;
   unitPrice: number;
   salePrice: number;
@@ -30,7 +31,8 @@ export type NextarImportResult<T> = {
 
 const PRODUCT_HEADERS = {
   name: ["produto", "nome", "nome do produto", "descricao", "descrição"],
-  code: ["codigo", "código", "cod. produto", "cód. produto", "codigo de barras", "código de barras", "barcode", "ean", "ean / gtin", "gtin", "sku"],
+  internalCode: ["codigo", "código", "cod. produto", "cód. produto", "sku"],
+  barcode: ["codigo de barras", "código de barras", "barcode", "ean", "ean / gtin", "gtin"],
   quantity: ["estoque", "quantidade", "qtd", "saldo", "estoque atual"],
   unitPrice: ["preco de custo", "preço de custo", "custo", "valor de custo", "preco compra"],
   salePrice: ["preco de venda", "preço de venda", "preco venda", "preço venda", "venda", "valor de venda", "valor unitario", "valor unitário", "preco", "preço"],
@@ -199,15 +201,6 @@ function findColumn(headers: string[], aliases: readonly string[]) {
   );
 }
 
-function findHeaderRow(
-  rows: string[][],
-  requiredAliases: ReadonlyArray<readonly string[]>,
-) {
-  return rows.findIndex((row) =>
-    requiredAliases.every((aliases) => findColumn(row, aliases) >= 0),
-  );
-}
-
 function normalizeDate(value: string) {
   const clean = value.trim();
   if (!clean) return "";
@@ -225,11 +218,13 @@ function normalizeDate(value: string) {
 
 export function parseNextarProducts(rows: string[][]): NextarImportResult<NextarProductRow> {
   const expandedRows = expandEmbeddedRows(rows);
-  const headerIndex = findHeaderRow(expandedRows, [
-    PRODUCT_HEADERS.name,
-    PRODUCT_HEADERS.code,
-    PRODUCT_HEADERS.salePrice,
-  ]);
+  const headerIndex = expandedRows.findIndex(
+    (row) =>
+      findColumn(row, PRODUCT_HEADERS.name) >= 0 &&
+      findColumn(row, PRODUCT_HEADERS.salePrice) >= 0 &&
+      (findColumn(row, PRODUCT_HEADERS.internalCode) >= 0 ||
+        findColumn(row, PRODUCT_HEADERS.barcode) >= 0),
+  );
   if (headerIndex < 0) {
     throw new Error(
       "O arquivo precisa ter Produto/Nome, Código/Código de barras e Preço de venda.",
@@ -239,7 +234,8 @@ export function parseNextarProducts(rows: string[][]): NextarImportResult<Nextar
   const headers = expandedRows[headerIndex];
   const columns = {
     name: findColumn(headers, PRODUCT_HEADERS.name),
-    code: findColumn(headers, PRODUCT_HEADERS.code),
+    internalCode: findColumn(headers, PRODUCT_HEADERS.internalCode),
+    barcode: findColumn(headers, PRODUCT_HEADERS.barcode),
     quantity: findColumn(headers, PRODUCT_HEADERS.quantity),
     unitPrice: findColumn(headers, PRODUCT_HEADERS.unitPrice),
     salePrice: findColumn(headers, PRODUCT_HEADERS.salePrice),
@@ -251,7 +247,13 @@ export function parseNextarProducts(rows: string[][]): NextarImportResult<Nextar
 
   for (const cells of expandedRows.slice(headerIndex + 1)) {
     const name = cells[columns.name]?.trim() ?? "";
-    const code = normalizeIdentifier(cells[columns.code]?.trim() ?? "");
+    const internalCode = normalizeIdentifier(
+      columns.internalCode >= 0 ? cells[columns.internalCode]?.trim() ?? "" : "",
+    );
+    const barcode = normalizeIdentifier(
+      columns.barcode >= 0 ? cells[columns.barcode]?.trim() ?? "" : "",
+    );
+    const code = barcode || internalCode;
     const salePrice = parseNumber(cells[columns.salePrice] ?? "");
     if (name.length < 2 || !code || salePrice <= 0) {
       skipped += 1;
@@ -261,9 +263,10 @@ export function parseNextarProducts(rows: string[][]): NextarImportResult<Nextar
     const quantity = Math.max(0, Math.floor(parseNumber(cells[columns.quantity] ?? "0")));
     const parsedUnitPrice = parseNumber(cells[columns.unitPrice] ?? "");
     const supplier = cells[columns.supplier]?.trim() || "Importado do Nex";
-    uniqueProducts.set(normalize(code), {
+    uniqueProducts.set(normalize(internalCode || code), {
       name,
       code,
+      internalCode: internalCode || code,
       quantity,
       unitPrice: parsedUnitPrice > 0 ? parsedUnitPrice : salePrice,
       salePrice,

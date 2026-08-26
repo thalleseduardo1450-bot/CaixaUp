@@ -11,6 +11,7 @@ export type ProductDto = {
   productImageName: string;
   productName: string;
   productCode: string;
+  productAlternateCode?: string;
   productSupplier: string;
   productDescription: string;
   productQnt: string;
@@ -54,6 +55,7 @@ export const productService = {
       productImageName: "",
       productName: p.nome ?? "",
       productCode: p.codigo_barras || p.sku || "",
+      productAlternateCode: p.sku || "",
       productSupplier: p.categorias?.nome ?? "",
       productDescription: p.descricao ?? "",
       productQnt: String(p.estoque_atual ?? 0),
@@ -86,7 +88,7 @@ export const productService = {
         nome: payload.productName,
         descricao: payload.productDescription ?? "",
         codigo_barras: payload.productCode ?? "",
-        sku: payload.productCode ?? "",
+        sku: payload.productAlternateCode || payload.productCode || "",
         preco_venda: parseReais(payload.productSalePrice),
         preco_custo: parseReais(payload.productUnitPrice),
         estoque_atual: Number(payload.productQnt ?? 0),
@@ -105,6 +107,7 @@ export const productService = {
       productImageName: "",
       productName: p.nome,
       productCode: p.codigo_barras || p.sku || "",
+      productAlternateCode: p.sku || "",
       productSupplier: payload.productSupplier ?? "",
       productDescription: p.descricao ?? "",
       productQnt: String(p.estoque_atual ?? 0),
@@ -121,7 +124,7 @@ export const productService = {
         nome: payload.productName,
         descricao: payload.productDescription ?? "",
         codigo_barras: payload.productCode ?? "",
-        sku: payload.productCode ?? "",
+        sku: payload.productAlternateCode || payload.productCode || "",
         preco_venda: parseReais(payload.productSalePrice),
         preco_custo: parseReais(payload.productUnitPrice),
         estoque_atual: Number(payload.productQnt ?? 0),
@@ -138,6 +141,7 @@ export const productService = {
       productImageName: "",
       productName: p.nome,
       productCode: p.codigo_barras || p.sku || "",
+      productAlternateCode: p.sku || "",
       productSupplier: payload.productSupplier ?? "",
       productDescription: p.descricao ?? "",
       productQnt: String(p.estoque_atual ?? 0),

@@ -14,6 +14,7 @@ import { productService } from "@/services/api/productService";
 import { productImagePath } from "@/utils/productImage";
 import type { PdvProduct, PdvProductViewMode } from "@/types/pdv";
 import { centsFromApi } from "@/utils/pdvMoney";
+import { productCodeKeys } from "@/utils/productCode";
 import {
   getFavoriteIds,
   getUsageCounts,
@@ -57,6 +58,9 @@ export function usePdvProducts() {
           id: item.id,
           name: item.productName,
           code: item.productCode,
+          alternateCodes: item.productAlternateCode
+            ? [item.productAlternateCode]
+            : [],
           stock: Number(item.productQnt || 0),
           unitPriceCents: centsFromApi(item.productSalePrice),
           imageUrl: item.productImageUrl || productImagePath(item.productName, item.productCode),
@@ -105,9 +109,18 @@ export function usePdvProducts() {
       }
 
       if (normalizedQuery) {
+        const queryCodeKeys = new Set(productCodeKeys(query));
         result = result.filter((product) => {
+          const productCodes = [product.code, ...(product.alternateCodes ?? [])];
+          if (
+            productCodes.some((code) =>
+              productCodeKeys(code).some((key) => queryCodeKeys.has(key)),
+            )
+          ) {
+            return true;
+          }
           const haystack = normalizeSearchText(
-            `${product.name} ${product.code} ${product.supplier ?? ""}`,
+            `${product.name} ${productCodes.join(" ")} ${product.supplier ?? ""}`,
           );
           // Cada palavra digitada tem de aparecer: "leite int" acha "Leite Integral".
           return normalizedQuery
@@ -130,10 +143,14 @@ export function usePdvProducts() {
   /** Busca o produto pelo código exato — o caminho do leitor de código de barras. */
   const findByExactCode = useCallback(
     (code: string): PdvProduct | null => {
-      const target = normalizeSearchText(code);
-      if (!target) return null;
+      const targets = new Set(productCodeKeys(code));
+      if (targets.size === 0) return null;
       return (
-        products.find((product) => normalizeSearchText(product.code) === target) ?? null
+        products.find((product) =>
+          [product.code, ...(product.alternateCodes ?? [])].some((candidate) =>
+            productCodeKeys(candidate).some((key) => targets.has(key)),
+          ),
+        ) ?? null
       );
     },
     [products],

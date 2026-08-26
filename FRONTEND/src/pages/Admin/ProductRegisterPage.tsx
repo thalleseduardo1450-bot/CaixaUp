@@ -723,21 +723,28 @@ export default function ProductRegisterPage() {
       }
 
       const currentProducts = await productService.list();
-      const productsByCode = new Map(
-        currentProducts.map((product) => [product.productCode.trim().toLowerCase(), product]),
-      );
+      const productsByCode = new Map<string, ProductDto>();
+      for (const product of currentProducts) {
+        productsByCode.set(product.productCode.trim().toLowerCase(), product);
+        if (product.productAlternateCode?.trim()) {
+          productsByCode.set(product.productAlternateCode.trim().toLowerCase(), product);
+        }
+      }
       let created = 0;
       let updated = 0;
       let failed = 0;
       let firstFailure = "";
 
       for (const imported of parsed.records) {
-        const existing = productsByCode.get(imported.code.trim().toLowerCase());
+        const existing =
+          productsByCode.get(imported.code.trim().toLowerCase()) ??
+          productsByCode.get(imported.internalCode.trim().toLowerCase());
         const payload: Omit<ProductDto, "id"> = {
           productImageUrl: existing?.productImageUrl || "",
           productImageName: existing?.productImageName || "",
           productName: imported.name,
           productCode: imported.code,
+          productAlternateCode: imported.internalCode,
           productSupplier: existing?.productSupplier || imported.supplier || "Importado do Nex",
           productDescription: existing?.productDescription || "Importado do Nex",
           productQnt: String(imported.quantity),
@@ -750,7 +757,12 @@ export default function ProductRegisterPage() {
           const saved = existing
             ? await productService.update(existing.id, payload)
             : await productService.create(payload);
-          if (saved) productsByCode.set(saved.productCode.trim().toLowerCase(), saved);
+          if (saved) {
+            productsByCode.set(saved.productCode.trim().toLowerCase(), saved);
+            if (saved.productAlternateCode?.trim()) {
+              productsByCode.set(saved.productAlternateCode.trim().toLowerCase(), saved);
+            }
+          }
           if (existing) updated += 1;
           else created += 1;
         } catch (error) {
