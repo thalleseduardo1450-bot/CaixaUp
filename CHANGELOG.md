@@ -1,5 +1,12 @@
 # Novidades do CaixaUp
 
+## 3.3.13
+
+### Importação Nex
+
+- EAN/GTIN repetido não cria nem sobrescreve o produto errado.
+- Código interno do Nex tem prioridade para atualizar o produto correto.
+
 ## 3.3.12
 
 ### Leitor de código de barras

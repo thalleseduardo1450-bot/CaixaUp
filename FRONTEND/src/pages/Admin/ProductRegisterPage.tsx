@@ -737,8 +737,8 @@ export default function ProductRegisterPage() {
 
       for (const imported of parsed.records) {
         const existing =
-          productsByCode.get(imported.code.trim().toLowerCase()) ??
-          productsByCode.get(imported.internalCode.trim().toLowerCase());
+          productsByCode.get(imported.internalCode.trim().toLowerCase()) ??
+          productsByCode.get(imported.code.trim().toLowerCase());
         const payload: Omit<ProductDto, "id"> = {
           productImageUrl: existing?.productImageUrl || "",
           productImageName: existing?.productImageName || "",

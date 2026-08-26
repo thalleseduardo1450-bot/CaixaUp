@@ -243,6 +243,7 @@ export function parseNextarProducts(rows: string[][]): NextarImportResult<Nextar
   };
 
   const uniqueProducts = new Map<string, NextarProductRow>();
+  const usedPrimaryCodes = new Set<string>();
   let skipped = 0;
 
   for (const cells of expandedRows.slice(headerIndex + 1)) {
@@ -253,7 +254,10 @@ export function parseNextarProducts(rows: string[][]): NextarImportResult<Nextar
     const barcode = normalizeIdentifier(
       columns.barcode >= 0 ? cells[columns.barcode]?.trim() ?? "" : "",
     );
-    const code = barcode || internalCode;
+    const preferredCodes = [barcode, internalCode].filter(Boolean);
+    const code =
+      preferredCodes.find((candidate) => !usedPrimaryCodes.has(normalize(candidate))) ??
+      (internalCode || barcode);
     const salePrice = parseNumber(cells[columns.salePrice] ?? "");
     if (name.length < 2 || !code || salePrice <= 0) {
       skipped += 1;
@@ -263,6 +267,7 @@ export function parseNextarProducts(rows: string[][]): NextarImportResult<Nextar
     const quantity = Math.max(0, Math.floor(parseNumber(cells[columns.quantity] ?? "0")));
     const parsedUnitPrice = parseNumber(cells[columns.unitPrice] ?? "");
     const supplier = cells[columns.supplier]?.trim() || "Importado do Nex";
+    usedPrimaryCodes.add(normalize(code));
     uniqueProducts.set(normalize(internalCode || code), {
       name,
       code,
