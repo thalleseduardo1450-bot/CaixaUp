@@ -3,7 +3,7 @@
  * Objetivo: orquestra o shell administrativo com sidebar, cabeçalho mobile e lazy loading das páginas.
  * Entradas esperadas: não recebe props; controla estado global de navegação local.
  */
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CircleHelp, Menu } from "lucide-react";
 import AppSidebar, { type PageKey } from "@/components/AppSidebar/AppSidebar";
 import LoadingBar from "@/components/Loading/LoadingBar";
@@ -11,6 +11,8 @@ import AppSplash from "@/components/Loading/AppSplash";
 import GuidedTour from "@/components/Tour/GuidedTour";
 import InstalledUpdateModal from "@/components/Update/InstalledUpdateModal";
 import AppErrorBoundary from "@/components/ErrorBoundary/AppErrorBoundary";
+import DesktopTitleBar from "@/components/Shell/DesktopTitleBar";
+import PageScrollControls from "@/components/Shell/PageScrollControls";
 import { APP_OPEN_TOUR_EVENT } from "@/domain/navigation/events";
 import { Toast, useStatusDialog } from "@/hooks/Dialog";
 import ForgotPasswordPage from "@/pages/Auth/ForgotPasswordPage";
@@ -81,6 +83,23 @@ type PublicAuthPage =
   | "reset-password"
   | "register";
 
+function DesktopWindowFrame({
+  children,
+  pageTitle,
+}: {
+  children: ReactNode;
+  pageTitle: string;
+}) {
+  if (!window.caixaUpDesktop) return <>{children}</>;
+
+  return (
+    <div className="desktop-window-shell flex h-screen flex-col overflow-hidden bg-bg-primary text-text-primary font-sans">
+      <DesktopTitleBar pageTitle={pageTitle} />
+      <div className="desktop-window-content min-h-0 flex-1 overflow-hidden">{children}</div>
+    </div>
+  );
+}
+
 function hasSupabaseRecoveryCallback() {
   if (typeof window === "undefined") return false;
   const query = new URLSearchParams(window.location.search);
@@ -119,6 +138,8 @@ function toCurrentUser(user: AuthenticatedUser): CurrentUser {
 }
 
 export default function App() {
+  const pageScrollRef = useRef<HTMLElement | null>(null);
+  const isDesktopApp = Boolean(window.caixaUpDesktop);
   const statusDialog = useStatusDialog();
   const [isRecoveryFlow] = useState(hasSupabaseRecoveryCallback);
   const isStandalonePos =
@@ -623,88 +644,103 @@ export default function App() {
 
   if (isRecoveryFlow) {
     return (
-      <ResetPasswordPage
-        initialToken={passwordResetToken}
-        onResetPassword={handleResetPassword}
-        onOpenLogin={() => setPublicAuthPage("login")}
-        closeAfterSuccess={
-          typeof navigator !== "undefined" &&
-          !navigator.userAgent.toLowerCase().includes("electron")
-        }
-      />
+      <DesktopWindowFrame pageTitle="Redefinir senha">
+        <ResetPasswordPage
+          initialToken={passwordResetToken}
+          onResetPassword={handleResetPassword}
+          onOpenLogin={() => setPublicAuthPage("login")}
+          closeAfterSuccess={
+            typeof navigator !== "undefined" &&
+            !navigator.userAgent.toLowerCase().includes("electron")
+          }
+        />
+      </DesktopWindowFrame>
     );
   }
 
   if (!splashGone) {
     return (
-      <AppSplash ready={!isCheckingAuth} onFinished={() => setSplashGone(true)} />
+      <DesktopWindowFrame pageTitle="Iniciando">
+        <AppSplash ready={!isCheckingAuth} onFinished={() => setSplashGone(true)} />
+      </DesktopWindowFrame>
     );
   }
 
   if (isCheckingAuth) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-bg-primary text-text-secondary">
-        <LoadingBar />
-      </div>
+      <DesktopWindowFrame pageTitle="Carregando">
+        <div className="flex h-full items-center justify-center bg-bg-primary text-text-secondary">
+          <LoadingBar />
+        </div>
+      </DesktopWindowFrame>
     );
   }
 
   if (!isAuthenticated) {
     if (publicAuthPage === "forgot-password") {
       return (
-        <ForgotPasswordPage
-          onForgotPassword={handleForgotPassword}
-          onOpenLogin={() => setPublicAuthPage("login")}
-          onOpenResetPassword={(token) => {
-            setPasswordResetToken(token);
-            setPublicAuthPage("reset-password");
-          }}
-        />
+        <DesktopWindowFrame pageTitle="Recuperar senha">
+          <ForgotPasswordPage
+            onForgotPassword={handleForgotPassword}
+            onOpenLogin={() => setPublicAuthPage("login")}
+            onOpenResetPassword={(token) => {
+              setPasswordResetToken(token);
+              setPublicAuthPage("reset-password");
+            }}
+          />
+        </DesktopWindowFrame>
       );
     }
 
     if (publicAuthPage === "reset-password") {
       return (
-        <ResetPasswordPage
-          initialToken={passwordResetToken}
-          onResetPassword={handleResetPassword}
-          onOpenLogin={() => setPublicAuthPage("login")}
-        />
+        <DesktopWindowFrame pageTitle="Redefinir senha">
+          <ResetPasswordPage
+            initialToken={passwordResetToken}
+            onResetPassword={handleResetPassword}
+            onOpenLogin={() => setPublicAuthPage("login")}
+          />
+        </DesktopWindowFrame>
       );
     }
 
     if (publicAuthPage === "register") {
       return (
-        <RegisterPage
-          onRegister={handleRegister}
-          onOpenLogin={() => setPublicAuthPage("login")}
-          onRegisterSuccess={(email) => {
-            setLoginInitialEmail(email);
-            setLoginNotice("Cadastro criado e liberado. Entre com seu e-mail e senha.");
-            setPublicAuthPage("login");
-          }}
-        />
+        <DesktopWindowFrame pageTitle="Criar conta">
+          <RegisterPage
+            onRegister={handleRegister}
+            onOpenLogin={() => setPublicAuthPage("login")}
+            onRegisterSuccess={(email) => {
+              setLoginInitialEmail(email);
+              setLoginNotice("Cadastro criado e liberado. Entre com seu e-mail e senha.");
+              setPublicAuthPage("login");
+            }}
+          />
+        </DesktopWindowFrame>
       );
     }
 
     return (
-      <LoginPage
-        onLogin={handleLogin}
-        onOpenForgotPassword={() => setPublicAuthPage("forgot-password")}
-        onOpenRegister={() => setPublicAuthPage("register")}
-        initialEmail={loginInitialEmail}
-        notice={loginNotice}
-      />
+      <DesktopWindowFrame pageTitle="Entrar">
+        <LoginPage
+          onLogin={handleLogin}
+          onOpenForgotPassword={() => setPublicAuthPage("forgot-password")}
+          onOpenRegister={() => setPublicAuthPage("register")}
+          initialEmail={loginInitialEmail}
+          notice={loginNotice}
+        />
+      </DesktopWindowFrame>
     );
   }
 
   if (activePage === "vendas") {
     return (
       <>
-        <div className="page-enter min-h-screen bg-bg-primary text-text-primary font-sans">
+        <DesktopWindowFrame pageTitle="Frente de caixa">
+        <div className="page-enter h-full bg-bg-primary text-text-primary font-sans">
           <Suspense
             fallback={
-              <div className="flex min-h-screen items-center justify-center text-text-secondary">
+              <div className="flex h-full items-center justify-center text-text-secondary">
                 <LoadingBar />
               </div>
             }
@@ -727,6 +763,7 @@ export default function App() {
             />
           </Suspense>
         </div>
+        </DesktopWindowFrame>
         {installedUpdate ? (
           <InstalledUpdateModal
             {...installedUpdate}
@@ -739,8 +776,12 @@ export default function App() {
 
   return (
     <>
-      <div className="relative flex h-screen overflow-hidden bg-bg-primary text-text-primary font-sans">
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-layer-mobile-header h-14 bg-bg-light border-b border-border-primary px-3 shadow-sm">
+      <DesktopWindowFrame pageTitle={pageTitleByKey[activePage]}>
+      <div className="relative flex h-full overflow-hidden bg-bg-primary text-text-primary font-sans">
+      <header
+        className="lg:hidden fixed left-0 right-0 z-layer-mobile-header h-14 bg-bg-light border-b border-border-primary px-3 shadow-sm"
+        style={{ top: isDesktopApp ? 40 : 0 }}
+      >
         <div className="h-full flex items-center justify-between">
           <button
             type="button"
@@ -799,6 +840,7 @@ export default function App() {
         }
       >
         <main
+          ref={pageScrollRef}
           data-active-page={activePage}
           className="flex-1 h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden pt-14 lg:pt-0"
         >
@@ -838,8 +880,10 @@ export default function App() {
           />
         </main>
       </Suspense>
+        <PageScrollControls containerRef={pageScrollRef} pageKey={activePage} />
         {statusDialog.Dialog}
       </div>
+      </DesktopWindowFrame>
       {installedUpdate ? (
         <InstalledUpdateModal
           {...installedUpdate}

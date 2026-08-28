@@ -151,16 +151,25 @@ function createSplash() {
 
 function createMainWindow() {
   zoomAtual = 1;
-  const wa = screen.getPrimaryDisplay().workAreaSize;
+  const wa = screen.getPrimaryDisplay().workArea;
 
   mainWindow = new BrowserWindow({
-    width: Math.min(1440, wa.width),
-    height: Math.min(900, wa.height),
+    x: wa.x + 8,
+    y: wa.y + 8,
+    width: Math.max(800, wa.width - 16),
+    height: Math.max(600, wa.height - 16),
     minWidth: Math.min(1024, wa.width),
     minHeight: Math.min(700, wa.height),
     show: false,
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#111318",
     autoHideMenuBar: true,
+    roundedCorners: true,
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#111318",
+      symbolColor: "#f8fafc",
+      height: 40,
+    },
     icon: path.join(__dirname, "build", "icon.png"),
     title: "CaixaUp",
     webPreferences: {
@@ -190,7 +199,6 @@ function createMainWindow() {
     janelaExibida = true;
     console.log(`[janela] exibindo (disparado por: ${origem})`);
     if (splash && !splash.isDestroyed()) splash.destroy();
-    mainWindow.maximize();
     mainWindow.show();
   };
 

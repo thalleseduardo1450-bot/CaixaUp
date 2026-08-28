@@ -126,6 +126,50 @@
       color 0.25s ease;
   }
 
+  .desktop-window-shell {
+    border: 1px solid #262b35;
+    border-radius: 14px;
+    background: #111318;
+  }
+
+  .desktop-titlebar {
+    position: relative;
+    z-index: 300;
+    display: flex;
+    height: 40px;
+    flex: 0 0 40px;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid #262b35;
+    background: #111318;
+    color: #f8fafc;
+    user-select: none;
+    -webkit-app-region: drag;
+  }
+
+  .desktop-titlebar-brand {
+    position: absolute;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .desktop-titlebar-page {
+    max-width: min(44vw, 620px);
+    overflow: hidden;
+    color: #aeb7c6;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .desktop-window-content > .min-h-screen {
+    min-height: 100%;
+  }
+
   .grecaptcha-badge {
     visibility: hidden;
   }
@@ -690,6 +734,60 @@
 
 *::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-tertiary);
+}
+
+.page-scroll-controls {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: var(--z-layer-fab);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: scrollControlsIn 180ms ease-out both;
+}
+
+.page-scroll-controls button {
+  display: inline-flex;
+  width: 46px;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-border-primary));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-bg-light) 92%, var(--color-accent));
+  color: var(--color-accent);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+  transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.page-scroll-controls button:hover {
+  transform: translateY(-2px) scale(1.04);
+  background: var(--color-accent);
+  color: #ffffff;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.28);
+}
+
+.page-scroll-controls button:active {
+  transform: scale(0.94);
+}
+
+@keyframes scrollControlsIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 1023px) {
+  .desktop-window-shell [data-app-sidebar] {
+    top: 40px;
+    height: calc(100vh - 40px);
+  }
 }
 
 .toast-success {

@@ -8,17 +8,13 @@
  *    não ao PDV. Só as teclas de função valem em qualquer lugar.
  *  - Toda tecla tratada leva preventDefault, senão o F3 abre a busca do navegador
  *    e o F7 liga a navegação por cursor no Chrome.
- *  - F12 continua atendido por compatibilidade com quem já usava o caixa, mas o
- *    navegador abre o DevTools nessa tecla e isso NÃO é cancelável. Por isso o
- *    caminho principal para finalizar é F9 (e o botão grande na tela).
+ *  - F2 abre o pagamento. Dentro do pagamento, F2 conclui a venda.
  */
 import { useEffect, useRef } from "react";
 
 export type PdvShortcutHandlers = {
   /** F1 — abre/fecha a lista de atalhos. */
   onToggleHelp?: () => void;
-  /** F2 — foco no campo de busca/leitura de código. */
-  onFocusSearch?: () => void;
   /** F3 — foco no campo de cliente. */
   onFocusCustomer?: () => void;
   /** F4 — foco no campo de quantidade. */
@@ -29,7 +25,7 @@ export type PdvShortcutHandlers = {
   onSuspendSale?: () => void;
   /** F8 — cancela a venda atual. */
   onCancelSale?: () => void;
-  /** F9 e F12 — abre o pagamento. */
+  /** F2 — abre o pagamento. */
   onOpenCheckout?: () => void;
   /** Ctrl+Delete — remove o item selecionado. */
   onRemoveSelected?: () => void;
@@ -50,13 +46,12 @@ export type UsePdvShortcutsOptions = {
 /** Lista exibida no painel de ajuda (F1). Fica aqui para não divergir do listener. */
 export const PDV_SHORTCUT_HINTS: Array<{ keys: string; label: string }> = [
   { keys: "F1", label: "Mostrar atalhos" },
-  { keys: "F2", label: "Buscar produto / ler código" },
+  { keys: "F2", label: "Finalizar e pagar" },
   { keys: "F3", label: "Informar cliente" },
   { keys: "F4", label: "Quantidade" },
   { keys: "F6", label: "Vendas suspensas" },
   { keys: "F7", label: "Suspender venda" },
   { keys: "F8", label: "Cancelar venda" },
-  { keys: "F9", label: "Finalizar e pagar" },
   { keys: "↑ ↓", label: "Selecionar item do cupom" },
   { keys: "+ / −", label: "Aumentar / diminuir quantidade" },
   { keys: "Ctrl + Del", label: "Remover item selecionado" },
@@ -98,7 +93,7 @@ export function usePdvShortcuts({ enabled, handlers }: UsePdvShortcutsOptions) {
         case "F1":
           return void run(api.onToggleHelp);
         case "F2":
-          return void run(api.onFocusSearch);
+          return void run(api.onOpenCheckout);
         case "F3":
           return void run(api.onFocusCustomer);
         case "F4":
@@ -109,9 +104,6 @@ export function usePdvShortcuts({ enabled, handlers }: UsePdvShortcutsOptions) {
           return void run(api.onSuspendSale);
         case "F8":
           return void run(api.onCancelSale);
-        case "F9":
-        case "F12":
-          return void run(api.onOpenCheckout);
         case "Escape":
           return void run(api.onEscape);
         default:

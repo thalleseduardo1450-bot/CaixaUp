@@ -11,7 +11,7 @@
  * A lista rola, mas o rodapé (total + botão de finalizar) fica fixo. Cupom de 40
  * itens não pode empurrar o botão de pagamento para fora da tela.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Minus, Plus, ReceiptText, Trash2, Wallet, X } from "lucide-react";
 
 import type { PdvCartItem } from "@/types/pdv";
@@ -24,6 +24,7 @@ type PdvCartProps = {
   onSelect: (id: string) => void;
   onIncrement: (id: string) => void;
   onDecrement: (id: string) => void;
+  onSetQuantity: (id: string, quantity: number) => void;
   onRemove: (id: string) => void;
   onCheckout: () => void;
   onCancelSale: () => void;
@@ -38,10 +39,55 @@ type PdvCartProps = {
 
 type PdvCartItemsProps = Pick<
   PdvCartProps,
-  "items" | "selectedId" | "onSelect" | "onIncrement" | "onDecrement" | "onRemove"
+  "items" | "selectedId" | "onSelect" | "onIncrement" | "onDecrement" | "onSetQuantity" | "onRemove"
 > & {
   wide?: boolean;
 };
+
+function EditableQuantity({
+  quantity,
+  productName,
+  onCommit,
+}: {
+  quantity: number;
+  productName: string;
+  onCommit: (quantity: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(quantity));
+
+  useEffect(() => setDraft(String(quantity)), [quantity]);
+
+  const commit = () => {
+    const next = Number(draft);
+    if (!Number.isInteger(next) || next < 1) {
+      setDraft(String(quantity));
+      return;
+    }
+    onCommit(next);
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={draft}
+      onClick={(event) => event.stopPropagation()}
+      onFocus={(event) => event.currentTarget.select()}
+      onChange={(event) => setDraft(event.target.value.replace(/\D/g, "").slice(0, 4))}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.currentTarget.blur();
+        if (event.key === "Escape") {
+          setDraft(String(quantity));
+          event.currentTarget.blur();
+        }
+      }}
+      className="h-9 w-12 rounded-md border border-transparent bg-transparent text-center font-mono text-lg font-bold text-text-primary outline-none transition hover:border-border-secondary hover:bg-bg-light focus:border-accent focus:bg-bg-light"
+      aria-label={`Quantidade de ${productName}`}
+      title="Clique e digite a quantidade"
+    />
+  );
+}
 
 export function PdvCartItems({
   items,
@@ -49,6 +95,7 @@ export function PdvCartItems({
   onSelect,
   onIncrement,
   onDecrement,
+  onSetQuantity,
   onRemove,
   wide = false,
 }: PdvCartItemsProps) {
@@ -100,9 +147,11 @@ export function PdvCartItems({
               >
                 <Minus size={16} />
               </button>
-              <span className="w-11 text-center font-mono text-lg font-bold text-text-primary">
-                {item.quantity}
-              </span>
+              <EditableQuantity
+                quantity={item.quantity}
+                productName={item.name}
+                onCommit={(quantity) => onSetQuantity(item.id, quantity)}
+              />
               <button
                 type="button"
                 onClick={(event) => {
@@ -143,6 +192,7 @@ export default function PdvCart({
   onSelect,
   onIncrement,
   onDecrement,
+  onSetQuantity,
   onRemove,
   onCheckout,
   onCancelSale,
@@ -186,6 +236,7 @@ export default function PdvCart({
           onSelect={onSelect}
           onIncrement={onIncrement}
           onDecrement={onDecrement}
+          onSetQuantity={onSetQuantity}
           onRemove={onRemove}
         />
       )}
@@ -214,7 +265,7 @@ export default function PdvCart({
           <Wallet size={24} />
           {isSubmitting ? "Enviando..." : "Finalizar e pagar"}
           <kbd className="rounded bg-black/20 px-1.5 py-0.5 text-xs font-semibold">
-            F9
+            F2
           </kbd>
         </button>
 

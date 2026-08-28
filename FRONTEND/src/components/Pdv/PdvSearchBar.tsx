@@ -54,7 +54,7 @@ const PdvSearchBar = forwardRef<HTMLInputElement, PdvSearchBarProps>(
           <label className="flex min-w-[260px] flex-1 flex-col gap-1">
             <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-accent">
               <Search size={14} aria-hidden="true" />
-              Pesquisar produto — bipe o código ou digite o nome (F2)
+              Pesquisar produto — bipe o código ou digite o nome
             </span>
             <div className="pdv-search-highlight relative rounded-xl bg-bg-light">
               <Barcode

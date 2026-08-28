@@ -292,11 +292,6 @@ export default function SalesStartPage({
     searchInputRef.current?.select();
   }, []);
 
-  /** Abre a pesquisa colocando o foco no campo de leitura. */
-  const openCatalog = useCallback(() => {
-    window.setTimeout(focusSearch, 0);
-  }, [focusSearch]);
-
   const addProduct = useCallback(
     (product: PdvProduct, amount = 1) => {
       const result = cart.addProduct(product, amount);
@@ -632,7 +627,6 @@ export default function SalesStartPage({
     enabled: !anyOverlayOpen,
     handlers: {
       onToggleHelp: () => setHelpOpen((current) => !current),
-      onFocusSearch: openCatalog,
       onFocusCustomer: () => setCheckoutOpen(false),
       onFocusQuantity: () => {
         quantityInputRef.current?.focus();
@@ -824,6 +818,7 @@ export default function SalesStartPage({
                 onSelect={setSelectedCartId}
                 onIncrement={cart.increment}
                 onDecrement={cart.decrement}
+                onSetQuantity={cart.setQuantity}
                 onRemove={cart.removeItem}
                 wide
               />
@@ -852,6 +847,7 @@ export default function SalesStartPage({
             onSelect={setSelectedCartId}
             onIncrement={cart.increment}
             onDecrement={cart.decrement}
+            onSetQuantity={cart.setQuantity}
             onRemove={cart.removeItem}
             onCheckout={() => void openCheckout()}
             onCancelSale={() => void cancelSale()}
