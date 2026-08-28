@@ -824,7 +824,7 @@ export default function SalesStartPage({
                   <p className="text-lg font-bold text-text-primary">Produtos da venda</p>
                   <p className="text-sm text-text-secondary">Toque no produto para ajustar a quantidade.</p>
                 </div>
-                <span className="rounded-lg bg-accent/10 px-3 py-1.5 text-sm font-bold text-accent">
+                <span className="rounded-xl bg-accent/10 px-4 py-2 text-lg font-bold text-accent">
                   {cart.itemCount} {cart.itemCount === 1 ? "item" : "itens"}
                 </span>
               </div>

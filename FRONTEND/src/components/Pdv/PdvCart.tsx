@@ -209,10 +209,10 @@ export default function PdvCart({
     <aside className="flex h-full w-full flex-col border-l border-border-primary bg-bg-light">
       {/* Itens */}
       {summaryOnly ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 border-b border-border-primary px-6 text-center">
-          <ReceiptText size={36} className="text-accent" aria-hidden="true" />
-          <p className="text-xl font-bold text-text-primary">Venda</p>
-          <p className="text-sm text-text-secondary">
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 border-b border-border-primary px-6 text-center">
+          <ReceiptText size={48} className="text-accent" aria-hidden="true" />
+          <p className="text-2xl font-bold text-text-primary">Venda</p>
+          <p className="rounded-xl bg-accent/10 px-5 py-2 text-2xl font-bold text-accent">
             {items.length} {items.length === 1 ? "produto" : "produtos"}
           </p>
         </div>

@@ -15,9 +15,18 @@ import PageLayout from "@/layout/PageLayout";
 import {
   cashRegisterService,
   type CashRegisterSessionDto,
+  type CashRegisterSummaryDto,
   type CashRegisterStatusDto,
 } from "@/services/api/cashRegisterService";
-import { salesHistoryService, type SaleHistoryDto } from "@/services/api/salesHistoryService";
+
+const EMPTY_SUMMARY: CashRegisterSummaryDto = {
+  saleCount: 0,
+  itemCount: 0,
+  totalSales: 0,
+  totalReceived: 0,
+  paymentTotals: {},
+  products: [],
+};
 
 function formatDateTime(value?: string | null) {
   if (!value) return "-";
@@ -93,11 +102,12 @@ export default function CashRegisterPage() {
   const [openingAmount, setOpeningAmount] = useState("0,00");
   const [closingAmount, setClosingAmount] = useState("0,00");
   const [closingNote, setClosingNote] = useState("");
-  const [sales, setSales] = useState<SaleHistoryDto[]>([]);
+  const [summary, setSummary] = useState<CashRegisterSummaryDto>(EMPTY_SUMMARY);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const currentSession = cashStatus?.currentSession ?? null;
+  const summarySession = currentSession ?? cashStatus?.lastSession ?? null;
   const canSell = cashStatus?.canSell === true;
   const hasOpenSession = currentSession !== null;
 
@@ -113,15 +123,6 @@ export default function CashRegisterPage() {
     const start = (safeCurrentPage - 1) * itemsPerPage;
     return historyRows.slice(start, start + itemsPerPage);
   }, [historyRows, itemsPerPage, safeCurrentPage]);
-  const today = new Date().toLocaleDateString("pt-BR");
-  const todaySales = useMemo(
-    () => sales.filter((sale) => sale.saleDate.startsWith(today)),
-    [sales, today],
-  );
-  const totalReceived = useMemo(
-    () => todaySales.reduce((total, sale) => total + parseMoney(sale.totalAmount), 0),
-    [todaySales],
-  );
   const paymentTotals = useMemo(
     () => [
       { label: "Dinheiro", value: "dinheiro", icon: Banknote },
@@ -129,19 +130,27 @@ export default function CashRegisterPage() {
       { label: "Cartão de débito", value: "debito", icon: CreditCard },
       { label: "Cartão de crédito", value: "credito", icon: CreditCard },
       { label: "Fiado", value: "fiado", icon: CreditCard },
+      { label: "Cheque", value: "cheque", icon: Banknote },
+      { label: "Outros", value: "outros", icon: CreditCard },
     ].map((payment) => ({
       ...payment,
-      total: todaySales
-        .filter((sale) => sale.paymentType.toLowerCase() === payment.value)
-        .reduce((total, sale) => total + parseMoney(sale.totalAmount), 0),
+      total: summary.paymentTotals[payment.value] ?? 0,
     })),
-    [todaySales],
+    [summary.paymentTotals],
   );
 
   const loadStatus = useCallback(async () => {
     const status = await cashRegisterService.status();
     setCashStatus(status ?? null);
-    setClosingAmount(status?.currentSession?.closingAmount || "0,00");
+    const session = status?.currentSession ?? status?.lastSession;
+    const loadedSummary = await cashRegisterService.summary(session?.id);
+    setSummary(loadedSummary);
+    if (status?.currentSession) {
+      const expectedCash =
+        parseMoney(status.currentSession.openingAmount) +
+        (loadedSummary.paymentTotals.dinheiro ?? 0);
+      setClosingAmount(formatMoney(expectedCash));
+    }
   }, []);
 
   useEffect(() => {
@@ -152,18 +161,6 @@ export default function CashRegisterPage() {
       })
       .finally(() => setLoading(false));
   }, [loadStatus]);
-
-  const loadSales = async () => {
-    try {
-      setSales(await salesHistoryService.list());
-    } catch {
-      setSales([]);
-    }
-  };
-
-  useEffect(() => {
-    void loadSales();
-  }, []);
 
   const updateOpeningAmount = (value: string) => setOpeningAmount(maskMoneyBr(value));
   const updateClosingAmount = (value: string) => setClosingAmount(maskMoneyBr(value));
@@ -183,6 +180,9 @@ export default function CashRegisterPage() {
     try {
       const status = await cashRegisterService.open(openingAmount);
       setCashStatus(status ?? null);
+      const loadedSummary = await cashRegisterService.summary(status?.currentSession?.id);
+      setSummary(loadedSummary);
+      setClosingAmount(status?.currentSession?.openingAmount || openingAmount);
       Toast.success("Caixa aberto. Frente de caixa liberada para venda.");
     } catch (error) {
       Toast.error(error instanceof Error ? error.message : "Não foi possível abrir o caixa.");
@@ -199,6 +199,7 @@ export default function CashRegisterPage() {
     try {
       const status = await cashRegisterService.close(closingAmount, closingNote);
       setCashStatus(status ?? null);
+      setSummary(await cashRegisterService.summary(status?.lastSession?.id));
       setClosingNote("");
       Toast.success("Caixa fechado. Vendas bloqueadas até nova abertura.");
     } catch (error) {
@@ -212,7 +213,6 @@ export default function CashRegisterPage() {
     setLoading(true);
     try {
       await loadStatus();
-      await loadSales();
       Toast.success("Status do caixa atualizado.");
     } catch (error) {
       Toast.error(error instanceof Error ? error.message : "Não foi possível atualizar o caixa.");
@@ -276,13 +276,15 @@ export default function CashRegisterPage() {
       <section className="grid gap-4 lg:grid-cols-2">
         <article className="card rounded-2xl p-5">
           <h2 className="text-xl font-bold text-text-primary">Resumo do caixa</h2>
-          <p className="mt-1 text-sm text-text-secondary">Movimentação de hoje.</p>
+          <p className="mt-1 text-sm text-text-secondary">Movimentação desta sessão.</p>
           <div className="mt-5 space-y-2 text-sm text-text-secondary">
-            <p className="flex justify-between gap-4"><span>Total de vendas</span><strong className="text-text-primary">R$ {formatMoney(totalReceived)}</strong></p>
-            <p className="flex justify-between gap-4"><span>Total recebido</span><strong className="text-text-primary">R$ {formatMoney(totalReceived)}</strong></p>
+            <p className="flex justify-between gap-4"><span>Vendas finalizadas</span><strong className="text-text-primary">{summary.saleCount}</strong></p>
+            <p className="flex justify-between gap-4"><span>Produtos vendidos</span><strong className="text-text-primary">{summary.itemCount}</strong></p>
+            <p className="flex justify-between gap-4"><span>Total de vendas</span><strong className="text-text-primary">R$ {formatMoney(summary.totalSales)}</strong></p>
+            <p className="flex justify-between gap-4"><span>Total recebido</span><strong className="text-text-primary">R$ {formatMoney(summary.totalReceived)}</strong></p>
             <div className="border-t border-border-primary pt-3">
-              <p className="flex justify-between gap-4"><span>Saldo inicial</span><strong className="text-text-primary">R$ {currentSession?.openingAmount || "0,00"}</strong></p>
-              <p className="mt-2 flex justify-between gap-4 text-base"><span className="font-semibold text-text-primary">Saldo parcial</span><strong className="text-text-primary">R$ {formatMoney(parseMoney(currentSession?.openingAmount || "0") + totalReceived)}</strong></p>
+              <p className="flex justify-between gap-4"><span>Saldo inicial</span><strong className="text-text-primary">R$ {summarySession?.openingAmount || "0,00"}</strong></p>
+              <p className="mt-2 flex justify-between gap-4 text-base"><span className="font-semibold text-text-primary">Dinheiro esperado</span><strong className="text-text-primary">R$ {formatMoney(parseMoney(summarySession?.openingAmount || "0") + (summary.paymentTotals.dinheiro ?? 0))}</strong></p>
             </div>
           </div>
         </article>
@@ -301,6 +303,44 @@ export default function CashRegisterPage() {
             })}
           </div>
         </article>
+      </section>
+
+      <section className="card overflow-hidden rounded-2xl">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-primary px-5 py-4">
+          <div>
+            <h2 className="text-xl font-bold text-text-primary">Produtos vendidos</h2>
+            <p className="text-sm text-text-secondary">Itens lançados nesta sessão de caixa.</p>
+          </div>
+          <span className="rounded-lg bg-accent/10 px-3 py-2 text-base font-bold text-accent">
+            {summary.itemCount} {summary.itemCount === 1 ? "item" : "itens"}
+          </span>
+        </div>
+        {summary.products.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[620px] text-base">
+              <thead className="bg-bg-gray-theme text-sm uppercase text-text-secondary">
+                <tr>
+                  <th className="px-5 py-3 text-left">Produto</th>
+                  <th className="px-5 py-3 text-center">Quantidade</th>
+                  <th className="px-5 py-3 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {summary.products.map((product) => (
+                  <tr key={product.name} className="border-t border-border-primary">
+                    <td className="px-5 py-3 font-semibold text-text-primary">{product.name}</td>
+                    <td className="px-5 py-3 text-center font-bold text-text-primary">{product.quantity}</td>
+                    <td className="px-5 py-3 text-right font-mono font-bold text-text-primary">R$ {formatMoney(product.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="px-5 py-10 text-center text-base text-text-secondary">
+            Nenhum produto vendido nesta sessão.
+          </div>
+        )}
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">

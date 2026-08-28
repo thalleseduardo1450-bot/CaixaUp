@@ -127,8 +127,8 @@
   }
 
   .desktop-window-shell {
-    border: 1px solid #262b35;
-    border-radius: 14px;
+    border: 0;
+    border-radius: 0;
     background: #111318;
   }
 

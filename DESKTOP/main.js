@@ -154,16 +154,16 @@ function createMainWindow() {
   const wa = screen.getPrimaryDisplay().workArea;
 
   mainWindow = new BrowserWindow({
-    x: wa.x + 8,
-    y: wa.y + 8,
-    width: Math.max(800, wa.width - 16),
-    height: Math.max(600, wa.height - 16),
+    x: wa.x,
+    y: wa.y,
+    width: Math.max(800, wa.width),
+    height: Math.max(600, wa.height),
     minWidth: Math.min(1024, wa.width),
     minHeight: Math.min(700, wa.height),
     show: false,
     backgroundColor: "#111318",
     autoHideMenuBar: true,
-    roundedCorners: true,
+    roundedCorners: false,
     titleBarStyle: "hidden",
     titleBarOverlay: {
       color: "#111318",

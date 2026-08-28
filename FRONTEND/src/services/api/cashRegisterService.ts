@@ -28,6 +28,30 @@ export type CashRegisterStatusDto = {
   history: CashRegisterSessionDto[];
 };
 
+export type CashRegisterProductSummaryDto = {
+  name: string;
+  quantity: number;
+  total: number;
+};
+
+export type CashRegisterSummaryDto = {
+  saleCount: number;
+  itemCount: number;
+  totalSales: number;
+  totalReceived: number;
+  paymentTotals: Record<string, number>;
+  products: CashRegisterProductSummaryDto[];
+};
+
+const EMPTY_SUMMARY: CashRegisterSummaryDto = {
+  saleCount: 0,
+  itemCount: 0,
+  totalSales: 0,
+  totalReceived: 0,
+  paymentTotals: {},
+  products: [],
+};
+
 function reaisToText(value: number | string | null | undefined): string {
   const num = Number(value ?? 0);
   if (!Number.isFinite(num)) return "0,00";
@@ -126,6 +150,55 @@ export const cashRegisterService = {
     if (error) throw error;
 
     return this.status();
+  },
+
+  async summary(sessionId?: string | null): Promise<CashRegisterSummaryDto> {
+    const empresaId = await currentCompanyId();
+    if (!empresaId || !sessionId) return { ...EMPTY_SUMMARY };
+
+    const { data, error } = await supabase
+      .from("vendas")
+      .select("id, total, status, itens_venda(nome_produto, quantidade, preco_unitario, subtotal), pagamentos(forma, valor)")
+      .eq("empresa_id", empresaId)
+      .eq("sessao_caixa_id", sessionId)
+      .eq("status", "concluida")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+
+    const paymentTotals: Record<string, number> = {};
+    const products = new Map<string, CashRegisterProductSummaryDto>();
+    let totalSales = 0;
+    let totalReceived = 0;
+    let itemCount = 0;
+
+    for (const sale of data ?? []) {
+      totalSales += Number(sale.total ?? 0);
+      for (const payment of sale.pagamentos ?? []) {
+        const method = String(payment.forma || "outros").toLowerCase();
+        const amount = Number(payment.valor ?? 0);
+        paymentTotals[method] = (paymentTotals[method] ?? 0) + amount;
+        if (method !== "fiado") totalReceived += amount;
+      }
+      for (const item of sale.itens_venda ?? []) {
+        const name = String(item.nome_produto || "Produto sem nome");
+        const quantity = Number(item.quantidade ?? 0);
+        const itemTotal = Number(item.subtotal ?? Number(item.preco_unitario ?? 0) * quantity);
+        const current = products.get(name) ?? { name, quantity: 0, total: 0 };
+        current.quantity += quantity;
+        current.total += itemTotal;
+        itemCount += quantity;
+        products.set(name, current);
+      }
+    }
+
+    return {
+      saleCount: data?.length ?? 0,
+      itemCount,
+      totalSales,
+      totalReceived,
+      paymentTotals,
+      products: [...products.values()].sort((left, right) => right.quantity - left.quantity),
+    };
   },
 
   async close(closingAmount: string, note = "") {
