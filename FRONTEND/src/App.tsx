@@ -3,7 +3,7 @@
  * Objetivo: orquestra o shell administrativo com sidebar, cabeçalho mobile e lazy loading das páginas.
  * Entradas esperadas: não recebe props; controla estado global de navegação local.
  */
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CircleHelp, Menu } from "lucide-react";
 import AppSidebar, { type PageKey } from "@/components/AppSidebar/AppSidebar";
 import LoadingBar from "@/components/Loading/LoadingBar";
@@ -152,6 +152,22 @@ export default function App() {
   const [activePage, setActivePage] = useState<PageKey>(() => {
     return "home";
   });
+
+  useLayoutEffect(() => {
+    const container = pageScrollRef.current;
+    if (!container) return;
+    container.scrollTop = 0;
+    const frame = window.requestAnimationFrame(() => {
+      container.scrollTop = 0;
+    });
+    const timer = window.setTimeout(() => {
+      container.scrollTop = 0;
+    }, 80);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [activePage]);
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     if (typeof window === "undefined") return "light";
     const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);

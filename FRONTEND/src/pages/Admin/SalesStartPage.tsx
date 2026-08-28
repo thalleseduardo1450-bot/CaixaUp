@@ -63,6 +63,7 @@ import { customerService, type CustomerDto } from "@/services/api/customerServic
 import { salesHistoryService } from "@/services/api/salesHistoryService";
 import type { PdvProduct } from "@/types/pdv";
 import { centsToApi, formatCentsBrl, toReais } from "@/utils/pdvMoney";
+import { barcodeLookupValue } from "@/utils/productCode";
 import {
   getSellWithoutStockEnabled,
 } from "@/utils/pdvPreferences";
@@ -311,18 +312,28 @@ export default function SalesStartPage({
     [beep, cart, focusSearch, products],
   );
 
-  /**
-   * Caminho do leitor de código de barras: código exato encontrado entra sozinho.
-   * O atraso curto espera o leitor terminar de "digitar" antes de decidir.
-   */
   useEffect(() => {
     const typed = query.trim();
     if (!typed) return;
-    const exact = products.findByExactCode(typed);
-    if (!exact) return;
+    const lookupCode = barcodeLookupValue(typed);
+    if (!lookupCode) return;
 
-    const timer = window.setTimeout(() => addProduct(exact, quantityToAdd), 120);
-    return () => window.clearTimeout(timer);
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void products.resolveByScannedCode(typed).then((resolved) => {
+        if (cancelled) return;
+        if (resolved) {
+          addProduct(resolved, quantityToAdd);
+          return;
+        }
+        beep("erro");
+        Toast.error(`Código de barras ${lookupCode} não identificado.`);
+      });
+    }, 140);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
     // addProduct muda a cada render; usar aqui reiniciaria o timer em loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, products.products]);
@@ -338,6 +349,11 @@ export default function SalesStartPage({
     const exact = products.findByExactCode(typed);
     if (exact) {
       addProduct(exact, quantityToAdd);
+      return;
+    }
+
+    if (barcodeLookupValue(typed)) {
+      Toast.info("Identificando o código de barras...");
       return;
     }
 

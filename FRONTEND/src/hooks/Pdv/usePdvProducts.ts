@@ -14,7 +14,13 @@ import { productService } from "@/services/api/productService";
 import { productImagePath } from "@/utils/productImage";
 import type { PdvProduct, PdvProductViewMode } from "@/types/pdv";
 import { centsFromApi } from "@/utils/pdvMoney";
-import { productCodeKeys } from "@/utils/productCode";
+import {
+  barcodeLookupValue,
+  lookupBarcodeCatalog,
+  productCodeKeys,
+  roundedBarcodePrefix,
+  scoreProductIdentity,
+} from "@/utils/productCode";
 import {
   getFavoriteIds,
   getUsageCounts,
@@ -29,6 +35,21 @@ import {
  * é ilegível na revisão e desaparece em qualquer editor que renormalize o arquivo.
  */
 const COMBINING_MARKS = new RegExp("[\\u0300-\\u036f]", "g");
+const BARCODE_ALIASES_KEY = "caixaup.barcode.aliases.v1";
+
+function readBarcodeAliases(): Record<string, string> {
+  try {
+    return JSON.parse(window.localStorage.getItem(BARCODE_ALIASES_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveBarcodeAlias(code: string, productId: string) {
+  const aliases = readBarcodeAliases();
+  aliases[code] = productId;
+  window.localStorage.setItem(BARCODE_ALIASES_KEY, JSON.stringify(aliases));
+}
 
 /** Minúscula e sem acento, para "cafe" achar "Café" e "AÇÚCAR" achar "acucar". */
 export function normalizeSearchText(value: string): string {
@@ -156,6 +177,49 @@ export function usePdvProducts() {
     [products],
   );
 
+  const resolveByScannedCode = useCallback(
+    async (rawCode: string): Promise<PdvProduct | null> => {
+      const exact = findByExactCode(rawCode);
+      if (exact) return exact;
+
+      const lookupCode = barcodeLookupValue(rawCode);
+      if (!lookupCode) return null;
+
+      const aliasedId = readBarcodeAliases()[lookupCode];
+      const aliased = products.find((product) => product.id === aliasedId);
+      if (aliased) return aliased;
+
+      const roundedCandidates = products.filter((product) =>
+        [product.code, ...(product.alternateCodes ?? [])].some((candidate) => {
+          const prefix = roundedBarcodePrefix(candidate);
+          return prefix ? lookupCode.startsWith(prefix) : false;
+        }),
+      );
+
+      if (roundedCandidates.length === 1) {
+        saveBarcodeAlias(lookupCode, roundedCandidates[0].id);
+        return roundedCandidates[0];
+      }
+
+      const catalogInfo = await lookupBarcodeCatalog(lookupCode);
+      if (!catalogInfo) return null;
+      const pool = roundedCandidates.length > 0 ? roundedCandidates : products;
+      const ranked = pool
+        .map((product) => ({
+          product,
+          score: scoreProductIdentity(product.name, catalogInfo),
+        }))
+        .sort((left, right) => right.score - left.score);
+      const best = ranked[0];
+      const second = ranked[1];
+      if (!best || best.score < 8 || (second && best.score - second.score < 4)) return null;
+
+      saveBarcodeAlias(lookupCode, best.product.id);
+      return best.product;
+    },
+    [findByExactCode, products],
+  );
+
   const toggleFavorite = useCallback((productId: string) => {
     setFavoriteIds(toggleFavoriteId(productId));
   }, []);
@@ -172,6 +236,7 @@ export function usePdvProducts() {
     categories,
     filter,
     findByExactCode,
+    resolveByScannedCode,
     favoriteIds,
     toggleFavorite,
     trackUsage,
