@@ -1,6 +1,9 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("caixaUpDesktop", {
+  minimizeWindow: () => ipcRenderer.invoke("desktop:window:minimize"),
+  toggleMaximizeWindow: () => ipcRenderer.invoke("desktop:window:toggle-maximize"),
+  closeWindow: () => ipcRenderer.invoke("desktop:window:close"),
   getPreferences: () => ipcRenderer.invoke("desktop:preferences:get"),
   setPreference: (key, value) =>
     ipcRenderer.invoke("desktop:preferences:set", { key, value }),

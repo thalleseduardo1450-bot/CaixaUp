@@ -23,6 +23,9 @@ declare global {
 
   interface Window {
     caixaUpDesktop?: {
+      minimizeWindow: () => Promise<boolean>;
+      toggleMaximizeWindow: () => Promise<boolean>;
+      closeWindow: () => Promise<boolean>;
       getPreferences: () => Promise<DesktopPreferences>;
       setPreference: (
         key: DesktopPreferenceKey,

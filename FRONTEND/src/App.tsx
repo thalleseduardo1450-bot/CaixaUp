@@ -4,7 +4,7 @@
  * Entradas esperadas: não recebe props; controla estado global de navegação local.
  */
 import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { CircleHelp, Menu } from "lucide-react";
+import { CircleHelp, Maximize2, Menu, Minimize2, Minus, X } from "lucide-react";
 import AppSidebar, { type PageKey } from "@/components/AppSidebar/AppSidebar";
 import LoadingBar from "@/components/Loading/LoadingBar";
 import AppSplash from "@/components/Loading/AppSplash";
@@ -89,13 +89,47 @@ function DesktopWindowFrame({
   children: ReactNode;
   pageTitle: string;
 }) {
+  const [windowMaximized, setWindowMaximized] = useState(false);
+
   if (!window.caixaUpDesktop) return <>{children}</>;
 
   return (
     <div
-      className="desktop-window-shell h-screen overflow-hidden bg-bg-primary text-text-primary font-sans"
+      className="desktop-window-shell relative h-screen overflow-hidden bg-bg-primary text-text-primary font-sans"
       aria-label={pageTitle}
     >
+      <div className="absolute right-2 top-1 z-layer-loading flex items-center gap-1" aria-label="Controles da janela">
+        <button
+          type="button"
+          onClick={() => void window.caixaUpDesktop?.minimizeWindow()}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-text-secondary transition hover:bg-hover-light hover:text-text-primary"
+          aria-label="Minimizar"
+          title="Minimizar"
+        >
+          <Minus size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            const maximized = await window.caixaUpDesktop?.toggleMaximizeWindow();
+            if (typeof maximized === "boolean") setWindowMaximized(maximized);
+          }}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-text-secondary transition hover:bg-hover-light hover:text-text-primary"
+          aria-label={windowMaximized ? "Restaurar tamanho" : "Maximizar"}
+          title={windowMaximized ? "Restaurar tamanho" : "Maximizar"}
+        >
+          {windowMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+        </button>
+        <button
+          type="button"
+          onClick={() => void window.caixaUpDesktop?.closeWindow()}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-text-secondary transition hover:bg-danger/15 hover:text-danger"
+          aria-label="Sair"
+          title="Sair"
+        >
+          <X size={16} />
+        </button>
+      </div>
       {children}
     </div>
   );

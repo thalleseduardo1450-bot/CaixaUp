@@ -434,6 +434,25 @@ function configureAutoUpdater() {
 }
 
 function configureDesktopIpc() {
+  ipcMain.handle("desktop:window:minimize", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return false;
+    mainWindow.minimize();
+    return true;
+  });
+  ipcMain.handle("desktop:window:toggle-maximize", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return false;
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+      return false;
+    }
+    mainWindow.maximize();
+    return true;
+  });
+  ipcMain.handle("desktop:window:close", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return false;
+    mainWindow.close();
+    return true;
+  });
   ipcMain.handle("desktop:preferences:get", () => ({ ...desktopPreferences }));
   ipcMain.handle("desktop:preferences:set", (_event, { key, value }) => {
     if (!Object.hasOwn(DEFAULT_DESKTOP_PREFERENCES, key) || typeof value !== "boolean") {
