@@ -6,7 +6,12 @@
 
 import {
   ArrowRight,
+  FileText,
+  History,
+  Landmark,
+  Package,
   ShoppingCart,
+  UserRoundPlus,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -18,6 +23,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import type { PageKey } from "@/components/AppSidebar/AppSidebar";
 import PageHeader from "@/components/Admin/PageHeader";
 import KpiTrendCard from "@/components/Admin/KpiTrendCard";
 import Reveal from "@/components/Reveal";
@@ -25,17 +31,54 @@ import PageLayout from "@/layout/PageLayout";
 import { homeService, type HomeKpiDto } from "@/services/api/homeService";
 import { reportService } from "@/services/api/reportService";
 
-// A tela principal mantém somente o acesso direto ao caixa.
+// Atalhos principais para reduzir cliques no fluxo operacional do dia a dia.
 const shortcuts = [
   {
     title: "Começar uma venda",
     description: "Abrir o caixa de atendimento",
     icon: ShoppingCart,
+    page: "vendas" as PageKey,
     primary: true,
+  },
+  {
+    title: "Abrir ou fechar caixa",
+    description: "Controlar o caixa do dia",
+    icon: Landmark,
+    page: "caixa" as PageKey,
+    primary: true,
+  },
+  {
+    title: "Produtos",
+    description: "Cadastrar e consultar produtos",
+    icon: Package,
+    page: "cadastro-produto" as PageKey,
+    primary: false,
+  },
+  {
+    title: "Clientes",
+    description: "Cadastrar e consultar clientes",
+    icon: UserRoundPlus,
+    page: "cadastro-cliente" as PageKey,
+    primary: false,
+  },
+  {
+    title: "Histórico de Vendas",
+    description: "Ver as vendas já realizadas",
+    icon: History,
+    page: "historico-vendas" as PageKey,
+    primary: false,
+  },
+  {
+    title: "Relatórios",
+    description: "Acompanhar os resultados",
+    icon: FileText,
+    page: "relatorios" as PageKey,
+    primary: false,
   },
 ];
 
 type HomePageProps = {
+  onNavigate?: (page: PageKey) => void;
   onOpenSalesInNewTab?: () => void;
 };
 
@@ -89,7 +132,7 @@ function buildChartSeries(cards: HomeKpiDto[]) {
   });
 }
 
-export default function HomePage({ onOpenSalesInNewTab }: HomePageProps) {
+export default function HomePage({ onNavigate, onOpenSalesInNewTab }: HomePageProps) {
   const [cards, setCards] = useState<HomeKpiDto[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [rankingPeriod, setRankingPeriod] = useState<RankingPeriod>("30");
@@ -319,7 +362,13 @@ export default function HomePage({ onOpenSalesInNewTab }: HomePageProps) {
                 >
                   <button
                     type="button"
-                    onClick={onOpenSalesInNewTab}
+                    onClick={() => {
+                      if (shortcut.page === "vendas") {
+                        onOpenSalesInNewTab?.();
+                        return;
+                      }
+                      onNavigate?.(shortcut.page);
+                    }}
                     className={`group flex h-full w-full min-h-[122px] flex-col rounded-lg border p-4 text-left transition duration-200 hover:-translate-y-0.5 hover:border-accent/50 ${
                       shortcut.primary
                         ? "border-accent/30 bg-accent/10"

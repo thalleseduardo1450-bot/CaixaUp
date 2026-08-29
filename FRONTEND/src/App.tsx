@@ -286,6 +286,16 @@ export default function App() {
     setThemeMode((current) => (current === "light" ? "dark" : "light"));
   };
 
+  const handleLogout = () => {
+    const destino: PageKey = "home";
+    setMobileSidebarOpen(false);
+    setActivePage(destino);
+    window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, destino);
+    setIsAuthenticated(false);
+    authService.logout().catch(() => undefined);
+    clearAuthSession();
+  };
+
   const handleUploadAvatar = (file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -826,6 +836,12 @@ export default function App() {
         onToggle={() => setCollapsed((current) => !current)}
         activePage={activePage}
         onChangePage={setActivePage}
+        currentUserName={currentUser.name}
+        currentUserPermission={currentUser.permission}
+        currentUserAvatarUrl={currentUser.avatarUrl}
+        onOpenProfile={() => setActivePage("editar-perfil")}
+        onOpenSettings={() => setActivePage("configuracoes")}
+        onLogout={handleLogout}
         onOpenSalesInNewTab={handleOpenSalesInNewTab}
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
@@ -864,6 +880,7 @@ export default function App() {
               />
             ) : activePage === "home" ? (
               <HomePage
+                onNavigate={setActivePage}
                 onOpenSalesInNewTab={handleOpenSalesInNewTab}
               />
             ) : (
