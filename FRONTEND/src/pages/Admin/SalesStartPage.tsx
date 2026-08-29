@@ -855,7 +855,7 @@ export default function SalesStartPage({
         </section>
 
         {/* Cupom divide a tela com o catálogo */}
-        <div className="h-[46vh] shrink-0 lg:h-auto lg:w-[400px]">
+        <div className="h-[46vh] shrink-0 lg:h-auto lg:w-[360px] xl:w-[400px]">
           <PdvCart
             items={cart.items}
             totalCents={cart.totalCents}

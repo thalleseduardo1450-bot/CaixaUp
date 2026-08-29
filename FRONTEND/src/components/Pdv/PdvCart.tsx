@@ -15,7 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import { Minus, Plus, ReceiptText, Trash2, Wallet, X } from "lucide-react";
 
 import type { PdvCartItem } from "@/types/pdv";
-import { formatCentsBrl } from "@/utils/pdvMoney";
+import { formatCents, formatCentsBrl } from "@/utils/pdvMoney";
 
 type PdvCartProps = {
   items: PdvCartItem[];
@@ -109,7 +109,7 @@ export function PdvCartItems({
   }, [selectedId, items.length]);
 
   return (
-    <ul ref={listRef} className="flex-1 overflow-y-auto">
+    <ul ref={listRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
       {items.map((item, index) => {
         const isSelected = item.id === selectedId;
         const lineTotal = item.unitPriceCents * item.quantity;
@@ -135,7 +135,7 @@ export function PdvCartItems({
               </div>
             </div>
 
-            <div className={`mt-1.5 flex items-center gap-2 pl-8 ${wide ? "sm:mt-0 sm:pl-0" : ""}`}>
+            <div className={`mt-1.5 flex shrink-0 flex-wrap items-center gap-2 pl-8 ${wide ? "sm:mt-0 sm:pl-0" : ""}`}>
               <button
                 type="button"
                 onClick={(event) => {
@@ -248,11 +248,12 @@ export default function PdvCart({
             Total
           </span>
           <span
-            className="font-mono text-4xl font-bold leading-none text-text-primary"
+            className="inline-flex items-baseline gap-1 font-mono text-4xl font-bold leading-none text-text-primary"
             aria-live="polite"
             aria-label={`Total da venda ${formatCentsBrl(totalCents)}`}
           >
-            {formatCentsBrl(totalCents)}
+            <span className="text-lg font-bold">R$</span>
+            <span>{formatCents(totalCents)}</span>
           </span>
         </div>
 

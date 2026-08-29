@@ -111,27 +111,28 @@ function startWebServer() {
 
 // ----------------------------------------------------------------- janela ---
 
-const REF_W = 1440;
-const REF_H = 810;
-const MIN_CSS_W = 1024;
-const MIN_CSS_H = 620;
-const ZOOM_MIN = 0.7;
-const ZOOM_MAX = 1.5;
+const REF_W = 1280;
+const REF_H = 720;
+const ZOOM_MIN = 0.8;
+const ZOOM_MAX = 1;
 
 let zoomAtual = 1;
 
 function computeZoom() {
   const display = screen.getPrimaryDisplay();
   const { width: w, height: h } = display.workAreaSize;
-  if (!desktopPreferences.fitSmallScreens) {
-    return Math.min(ZOOM_MAX, Math.max(1, Math.round(Math.min(w / REF_W, h / REF_H) * 20) / 20));
-  }
+  if (!desktopPreferences.fitSmallScreens) return 1;
   const alvo = Math.min(w / REF_W, h / REF_H);
-  const teto = Math.min(w / MIN_CSS_W, h / MIN_CSS_H);
-  const z = Math.min(alvo, teto, ZOOM_MAX);
+  const z = Math.min(alvo, ZOOM_MAX);
   const zoom = Math.max(ZOOM_MIN, Math.round(z * 20) / 20);
   console.log(`[janela] area util ${w}x${h} (escala do Windows ${display.scaleFactor}x) -> zoom ${zoom}`);
   return zoom;
+}
+
+function applyWindowZoom() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  zoomAtual = computeZoom();
+  mainWindow.webContents.setZoomFactor(zoomAtual);
 }
 
 function createSplash() {
@@ -150,7 +151,7 @@ function createSplash() {
 }
 
 function createMainWindow() {
-  zoomAtual = 1;
+  zoomAtual = computeZoom();
   const wa = screen.getPrimaryDisplay().workArea;
 
   mainWindow = new BrowserWindow({
@@ -161,14 +162,14 @@ function createMainWindow() {
     minWidth: Math.min(1024, wa.width),
     minHeight: Math.min(700, wa.height),
     show: false,
-    backgroundColor: "#111318",
+    backgroundColor: "#f8fafc",
     autoHideMenuBar: true,
     roundedCorners: false,
     titleBarStyle: "hidden",
     titleBarOverlay: {
-      color: "#111318",
-      symbolColor: "#f8fafc",
-      height: 40,
+      color: "#f8fafc",
+      symbolColor: "#0f172a",
+      height: 32,
     },
     icon: path.join(__dirname, "build", "icon.png"),
     title: "CaixaUp",
@@ -176,7 +177,7 @@ function createMainWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       preload: path.join(__dirname, "preload.js"),
-      zoomFactor: 1,
+      zoomFactor: zoomAtual,
     },
   });
 
@@ -207,8 +208,14 @@ function createMainWindow() {
   setTimeout(() => exibirJanela("prazo maximo"), 20000);
 
   mainWindow.webContents.on("did-finish-load", () => {
-    mainWindow.webContents.setZoomFactor(1);
+    applyWindowZoom();
     mainWindow.webContents.setVisualZoomLevelLimits(1, 1);
+  });
+
+  let resizeTimer = null;
+  mainWindow.on("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(applyWindowZoom, 120);
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -301,8 +308,7 @@ function applyDesktopPreferences() {
   }
   configureGlobalShortcuts();
   if (mainWindow && !mainWindow.isDestroyed()) {
-    zoomAtual = 1;
-    mainWindow.webContents.setZoomFactor(1);
+    applyWindowZoom();
   }
 }
 
