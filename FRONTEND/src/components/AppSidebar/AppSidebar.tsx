@@ -4,22 +4,12 @@
   * Entradas esperadas: recebe página ativa, usuário, estado responsivo e callbacks de navegação/logout.
 */
 import {
-  Boxes,
-  Building2,
-  FileText,
-  History,
   House,
-  Landmark,
   Menu,
-  Package,
-  Settings,
   ShoppingCart,
-  Truck,
-  UserRoundPlus,
 } from "lucide-react";
 import { type ReactNode } from "react";
 import CaixaUpLogo from "@/components/Brand/CaixaUpLogo";
-import UserMenu from "./UserMenu";
 
 export type PageKey =
   | "home"
@@ -100,12 +90,6 @@ type AppSidebarProps = {
   onToggle: () => void;
   activePage: PageKey;
   onChangePage: (page: PageKey) => void;
-  currentUserName: string;
-  currentUserPermission: string;
-  currentUserAvatarUrl: string | null;
-  onOpenProfile: () => void;
-  onOpenSettings: () => void;
-  onLogout: () => void;
   onOpenSalesInNewTab: () => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
@@ -116,12 +100,6 @@ export default function AppSidebar({
   onToggle,
   activePage,
   onChangePage,
-  currentUserName,
-  currentUserPermission,
-  currentUserAvatarUrl,
-  onOpenProfile,
-  onOpenSettings,
-  onLogout,
   onOpenSalesInNewTab,
   mobileOpen,
   onCloseMobile,
@@ -209,107 +187,8 @@ export default function AppSidebar({
               collapsed={collapsed}
               onClick={onOpenSalesInNewTab}
             />
-            <SidebarItem
-              icon={<Landmark size={22} />}
-              label="Abrir ou fechar caixa"
-              active={activePage === "caixa"}
-              collapsed={collapsed}
-              onClick={() => handleChangePage("caixa")}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <SidebarSectionTitle label="Cadastros" collapsed={collapsed} />
-            <SidebarItem
-              icon={<UserRoundPlus size={22} />}
-              label="Clientes"
-              active={activePage === "cadastro-cliente"}
-              collapsed={collapsed}
-              onClick={() => handleChangePage("cadastro-cliente")}
-            />
-            <SidebarItem
-              icon={<Truck size={22} />}
-              label="Fornecedores"
-              active={activePage === "cadastro-fornecedor"}
-              collapsed={collapsed}
-              onClick={() => handleChangePage("cadastro-fornecedor")}
-            />
-            <SidebarItem
-              icon={<Package size={22} />}
-              label="Produtos"
-              active={activePage === "cadastro-produto"}
-              collapsed={collapsed}
-              onClick={() => handleChangePage("cadastro-produto")}
-            />
-            <SidebarItem
-              icon={<Boxes size={22} />}
-              label="Estoque"
-              active={activePage === "estoque"}
-              collapsed={collapsed}
-              onClick={() => handleChangePage("estoque")}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <SidebarSectionTitle label="Consultas" collapsed={collapsed} />
-            <SidebarItem
-              icon={<History size={22} />}
-              label="Histórico de Vendas"
-              active={activePage === "historico-vendas"}
-              collapsed={collapsed}
-              onClick={() => handleChangePage("historico-vendas")}
-            />
-            <SidebarItem
-              icon={<FileText size={22} />}
-              label="Relatórios"
-              active={activePage === "relatorios"}
-              collapsed={collapsed}
-              onClick={() => handleChangePage("relatorios")}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <SidebarSectionTitle label="Empresa" collapsed={collapsed} />
-            <SidebarItem
-              icon={<Building2 size={22} />}
-              label="Dados da empresa"
-              active={activePage === "minha-empresa"}
-              collapsed={collapsed}
-              onClick={() => handleChangePage("minha-empresa")}
-            />
-            <SidebarItem
-              icon={<Settings size={22} />}
-              label="Configurações"
-              active={activePage === "configuracoes"}
-              collapsed={collapsed}
-              onClick={() => handleChangePage("configuracoes")}
-            />
           </div>
         </nav>
-      </div>
-
-      <div className="p-3 border-t border-border-primary">
-        <UserMenu
-          collapsed={collapsed}
-          currentUserName={currentUserName}
-          currentUserPermission={currentUserPermission}
-          avatarUrl={currentUserAvatarUrl}
-          onOpenProfile={() => {
-            onOpenProfile();
-            onCloseMobile();
-          }}
-          onOpenSettings={() => {
-            onOpenSettings();
-            onCloseMobile();
-          }}
-          onOpenCompany={() => handleChangePage("minha-empresa")}
-          onOpenLicense={() => handleChangePage("detalhe-licenca")}
-          onOpenAbout={() => handleChangePage("sobre-pdv")}
-          onLogout={() => {
-            onLogout();
-            onCloseMobile();
-          }}
-        />
       </div>
       </aside>
     </>

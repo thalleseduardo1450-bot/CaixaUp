@@ -11,7 +11,6 @@ import AppSplash from "@/components/Loading/AppSplash";
 import GuidedTour from "@/components/Tour/GuidedTour";
 import InstalledUpdateModal from "@/components/Update/InstalledUpdateModal";
 import AppErrorBoundary from "@/components/ErrorBoundary/AppErrorBoundary";
-import DesktopTitleBar from "@/components/Shell/DesktopTitleBar";
 import PageScrollControls from "@/components/Shell/PageScrollControls";
 import { APP_OPEN_TOUR_EVENT } from "@/domain/navigation/events";
 import { Toast, useStatusDialog } from "@/hooks/Dialog";
@@ -93,9 +92,11 @@ function DesktopWindowFrame({
   if (!window.caixaUpDesktop) return <>{children}</>;
 
   return (
-    <div className="desktop-window-shell flex h-screen flex-col overflow-hidden bg-bg-primary text-text-primary font-sans">
-      <DesktopTitleBar pageTitle={pageTitle} />
-      <div className="desktop-window-content min-h-0 flex-1 overflow-hidden">{children}</div>
+    <div
+      className="desktop-window-shell h-screen overflow-hidden bg-bg-primary text-text-primary font-sans"
+      aria-label={pageTitle}
+    >
+      {children}
     </div>
   );
 }
@@ -139,7 +140,6 @@ function toCurrentUser(user: AuthenticatedUser): CurrentUser {
 
 export default function App() {
   const pageScrollRef = useRef<HTMLElement | null>(null);
-  const isDesktopApp = Boolean(window.caixaUpDesktop);
   const statusDialog = useStatusDialog();
   const [isRecoveryFlow] = useState(hasSupabaseRecoveryCallback);
   const isStandalonePos =
@@ -284,16 +284,6 @@ export default function App() {
 
   const handleToggleTheme = () => {
     setThemeMode((current) => (current === "light" ? "dark" : "light"));
-  };
-
-  const handleLogout = () => {
-    const destino: PageKey = "home";
-    setMobileSidebarOpen(false);
-    setActivePage(destino);
-    window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, destino);
-    setIsAuthenticated(false);
-    authService.logout().catch(() => undefined);
-    clearAuthSession();
   };
 
   const handleUploadAvatar = (file: File) => {
@@ -796,7 +786,6 @@ export default function App() {
       <div className="relative flex h-full overflow-hidden bg-bg-primary text-text-primary font-sans">
       <header
         className="lg:hidden fixed left-0 right-0 z-layer-mobile-header h-14 bg-bg-light border-b border-border-primary px-3 shadow-sm"
-        style={{ top: isDesktopApp ? 40 : 0 }}
       >
         <div className="h-full flex items-center justify-between">
           <button
@@ -837,12 +826,6 @@ export default function App() {
         onToggle={() => setCollapsed((current) => !current)}
         activePage={activePage}
         onChangePage={setActivePage}
-        currentUserName={currentUser.name}
-        currentUserPermission={currentUser.permission}
-        currentUserAvatarUrl={currentUser.avatarUrl}
-        onOpenProfile={() => setActivePage("editar-perfil")}
-        onOpenSettings={() => setActivePage("configuracoes")}
-        onLogout={handleLogout}
         onOpenSalesInNewTab={handleOpenSalesInNewTab}
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
@@ -881,7 +864,6 @@ export default function App() {
               />
             ) : activePage === "home" ? (
               <HomePage
-                onNavigate={setActivePage}
                 onOpenSalesInNewTab={handleOpenSalesInNewTab}
               />
             ) : (

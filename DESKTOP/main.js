@@ -164,13 +164,8 @@ function createMainWindow() {
     show: false,
     backgroundColor: "#f8fafc",
     autoHideMenuBar: true,
+    frame: false,
     roundedCorners: false,
-    titleBarStyle: "hidden",
-    titleBarOverlay: {
-      color: "#f8fafc",
-      symbolColor: "#0f172a",
-      height: 32,
-    },
     icon: path.join(__dirname, "build", "icon.png"),
     title: "CaixaUp",
     webPreferences: {

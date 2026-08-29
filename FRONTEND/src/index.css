@@ -795,8 +795,8 @@
 
 @media (max-width: 1023px) {
   .desktop-window-shell [data-app-sidebar] {
-    top: 32px;
-    height: calc(100vh - 32px);
+    top: 0;
+    height: 100vh;
   }
 }
 
