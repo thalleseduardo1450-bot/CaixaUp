@@ -1,7 +1,7 @@
 {
     "name": "caixaup-desktop",
     "productName": "CaixaUp",
-    "version": "3.3.20",
+    "version": "3.3.21",
     "description": "CaixaUp - frente de caixa. Dados no Supabase (nuvem), sem banco local.",
     "main": "main.js",
     "private": true,
