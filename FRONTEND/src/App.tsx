@@ -12,6 +12,7 @@ import GuidedTour from "@/components/Tour/GuidedTour";
 import InstalledUpdateModal from "@/components/Update/InstalledUpdateModal";
 import AppErrorBoundary from "@/components/ErrorBoundary/AppErrorBoundary";
 import PageScrollControls from "@/components/Shell/PageScrollControls";
+import TrialExpiryNotice from "@/components/Subscription/TrialExpiryNotice";
 import { APP_OPEN_TOUR_EVENT } from "@/domain/navigation/events";
 import { Toast, useStatusDialog } from "@/hooks/Dialog";
 import ForgotPasswordPage from "@/pages/Auth/ForgotPasswordPage";
@@ -58,6 +59,9 @@ const LicenseDetailsPage = lazy(
 );
 const AboutPdvPage = lazy(() => import("@/pages/Admin/AboutPdvPage"));
 const EditProfilePage = lazy(() => import("@/pages/Admin/EditProfilePage"));
+const SubscriptionPage = lazy(() => import("@/pages/Admin/SubscriptionPage"));
+const PlatformAdminPage = lazy(() => import("@/pages/Admin/PlatformAdminPage"));
+const ResumeSalesPage = lazy(() => import("@/pages/Admin/ResumeSalesPage"));
 const PROFILE_AVATAR_STORAGE_KEY = "horuspdv.profile.avatar";
 const ACTIVE_PAGE_STORAGE_KEY = "horuspdv.activePage";
 const THEME_STORAGE_KEY = "horuspdv.theme";
@@ -91,6 +95,13 @@ function DesktopWindowFrame({
 }) {
   const [windowMaximized, setWindowMaximized] = useState(false);
 
+  useEffect(() => {
+    const desktop = window.caixaUpDesktop;
+    if (!desktop) return;
+    void desktop.getWindowState().then((state) => setWindowMaximized(state.maximized));
+    return desktop.onWindowState((state) => setWindowMaximized(state.maximized));
+  }, []);
+
   if (!window.caixaUpDesktop) return <>{children}</>;
 
   return (
@@ -98,11 +109,11 @@ function DesktopWindowFrame({
       className="desktop-window-shell relative h-screen overflow-hidden bg-bg-primary text-text-primary font-sans"
       aria-label={pageTitle}
     >
-      <div className="absolute right-2 top-1 z-layer-loading flex items-center gap-1" aria-label="Controles da janela">
+      <div className="absolute right-2 top-1 z-layer-loading flex items-center gap-1 rounded-lg border border-border-primary bg-bg-light/95 p-0.5 shadow-sm" aria-label="Controles da janela">
         <button
           type="button"
           onClick={() => void window.caixaUpDesktop?.minimizeWindow()}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-text-secondary transition hover:bg-hover-light hover:text-text-primary"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-secondary transition hover:bg-hover-light hover:text-text-primary"
           aria-label="Minimizar"
           title="Minimizar"
         >
@@ -114,7 +125,7 @@ function DesktopWindowFrame({
             const maximized = await window.caixaUpDesktop?.toggleMaximizeWindow();
             if (typeof maximized === "boolean") setWindowMaximized(maximized);
           }}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-text-secondary transition hover:bg-hover-light hover:text-text-primary"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-secondary transition hover:bg-hover-light hover:text-text-primary"
           aria-label={windowMaximized ? "Restaurar tamanho" : "Maximizar"}
           title={windowMaximized ? "Restaurar tamanho" : "Maximizar"}
         >
@@ -123,7 +134,7 @@ function DesktopWindowFrame({
         <button
           type="button"
           onClick={() => void window.caixaUpDesktop?.closeWindow()}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-text-secondary transition hover:bg-danger/15 hover:text-danger"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-secondary transition hover:bg-danger/15 hover:text-danger"
           aria-label="Sair"
           title="Sair"
         >
@@ -269,6 +280,9 @@ export default function App() {
     "sobre-pdv": "Sobre PDV",
     "editar-perfil": "Meu Perfil",
     configuracoes: "Configurações",
+    assinatura: "Assinatura",
+    "admin-plataforma": "Administração da plataforma",
+    "vendas-suspensas": "Retomar vendas",
   };
 
   const CurrentPage = useMemo(() => {
@@ -311,6 +325,12 @@ export default function App() {
         return LicenseDetailsPage;
       case "sobre-pdv":
         return AboutPdvPage;
+      case "assinatura":
+        return SubscriptionPage;
+      case "admin-plataforma":
+        return PlatformAdminPage;
+      case "vendas-suspensas":
+        return () => <ResumeSalesPage onNavigate={setActivePage} />;
       default:
         return EmptyPage;
     }
@@ -653,6 +673,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const openSubscription = () => setActivePage("assinatura");
+    window.addEventListener("caixaup-open-subscription", openSubscription);
+    return () => window.removeEventListener("caixaup-open-subscription", openSubscription);
+  }, []);
+
+  useEffect(() => {
     document.documentElement.setAttribute("data-theme", themeMode);
     window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
   }, [themeMode]);
@@ -828,6 +854,7 @@ export default function App() {
     <>
       <DesktopWindowFrame pageTitle={pageTitleByKey[activePage]}>
       <div className="relative flex h-full overflow-hidden bg-bg-primary text-text-primary font-sans">
+      <TrialExpiryNotice />
       <header
         className="lg:hidden fixed left-0 right-0 z-layer-mobile-header h-14 bg-bg-light border-b border-border-primary px-3 shadow-sm"
       >

@@ -12,9 +12,12 @@ import {
   Landmark,
   Menu,
   Package,
+  PauseCircle,
   Settings,
   ShoppingCart,
   Truck,
+  CreditCard,
+  ShieldCheck,
   UserRoundPlus,
 } from "lucide-react";
 import { type ReactNode } from "react";
@@ -42,7 +45,10 @@ export type PageKey =
   | "configuracoes"
   | "detalhe-licenca"
   | "sobre-pdv"
-  | "editar-perfil";
+  | "editar-perfil"
+  | "assinatura"
+  | "admin-plataforma"
+  | "vendas-suspensas";
 
 type SidebarItemProps = {
   icon: ReactNode;
@@ -260,11 +266,25 @@ export default function AppSidebar({
               onClick={() => handleChangePage("historico-vendas")}
             />
             <SidebarItem
+              icon={<PauseCircle size={22} />}
+              label="Retomar vendas"
+              active={activePage === "vendas-suspensas"}
+              collapsed={collapsed}
+              onClick={() => handleChangePage("vendas-suspensas")}
+            />
+            <SidebarItem
               icon={<FileText size={22} />}
               label="Relatórios"
               active={activePage === "relatorios"}
               collapsed={collapsed}
               onClick={() => handleChangePage("relatorios")}
+            />
+            <SidebarItem
+              icon={<CreditCard size={22} />}
+              label="Assinatura"
+              active={activePage === "assinatura"}
+              collapsed={collapsed}
+              onClick={() => handleChangePage("assinatura")}
             />
           </div>
 
@@ -283,6 +303,13 @@ export default function AppSidebar({
               active={activePage === "configuracoes"}
               collapsed={collapsed}
               onClick={() => handleChangePage("configuracoes")}
+            />
+            <SidebarItem
+              icon={<ShieldCheck size={22} />}
+              label="Administração"
+              active={activePage === "admin-plataforma"}
+              collapsed={collapsed}
+              onClick={() => handleChangePage("admin-plataforma")}
             />
           </div>
         </nav>

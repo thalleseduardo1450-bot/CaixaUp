@@ -90,8 +90,8 @@ export default function PdvSuspendedSalesModal({
                     {sale.label}
                   </p>
                   <p className="text-xs text-text-tertiary">
-                    {formatWhen(sale.suspendedAt)} · {sale.items.length}{" "}
-                    {sale.items.length === 1 ? "item" : "itens"}
+                    {formatWhen(sale.suspendedAt)} · {sale.itemCount ?? sale.items.length}{" "}
+                    {(sale.itemCount ?? sale.items.length) === 1 ? "item" : "itens"}
                     {sale.customerName ? ` · ${sale.customerName}` : ""}
                     {sale.operatorName ? ` · ${sale.operatorName}` : ""}
                   </p>
@@ -126,8 +126,8 @@ export default function PdvSuspendedSalesModal({
         {sales.length > 0 && (
           <div className="border-t border-border-primary bg-bg-gray-theme px-5 py-3">
             <p className="text-sm text-text-tertiary">
-              Se já houver itens no cupom atual, eles são suspensos automaticamente
-              antes de retomar — nada é perdido.
+              Para proteger o atendimento atual, suspenda a venda em andamento antes
+              de retomar outra.
             </p>
           </div>
         )}

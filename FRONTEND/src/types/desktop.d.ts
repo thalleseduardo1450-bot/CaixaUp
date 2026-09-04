@@ -21,11 +21,15 @@ declare global {
     notes: string;
   };
 
+  type DesktopWindowState = { maximized: boolean; fullscreen: boolean };
+
   interface Window {
     caixaUpDesktop?: {
       minimizeWindow: () => Promise<boolean>;
       toggleMaximizeWindow: () => Promise<boolean>;
       closeWindow: () => Promise<boolean>;
+      getWindowState: () => Promise<DesktopWindowState>;
+      onWindowState: (callback: (state: DesktopWindowState) => void) => () => void;
       getPreferences: () => Promise<DesktopPreferences>;
       setPreference: (
         key: DesktopPreferenceKey,
