@@ -17,7 +17,7 @@ using (id = public.usuario_empresa_id() and exists (
   select 1 from public.perfis where id = auth.uid() and cargo in ('proprietario', 'administrador')
 )) with check (id = public.usuario_empresa_id());
 
-create table public.auditoria (
+create table if not exists public.auditoria (
   id bigint generated always as identity primary key,
   empresa_id uuid not null references public.empresas(id),
   usuario_id uuid references public.perfis(id),
@@ -32,21 +32,22 @@ create table public.auditoria (
 alter table public.auditoria enable row level security;
 revoke all on public.auditoria from anon, authenticated;
 grant select on public.auditoria to authenticated;
+drop policy if exists auditoria_select on public.auditoria;
 create policy auditoria_select on public.auditoria for select to authenticated
 using (empresa_id = public.usuario_empresa_id() and exists (
   select 1 from public.perfis where id = auth.uid() and cargo in ('proprietario', 'administrador', 'gerente')
 ));
-create index auditoria_empresa_data on public.auditoria(empresa_id, created_at desc);
+create index if not exists auditoria_empresa_data on public.auditoria(empresa_id, created_at desc);
 
-alter table public.vendas add column chave_requisicao uuid;
-alter table public.vendas add column revisao integer not null default 1;
-alter table public.empresas add column permitir_sem_estoque boolean not null default true;
-create unique index vendas_idempotencia on public.vendas(empresa_id, chave_requisicao) where chave_requisicao is not null;
+alter table public.vendas add column if not exists chave_requisicao uuid;
+alter table public.vendas add column if not exists revisao integer not null default 1;
+alter table public.empresas add column if not exists permitir_sem_estoque boolean not null default true;
+create unique index if not exists vendas_idempotencia on public.vendas(empresa_id, chave_requisicao) where chave_requisicao is not null;
 create index if not exists vendas_empresa_data on public.vendas(empresa_id, created_at desc, id);
 create index if not exists itens_venda_venda on public.itens_venda(venda_id);
 create index if not exists pagamentos_venda on public.pagamentos(venda_id);
 
-create table public.vendas_suspensas (
+create table if not exists public.vendas_suspensas (
   id uuid primary key,
   empresa_id uuid not null references public.empresas(id),
   usuario_id uuid not null references public.perfis(id),
@@ -63,7 +64,7 @@ create table public.vendas_suspensas (
 );
 alter table public.vendas_suspensas enable row level security;
 revoke all on public.vendas_suspensas from anon,authenticated;
-create index suspensas_empresa_status on public.vendas_suspensas(empresa_id,status,updated_at desc);
+create index if not exists suspensas_empresa_status on public.vendas_suspensas(empresa_id,status,updated_at desc);
 
 create or replace function public.finalizar_venda(
   p_chave uuid, p_itens jsonb, p_pagamentos jsonb,

@@ -919,7 +919,6 @@ export default function SalesStartPage({
       {checkoutOpen && (
         <PdvCheckoutModal
           totalCents={cart.totalCents}
-          itemCount={cart.itemCount}
           customers={customers}
           initialCustomerId={customerId}
           cpfOnReceipt={cpfOnReceipt}

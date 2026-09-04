@@ -29,7 +29,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Banknote,
-  Calculator,
   CreditCard,
   FileText,
   Landmark,
@@ -48,7 +47,6 @@ import {
   parseTypedCents,
   suggestChangeBreakdown,
 } from "@/utils/pdvMoney";
-import PdvNumericKeypad from "./PdvNumericKeypad";
 
 export type PdvPaymentMethod = {
   value: string;
@@ -129,7 +127,6 @@ export type PdvCheckoutResult = {
 
 type PdvCheckoutModalProps = {
   totalCents: number;
-  itemCount: number;
   customers: CustomerDto[];
   initialCustomerId: string;
   cpfOnReceipt: string;
@@ -147,7 +144,6 @@ function nextLineId(): string {
 
 export default function PdvCheckoutModal({
   totalCents,
-  itemCount,
   customers,
   initialCustomerId,
   cpfOnReceipt,
@@ -214,12 +210,6 @@ export default function PdvCheckoutModal({
     () => (changeCents > 0 ? suggestChangeBreakdown(changeCents) : []),
     [changeCents],
   );
-
-  /** Cédulas que cobrem o que falta — as menores primeiro, sem virar ruído. */
-  const quickBills = useMemo(() => {
-    const candidates = [500, 1000, 2000, 5000, 10000, 20000];
-    return candidates.filter((bill) => bill >= dueForCashCents).slice(0, 4);
-  }, [dueForCashCents]);
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId);
 
@@ -297,29 +287,6 @@ export default function PdvCheckoutModal({
   }, [methodIndex, requestClose]);
 
   /* ---------------------------- comandos ---------------------------- */
-
-  function setActiveValue(cents: number) {
-    setTyped((current) => ({ ...current, [active]: cents }));
-    setError("");
-  }
-
-  function pushDigit(digit: string) {
-    setActiveValue(parseTypedCents(`${valueOf(active)}${digit}`));
-  }
-
-  function backspace() {
-    setActiveValue(Math.floor(valueOf(active) / 10));
-  }
-
-  /** Volta a linha ao modo "saldo": some o valor fixo e ela recalcula sozinha. */
-  function clearActive() {
-    setTyped((current) => {
-      const next = { ...current };
-      delete next[active];
-      return next;
-    });
-    setError("");
-  }
 
   function handleConfirm() {
     if (!canConfirm) {
@@ -597,28 +564,6 @@ export default function PdvCheckoutModal({
 
           {extrasOpen && (
             <div className="space-y-3 border-t border-border-primary bg-bg-gray-theme px-4 py-3">
-              {/* Atalhos de valor para a linha ativa */}
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={clearActive}
-                  className="rounded-lg border border-accent bg-accent/10 px-3 py-1.5 text-sm font-semibold text-accent transition hover:bg-accent hover:text-white"
-                >
-                  Valor exato · {formatCentsBrl(balanceCents)}
-                </button>
-                {active === "dinheiro" &&
-                  quickBills.map((bill) => (
-                    <button
-                      key={bill}
-                      type="button"
-                      onClick={() => setActiveValue(bill)}
-                      className="rounded-lg border border-border-secondary bg-bg-light px-3 py-1.5 text-sm font-semibold text-text-secondary transition hover:border-accent hover:text-accent"
-                    >
-                      {formatCentsBrl(bill)}
-                    </button>
-                  ))}
-              </div>
-
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="flex flex-col gap-1">
                   <span className="text-sm font-semibold text-text-secondary">
@@ -652,23 +597,8 @@ export default function PdvCheckoutModal({
                 </label>
               </div>
 
-              {/* Teclado: tela de toque não tem teclado físico */}
-              <div>
-                <p className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-text-secondary">
-                  <Calculator size={15} aria-hidden="true" />
-                  Digitar em {PDV_PAYMENT_METHODS.find((m) => m.value === active)?.label}
-                </p>
-                <PdvNumericKeypad
-                  onDigit={pushDigit}
-                  onBackspace={backspace}
-                  onClear={() => setActiveValue(0)}
-                  disabled={isSubmitting}
-                />
-              </div>
-
               <p className="text-xs text-text-tertiary">
-                {itemCount} {itemCount === 1 ? "item" : "itens"} no cupom · os dígitos
-                entram da direita para a esquerda (1-2-3-4 vira R$ 12,34).
+                Clique no valor da forma de pagamento e digite diretamente pelo teclado.
               </p>
             </div>
           )}

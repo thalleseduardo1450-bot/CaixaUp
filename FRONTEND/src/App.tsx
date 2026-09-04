@@ -89,9 +89,11 @@ type PublicAuthPage =
 function DesktopWindowFrame({
   children,
   pageTitle,
+  hideWindowControls = false,
 }: {
   children: ReactNode;
   pageTitle: string;
+  hideWindowControls?: boolean;
 }) {
   const [windowMaximized, setWindowMaximized] = useState(false);
 
@@ -109,7 +111,7 @@ function DesktopWindowFrame({
       className="desktop-window-shell relative h-screen overflow-hidden bg-bg-primary text-text-primary font-sans"
       aria-label={pageTitle}
     >
-      <div className="absolute right-2 top-1 z-layer-loading flex items-center gap-1 rounded-lg border border-border-primary bg-bg-light/95 p-0.5 shadow-sm" aria-label="Controles da janela">
+      {!hideWindowControls && <div className="absolute right-2 top-1 z-layer-loading flex items-center gap-1 rounded-lg border border-border-primary bg-bg-light/95 p-0.5 shadow-sm" aria-label="Controles da janela">
         <button
           type="button"
           onClick={() => void window.caixaUpDesktop?.minimizeWindow()}
@@ -140,7 +142,7 @@ function DesktopWindowFrame({
         >
           <X size={16} />
         </button>
-      </div>
+      </div>}
       {children}
     </div>
   );
@@ -812,7 +814,7 @@ export default function App() {
   if (activePage === "vendas") {
     return (
       <>
-        <DesktopWindowFrame pageTitle="Frente de caixa">
+        <DesktopWindowFrame pageTitle="Frente de caixa" hideWindowControls>
         <div className="page-enter h-full bg-bg-primary text-text-primary font-sans">
           <Suspense
             fallback={
