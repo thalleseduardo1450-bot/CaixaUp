@@ -43,7 +43,6 @@ import PdvProductGrid from "@/components/Pdv/PdvProductGrid";
 import PdvSearchBar from "@/components/Pdv/PdvSearchBar";
 import PdvShortcutsHelp from "@/components/Pdv/PdvShortcutsHelp";
 import {
-  PdvClosedRegisterState,
   PdvErrorState,
   PdvLoadingState,
 } from "@/components/Pdv/PdvStates";
@@ -54,10 +53,6 @@ import useInputMasks from "@/hooks/InputMasks/useInputMasks";
 import { usePdvCart } from "@/hooks/Pdv/usePdvCart";
 import { usePdvProducts } from "@/hooks/Pdv/usePdvProducts";
 import { usePdvShortcuts } from "@/hooks/Pdv/usePdvShortcuts";
-import {
-  cashRegisterService,
-  type CashRegisterStatusDto,
-} from "@/services/api/cashRegisterService";
 import { companyService, type CompanyDto } from "@/services/api/companyService";
 import { customerService, type CustomerDto } from "@/services/api/customerService";
 import { salesHistoryService } from "@/services/api/salesHistoryService";
@@ -102,14 +97,6 @@ function readLastReceipt(): SaleReceipt | null {
   }
 }
 
-function formatCashElapsed(minutes?: number) {
-  if (!minutes || minutes < 1) return "menos de 1 min";
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  if (hours === 0) return `${remainingMinutes} min`;
-  return `${hours}h ${String(remainingMinutes).padStart(2, "0")}min`;
-}
-
 export default function SalesStartPage({
   onExit,
   onNavigate,
@@ -140,8 +127,6 @@ export default function SalesStartPage({
   const products = usePdvProducts();
   const [company, setCompany] = useState<CompanyDto | null>(null);
   const [customers, setCustomers] = useState<CustomerDto[]>([]);
-  const [cashStatus, setCashStatus] = useState<CashRegisterStatusDto | null>(null);
-  const [cashChecked, setCashChecked] = useState(false);
 
   /* ------------------------- estado da venda ------------------------- */
 
@@ -170,23 +155,6 @@ export default function SalesStartPage({
   );
 
   /* ------------------------- efeitos de carga ------------------------- */
-
-  const loadCashStatus = useCallback(async () => {
-    try {
-      const status = await cashRegisterService.status();
-      setCashStatus(status ?? null);
-      return status ?? null;
-    } catch {
-      setCashStatus(null);
-      return null;
-    } finally {
-      setCashChecked(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadCashStatus();
-  }, [loadCashStatus]);
 
   useEffect(() => {
     companyService
@@ -269,12 +237,8 @@ export default function SalesStartPage({
 
   const idsInCart = useMemo(() => cart.items.map((item) => item.id), [cart.items]);
 
-  const cashCanSell = cashStatus?.canSell === true;
-  const cashStatusLabel = !cashChecked
-    ? "Verificando caixa..."
-    : cashCanSell
-      ? `Caixa aberto há ${formatCashElapsed(cashStatus?.currentSession?.elapsedMinutes)}`
-      : cashStatus?.blockReason || "Caixa fechado";
+  const cashCanSell = true;
+  const cashStatusLabel = "Vendas salvas neste computador";
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId);
 
@@ -433,16 +397,8 @@ export default function SalesStartPage({
       return;
     }
 
-    // Revalida o caixa no momento do fechamento: alguém pode ter fechado o turno
-    // em outra estação enquanto esta venda estava em andamento.
-    const status = await loadCashStatus();
-    if (!status?.canSell) {
-      Toast.error(status?.blockReason || "Abra o caixa antes de finalizar a venda.");
-      return;
-    }
-
     setCheckoutOpen(true);
-  }, [cart.isEmpty, loadCashStatus]);
+  }, [cart.isEmpty]);
 
   const confirmPayment = useCallback(
     async (payment: PdvCheckoutResult) => {
@@ -570,7 +526,6 @@ export default function SalesStartPage({
       cpfOnReceipt,
       formatMoneyBr,
       isSubmitting,
-      loadCashStatus,
       operatorName,
       products,
       sellWithoutStockEnabled,
@@ -753,19 +708,6 @@ export default function SalesStartPage({
     );
   }
 
-  if (cashChecked && !cashCanSell) {
-    return (
-      <div className="flex h-[100dvh] flex-col overflow-hidden bg-bg-primary text-text-primary">
-        {topBar}
-        <PdvClosedRegisterState
-          reason={cashStatus?.blockReason ?? ""}
-          onOpenCashRegister={() => onNavigate?.("caixa")}
-          onRetry={() => void loadCashStatus()}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-[100dvh] min-h-[620px] flex-col overflow-hidden bg-bg-primary text-text-primary">
       {topBar}
@@ -878,7 +820,7 @@ export default function SalesStartPage({
             onSuspendSale={suspendSale}
             onOpenSuspended={() => setSuspendedOpen(true)}
             suspendedCount={cart.suspended.length}
-            checkoutDisabled={!cashCanSell || isSubmitting}
+            checkoutDisabled={isSubmitting}
             isSubmitting={isSubmitting}
             summaryOnly
           />

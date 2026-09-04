@@ -4,7 +4,7 @@
  * Entradas esperadas: não recebe props; processa filtro textual e renderiza dados vindos da API.
  */
 
-import { Eye, FileText, Search } from "lucide-react";
+import { Eye, FileText, Pencil, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/Admin/PageHeader";
 import ReceiptPreviewModal, { type SaleReceipt } from "@/components/Admin/ReceiptPreviewModal";
@@ -17,6 +17,8 @@ import PageLayout from "@/layout/PageLayout";
 import { companyService, type CompanyDto } from "@/services/api/companyService";
 import { salesHistoryService, type SaleHistoryDto } from "@/services/api/salesHistoryService";
 import { getStoredAuthUser } from "@/utils/authStorage";
+import { saveDraft } from "@/utils/pdvDrafts";
+import type { PageKey } from "@/components/AppSidebar/AppSidebar";
 
 type SaleHistoryRow = SaleHistoryDto;
 
@@ -49,7 +51,9 @@ function splitSaleDate(value: string) {
   return { date, time };
 }
 
-export default function SalesHistoryPage() {
+type Props = { onNavigate?: (page: PageKey) => void };
+
+export default function SalesHistoryPage({ onNavigate }: Props) {
   const { formatMoneyBr, parseMoneyBr } = useInputMasks();
   const [search, setSearch] = useState("");
   const [salesHistory, setSalesHistory] = useState<SaleHistoryRow[]>([]);
@@ -165,6 +169,23 @@ export default function SalesHistoryPage() {
     }
   };
 
+  const editSale = (sale: SaleHistoryRow) => {
+    const rows = salesHistory.filter((entry) => entry.saleNumber === sale.saleNumber);
+    const items = rows.map((entry, index) => ({
+      id: entry.productCode || `${sale.saleNumber}-${index}`,
+      code: entry.productCode,
+      name: entry.productName,
+      quantity: entry.quantity,
+      unitPriceCents: Math.round(parseMoneyBr(entry.unitPrice || "0,00") * 100),
+      addedAt: Date.now() + index,
+    }));
+    if (!items.length || !saveDraft(items, "")) {
+      Toast.error("Não foi possível preparar a venda para edição neste computador.");
+      return;
+    }
+    onNavigate?.("vendas");
+  };
+
   return (
     <PageLayout className="space-y-4 py-4 md:space-y-6 md:py-6 lg:py-8">
       <PageHeader
@@ -255,6 +276,15 @@ export default function SalesHistoryPage() {
                         <Eye size={13} />
                         Abrir
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => editSale(sale)}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-success/40 bg-success/5 px-2.5 text-xs font-semibold text-success transition hover:bg-success/10"
+                        title="Editar no PDV"
+                      >
+                        <Pencil size={13} />
+                        Editar
+                      </button>
                       <RowActionsMenu
                         items={[
                           {
@@ -264,6 +294,12 @@ export default function SalesHistoryPage() {
                             loading: openingSaleNumbers.has(sale.saleNumber),
                             loadingLabel: "Abrindo...",
                             onClick: () => openSale(sale, "view"),
+                          },
+                          {
+                            key: "edit",
+                            label: "Editar no PDV",
+                            icon: <Pencil size={13} />,
+                            onClick: () => editSale(sale),
                           },
                           {
                             key: "print",

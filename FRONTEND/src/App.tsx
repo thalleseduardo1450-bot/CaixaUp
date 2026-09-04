@@ -298,7 +298,7 @@ export default function App() {
       case "cadastro-produto":
         return ProductRegisterPage;
       case "historico-vendas":
-        return SalesHistoryPage;
+        return () => <SalesHistoryPage onNavigate={setActivePage} />;
       case "relatorios":
         return ReportsPage;
       case "fiscal":
