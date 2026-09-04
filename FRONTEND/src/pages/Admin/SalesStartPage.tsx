@@ -414,6 +414,7 @@ export default function SalesStartPage({
 
         const result = await salesHistoryService.register({
           requestId: cart.requestId,
+          editingSaleNumber: cart.editingSaleNumber,
           claimToken: cart.claimToken,
           discountAmount: toReais(payment.discountCents),
           customerId: payment.customerId,

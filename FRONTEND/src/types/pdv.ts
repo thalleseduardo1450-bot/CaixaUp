@@ -70,6 +70,7 @@ export type PdvDraft = {
   claimToken?: string;
   requestId?: string;
   openImmediately?: boolean;
+  editingSaleNumber?: string;
   items: PdvCartItem[];
   customerId: string;
   savedAt: number;

@@ -18,6 +18,7 @@ export type SaleHistoryDto = {
 
 export type RegisterSalePayload = {
   requestId: string;
+  editingSaleNumber?: string;
   claimToken?: string;
   discountAmount?: number;
   customerId?: string;
@@ -122,9 +123,13 @@ export const salesHistoryService = {
       .reduce((sum, payment) => sum + toNumber(payment.valor), 0);
     if (total <= 0 || Math.abs(paid - total) > 0.001) throw new Error("A soma dos pagamentos deve corresponder ao total.");
 
+    const oldSale = payload.editingSaleNumber
+      ? sales.find((sale) => sale.saleNumber === payload.editingSaleNumber)
+      : undefined;
+    if (payload.editingSaleNumber && !oldSale) throw new Error("Venda original não encontrada neste computador.");
     const sale: LocalSale = {
-      id: payload.requestId,
-      saleNumber: nextSaleNumber(),
+      id: oldSale?.id ?? payload.requestId,
+      saleNumber: oldSale?.saleNumber ?? nextSaleNumber(),
       customerName: payload.customerName || "Consumidor",
       customerCpf: payload.customerCpf || "",
       paymentType: payload.paymentType,
@@ -133,7 +138,7 @@ export const salesHistoryService = {
       saleDate: new Date().toISOString(),
       items: payload.items,
     };
-    saveSales([...sales, sale]);
+    saveSales(oldSale ? sales.map((entry) => entry.saleNumber === sale.saleNumber ? sale : entry) : [...sales, sale]);
     return { saleNumber: sale.saleNumber, saleId: sale.id, total, replayed: false };
   },
 

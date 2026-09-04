@@ -50,6 +50,7 @@ export function usePdvCart({
   const itemsRef = useRef<PdvCartItem[]>([]);
   const requestIdRef = useRef<string>(crypto.randomUUID());
   const claimTokenRef = useRef<string | undefined>(undefined);
+  const editingSaleNumberRef = useRef<string | undefined>(undefined);
   const operationRef = useRef(false);
   const customerRef = useRef("");
   const [items, setItemsState] = useState<PdvCartItem[]>([]);
@@ -76,6 +77,7 @@ export function usePdvCart({
     const draft = loadDraft();
     if (draft?.requestId) requestIdRef.current = draft.requestId;
     claimTokenRef.current = draft?.claimToken;
+    editingSaleNumberRef.current = draft?.editingSaleNumber;
     customerRef.current = draft?.customerId ?? "";
     if (draft?.openImmediately && draft.items.length > 0) {
       commit(draft.items);
@@ -211,6 +213,7 @@ export function usePdvCart({
   const clear = useCallback(() => {
     requestIdRef.current = crypto.randomUUID();
     claimTokenRef.current = undefined;
+    editingSaleNumberRef.current = undefined;
     customerRef.current = "";
     commit([]);
     setLastTouchedId(null);
@@ -231,6 +234,7 @@ export function usePdvCart({
     clearDraft();
     requestIdRef.current = crypto.randomUUID();
     claimTokenRef.current = undefined;
+    editingSaleNumberRef.current = undefined;
   }, []);
 
   /* ---------------- vendas suspensas ---------------- */
@@ -289,6 +293,7 @@ export function usePdvCart({
   return {
     requestId: requestIdRef.current,
     claimToken: claimTokenRef.current,
+    editingSaleNumber: editingSaleNumberRef.current,
     refreshSuspended: async () => setSuspended(await suspendedSalesService.list()),
     persist: (customerId: string) => {
       customerRef.current = customerId;
