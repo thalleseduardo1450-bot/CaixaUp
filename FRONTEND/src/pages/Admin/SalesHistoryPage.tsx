@@ -223,19 +223,19 @@ export default function SalesHistoryPage({ onNavigate }: Props) {
       <Reveal delay={80}>
         <section className="card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px] table-fixed text-sm">
+          <table className="w-full min-w-[760px] table-fixed text-sm 2xl:min-w-[1180px]">
             <thead className="bg-bg-primary text-left text-text-secondary">
               <tr>
                 <th className="w-[7%] px-3 py-3">Venda</th>
                 <th className="w-[12%] px-3 py-3">Cliente</th>
-                <th className="w-[9%] px-3 py-3">CPF</th>
-                <th className="w-[14%] px-3 py-3">Cód. Produto</th>
+                <th className="hidden w-[9%] px-3 py-3 2xl:table-cell">CPF</th>
+                <th className="hidden w-[14%] px-3 py-3 2xl:table-cell">Cód. Produto</th>
                 <th className="w-[14%] px-3 py-3">Produto</th>
                 <th className="w-[5%] px-3 py-3 text-center">QNT</th>
                 <th className="w-[9%] px-3 py-3 text-right">Vl. Unit.</th>
                 <th className="w-[9%] px-3 py-3 text-right">Vl. Total</th>
                 <th className="w-[11%] px-3 py-3">Data</th>
-                <th className="w-[18%] px-3 py-3 text-center">Ações</th>
+                <th className="sticky right-0 z-10 w-[18%] bg-bg-light px-3 py-3 text-center shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.7)]">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -247,8 +247,8 @@ export default function SalesHistoryPage({ onNavigate }: Props) {
                       {sale.customerName}
                     </span>
                   </td>
-                  <td className="px-3 py-3 break-words">{sale.customerCpf}</td>
-                  <td className="px-3 py-3">
+                  <td className="hidden px-3 py-3 break-words 2xl:table-cell">{sale.customerCpf}</td>
+                  <td className="hidden px-3 py-3 2xl:table-cell">
                     <span className="block break-all font-medium leading-snug text-text-primary" title={sale.productCode}>
                       {sale.productCode}
                     </span>
@@ -271,7 +271,7 @@ export default function SalesHistoryPage({ onNavigate }: Props) {
                       {splitSaleDate(sale.saleDate).time}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3">
+                  <td className="sticky right-0 whitespace-nowrap bg-bg-light px-3 py-3 shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.7)]">
                     <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                       <button
                         type="button"
