@@ -45,6 +45,7 @@ export type UsePdvCartOptions = {
 
 export function usePdvCart({
   allowSellingWithoutStock,
+  operatorName,
 }: UsePdvCartOptions) {
   const itemsRef = useRef<PdvCartItem[]>([]);
   const requestIdRef = useRef<string>(crypto.randomUUID());
@@ -237,14 +238,18 @@ export function usePdvCart({
       if (operationRef.current) return false;
       operationRef.current = true;
       try {
-        await suspendedSalesService.suspend(requestIdRef.current, itemsRef.current,
-          meta.label?.trim() || buildSuspendedLabel(), meta.customerId, claimTokenRef.current);
+        await suspendedSalesService.suspend(itemsRef.current, {
+          label: meta.label?.trim() || buildSuspendedLabel(),
+          customerId: meta.customerId,
+          customerName: meta.customerName,
+          operatorName,
+        });
         clear();
         void suspendedSalesService.list().then(setSuspended).catch(() => {});
         return true;
       } finally { operationRef.current = false; }
     },
-    [clear],
+    [clear, operatorName],
   );
 
   /**

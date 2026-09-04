@@ -1,26 +1,21 @@
-import { supabase } from "@/lib/supabase";
 import type { PdvCartItem, PdvSuspendedSale } from "@/types/pdv";
+import { listSuspendedSales, removeSuspendedSale, suspendSale } from "@/utils/pdvDrafts";
 
 export const suspendedSalesService = {
-  async list(search = "", page = 0): Promise<PdvSuspendedSale[]> {
-    const { data, error } = await supabase.rpc("listar_vendas_suspensas", { p_busca: search, p_pagina: page });
-    if (error) throw error;
-    return data ?? [];
+  async list(): Promise<PdvSuspendedSale[]> {
+    return listSuspendedSales();
   },
-  async suspend(id: string, items: PdvCartItem[], label: string, customerId = "", token?: string) {
-    const { error } = await supabase.rpc("suspender_venda", {
-      p_id: id, p_itens: items.map((item) => ({ productId: item.id, quantity: item.quantity })),
-      p_label: label, p_cliente: customerId || null, p_token: token || null,
-    });
-    if (error) throw error;
+  async suspend(items: PdvCartItem[], sale: Omit<PdvSuspendedSale, "id" | "suspendedAt" | "items" | "totalCents">) {
+    const totalCents = items.reduce((sum, item) => sum + item.unitPriceCents * item.quantity, 0);
+    if (!suspendSale({ ...sale, items, totalCents })) throw new Error("Não foi possível guardar a venda neste computador.");
   },
   async resume(id: string): Promise<PdvSuspendedSale> {
-    const { data, error } = await supabase.rpc("retomar_venda", { p_id: id });
-    if (error) throw error;
-    return data;
+    const sale = listSuspendedSales().find((entry) => entry.id === id);
+    if (!sale) throw new Error("Venda suspensa não encontrada neste computador.");
+    removeSuspendedSale(id);
+    return sale;
   },
   async discard(id: string) {
-    const { error } = await supabase.rpc("descartar_venda_suspensa", { p_id: id });
-    if (error) throw error;
+    removeSuspendedSale(id);
   },
 };

@@ -478,6 +478,7 @@ export default function SalesStartPage({
             productCode: item.code,
             productName: item.name,
             quantity: item.quantity,
+            unitPrice: toReais(item.unitPriceCents),
           })),
         });
 
