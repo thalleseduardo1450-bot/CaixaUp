@@ -65,31 +65,89 @@ const MIME = {
   ".map": "application/json; charset=utf-8",
 };
 
+function isContainedPath(root, target) {
+  const relative = path.relative(root, target);
+  return relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+}
+
+function isTrustedUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" && url.origin === WEB_ORIGIN && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
+function openExternalLink(value) {
+  try {
+    if (typeof value !== "string" || /[\s\u0000-\u001f\u007f\\]/.test(value)) return;
+    const url = new URL(value);
+    if (!["https:", "http:"].includes(url.protocol) || !url.hostname || url.username || url.password) return;
+    void shell.openExternal(url.href).catch((error) => {
+      console.log(`[rede] nao foi possivel abrir link: ${error.message || error}`);
+    });
+  } catch {
+    return;
+  }
+}
+
 function startWebServer() {
   return new Promise((resolve, reject) => {
-    const server = http.createServer((req, res) => {
-      const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
-      let filePath = path.join(webDir, urlPath);
-
-      if (!filePath.startsWith(webDir)) {
+    const server = http.createServer(async (req, res) => {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("X-Frame-Options", "DENY");
+      res.setHeader("Referrer-Policy", "no-referrer");
+      res.setHeader("Content-Security-Policy", "base-uri 'self'; object-src 'none'; frame-ancestors 'none'");
+      res.setHeader("Cache-Control", "no-store");
+      if (req.headers.host !== `127.0.0.1:${WEB_PORT}`) {
         res.writeHead(403).end("Forbidden");
         return;
       }
-      // SPA: qualquer rota desconhecida cai no index.html
-      if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-        filePath = path.join(webDir, "index.html");
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        res.writeHead(405, { Allow: "GET, HEAD" }).end("Method not allowed");
+        return;
       }
-      fs.readFile(filePath, (err, data) => {
-        if (err) {
-          res.writeHead(404).end("Not found");
+      let urlPath;
+      try {
+        if (!req.url || !req.url.startsWith("/") || req.url.startsWith("//")) throw new Error("Invalid URL");
+        const url = new URL(req.url, WEB_ORIGIN);
+        if (!isTrustedUrl(url.href)) throw new Error("Invalid URL");
+        urlPath = decodeURIComponent(req.url.split("?")[0]);
+        if (/[\u0000-\u001f\u007f\\:#]/.test(urlPath)) throw new Error("Invalid path");
+      } catch {
+        res.writeHead(400).end("Bad request");
+        return;
+      }
+      let filePath = path.resolve(webDir, `.${urlPath}`);
+      if (!isContainedPath(webDir, filePath)) {
+        res.writeHead(403).end("Forbidden");
+        return;
+      }
+      try {
+        let stat;
+        try {
+          stat = await fs.promises.stat(filePath);
+        } catch (error) {
+          if (error.code !== "ENOENT" && error.code !== "ENOTDIR") throw error;
+        }
+        if (!stat || stat.isDirectory()) {
+          filePath = path.join(webDir, "index.html");
+        }
+        const root = await fs.promises.realpath(webDir);
+        filePath = await fs.promises.realpath(filePath);
+        if (!isContainedPath(root, filePath)) {
+          res.writeHead(403).end("Forbidden");
           return;
         }
+        const data = await fs.promises.readFile(filePath);
         res.writeHead(200, {
           "Content-Type": MIME[path.extname(filePath).toLowerCase()] || "application/octet-stream",
-          "Cache-Control": "no-cache",
         });
-        res.end(data);
-      });
+        res.end(req.method === "HEAD" ? undefined : data);
+      } catch {
+        res.writeHead(404).end("Not found");
+      }
     });
 
     server.on("error", (err) => {
@@ -119,13 +177,17 @@ const ZOOM_MAX = 1;
 let zoomAtual = 1;
 
 function computeZoom() {
-  const display = screen.getPrimaryDisplay();
-  const { width: w, height: h } = display.workAreaSize;
+  const window = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
+  const display = window ? screen.getDisplayMatching(window.getBounds()) : screen.getPrimaryDisplay();
+  const available = window && window.isFullScreen() ? display.bounds : display.workArea;
+  const content = window ? window.getContentBounds() : available;
+  const width = Math.min(content.width, available.width);
+  const height = Math.min(content.height, available.height);
   if (!desktopPreferences.fitSmallScreens) return 1;
-  const alvo = Math.min(w / REF_W, h / REF_H);
+  const alvo = Math.min(width / REF_W, height / REF_H);
   const z = Math.min(alvo, ZOOM_MAX);
   const zoom = Math.max(ZOOM_MIN, Math.round(z * 20) / 20);
-  console.log(`[janela] area util ${w}x${h} (escala do Windows ${display.scaleFactor}x) -> zoom ${zoom}`);
+  console.log(`[janela] area util ${width}x${height} (escala do Windows ${display.scaleFactor}x) -> zoom ${zoom}`);
   return zoom;
 }
 
@@ -145,22 +207,28 @@ function createSplash() {
     center: true,
     show: true,
     backgroundColor: "#2563EB",
-    webPreferences: { contextIsolation: true, nodeIntegration: false, zoomFactor: zoom },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, zoomFactor: zoom },
   });
+  splash.webContents.on("will-navigate", (event) => event.preventDefault());
+  splash.webContents.on("will-frame-navigate", (event) => event.preventDefault());
+  splash.webContents.on("will-redirect", (event) => event.preventDefault());
+  splash.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   splash.loadFile(path.join(__dirname, "splash.html"));
 }
 
 function createMainWindow() {
   zoomAtual = computeZoom();
   const wa = screen.getPrimaryDisplay().workArea;
+  const width = Math.min(1280, Math.floor(wa.width * 0.9));
+  const height = Math.min(800, Math.floor(wa.height * 0.9));
 
   mainWindow = new BrowserWindow({
-    x: wa.x,
-    y: wa.y,
-    width: Math.max(800, wa.width),
-    height: Math.max(600, wa.height),
-    minWidth: Math.min(1024, wa.width),
-    minHeight: Math.min(700, wa.height),
+    x: wa.x + Math.floor((wa.width - width) / 2),
+    y: wa.y + Math.floor((wa.height - height) / 2),
+    width,
+    height,
+    minWidth: Math.min(800, width),
+    minHeight: Math.min(600, height),
     show: false,
     backgroundColor: "#f8fafc",
     autoHideMenuBar: true,
@@ -171,12 +239,23 @@ function createMainWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
       preload: path.join(__dirname, "preload.js"),
       zoomFactor: zoomAtual,
     },
   });
 
   mainWindow.setMenuBarVisibility(false);
+  const blockExternalNavigation = (event, url) => {
+    if (!isTrustedUrl(url || event.url)) event.preventDefault();
+  };
+  mainWindow.webContents.on("will-navigate", blockExternalNavigation);
+  mainWindow.webContents.on("will-frame-navigate", (event) => blockExternalNavigation(event, event.url));
+  mainWindow.webContents.on("will-redirect", blockExternalNavigation);
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    openExternalLink(url);
+    return { action: "deny" };
+  });
 
   mainWindow.webContents.on("console-message", (_e, nivel, mensagem, linha, origem) => {
     if (nivel < 2) return;
@@ -195,6 +274,7 @@ function createMainWindow() {
     janelaExibida = true;
     console.log(`[janela] exibindo (disparado por: ${origem})`);
     if (splash && !splash.isDestroyed()) splash.destroy();
+    mainWindow.maximize();
     mainWindow.show();
   };
 
@@ -205,17 +285,26 @@ function createMainWindow() {
   mainWindow.webContents.on("did-finish-load", () => {
     applyWindowZoom();
     mainWindow.webContents.setVisualZoomLevelLimits(1, 1);
+    sendWindowState();
   });
 
   let resizeTimer = null;
-  mainWindow.on("resize", () => {
+  const scheduleZoom = () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(applyWindowZoom, 120);
-  });
-
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: "deny" };
+  };
+  mainWindow.on("resize", scheduleZoom);
+  mainWindow.on("move", scheduleZoom);
+  screen.on("display-metrics-changed", scheduleZoom);
+  for (const eventName of ["maximize", "unmaximize", "enter-full-screen", "leave-full-screen"]) {
+    mainWindow.on(eventName, () => {
+      sendWindowState();
+      scheduleZoom();
+    });
+  }
+  mainWindow.on("closed", () => {
+    clearTimeout(resizeTimer);
+    screen.removeListener("display-metrics-changed", scheduleZoom);
   });
 
   mainWindow.on("close", () => {
@@ -262,10 +351,13 @@ function loadDesktopPreferences() {
   try {
     const preferencesPath = getDesktopPreferencesPath();
     if (!fs.existsSync(preferencesPath)) return;
-    desktopPreferences = {
-      ...DEFAULT_DESKTOP_PREFERENCES,
-      ...JSON.parse(fs.readFileSync(preferencesPath, "utf8")),
-    };
+    const preferences = JSON.parse(fs.readFileSync(preferencesPath, "utf8"));
+    if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) return;
+    for (const key of Object.keys(DEFAULT_DESKTOP_PREFERENCES)) {
+      if (Object.hasOwn(preferences, key) && typeof preferences[key] === "boolean") {
+        desktopPreferences[key] = preferences[key];
+      }
+    }
   } catch (error) {
     console.log(`[preferencias] nao foi possivel carregar: ${error.message || error}`);
   }
@@ -433,42 +525,77 @@ function configureAutoUpdater() {
   setTimeout(checkForUpdates, 3000);
 }
 
+function getWindowState() {
+  return {
+    maximized: !!mainWindow && !mainWindow.isDestroyed() && mainWindow.isMaximized(),
+    fullscreen: !!mainWindow && !mainWindow.isDestroyed() && mainWindow.isFullScreen(),
+  };
+}
+
+function sendWindowState() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("desktop:window:state", getWindowState());
+  }
+}
+
+function handleDesktopIpc(channel, handler) {
+  ipcMain.handle(channel, (event, ...args) => {
+    if (
+      !mainWindow || mainWindow.isDestroyed() ||
+      event.sender !== mainWindow.webContents ||
+      !event.senderFrame || event.senderFrame !== mainWindow.webContents.mainFrame ||
+      !isTrustedUrl(event.senderFrame.url)
+    ) {
+      throw new Error("Origem IPC não autorizada.");
+    }
+    return handler(...args);
+  });
+}
+
 function configureDesktopIpc() {
-  ipcMain.handle("desktop:window:minimize", () => {
+  handleDesktopIpc("desktop:window:state", getWindowState);
+  handleDesktopIpc("desktop:window:minimize", () => {
     if (!mainWindow || mainWindow.isDestroyed()) return false;
     mainWindow.minimize();
     return true;
   });
-  ipcMain.handle("desktop:window:toggle-maximize", () => {
+  handleDesktopIpc("desktop:window:toggle-maximize", () => {
     if (!mainWindow || mainWindow.isDestroyed()) return false;
     if (mainWindow.isMaximized()) {
       mainWindow.unmaximize();
-      return false;
+    } else {
+      mainWindow.maximize();
     }
-    mainWindow.maximize();
-    return true;
+    return mainWindow.isMaximized();
   });
-  ipcMain.handle("desktop:window:close", () => {
+  handleDesktopIpc("desktop:window:close", () => {
     if (!mainWindow || mainWindow.isDestroyed()) return false;
     mainWindow.close();
     return true;
   });
-  ipcMain.handle("desktop:preferences:get", () => ({ ...desktopPreferences }));
-  ipcMain.handle("desktop:preferences:set", (_event, { key, value }) => {
-    if (!Object.hasOwn(DEFAULT_DESKTOP_PREFERENCES, key) || typeof value !== "boolean") {
+  handleDesktopIpc("desktop:preferences:get", () => ({ ...desktopPreferences }));
+  handleDesktopIpc("desktop:preferences:set", (preferences) => {
+    if (
+      !preferences || typeof preferences !== "object" || Array.isArray(preferences) ||
+      !Object.hasOwn(preferences, "key") || !Object.hasOwn(preferences, "value") ||
+      typeof preferences.key !== "string" ||
+      !Object.hasOwn(DEFAULT_DESKTOP_PREFERENCES, preferences.key) ||
+      typeof preferences.value !== "boolean"
+    ) {
       throw new Error("Preferência inválida.");
     }
+    const { key, value } = preferences;
     desktopPreferences[key] = value;
     saveDesktopPreferences();
     applyDesktopPreferences();
     return { ...desktopPreferences };
   });
-  ipcMain.handle("desktop:app-info", () => ({
+  handleDesktopIpc("desktop:app-info", () => ({
     version: app.getVersion(),
     packaged,
   }));
-  ipcMain.handle("desktop:update-status", () => updateStatus);
-  ipcMain.handle("desktop:update-check", async () => {
+  handleDesktopIpc("desktop:update-status", () => updateStatus);
+  handleDesktopIpc("desktop:update-check", async () => {
     if (!packaged) {
       return { status: "development", message: "Disponível somente no aplicativo instalado" };
     }

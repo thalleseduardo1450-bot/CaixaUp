@@ -4,6 +4,13 @@ contextBridge.exposeInMainWorld("caixaUpDesktop", {
   minimizeWindow: () => ipcRenderer.invoke("desktop:window:minimize"),
   toggleMaximizeWindow: () => ipcRenderer.invoke("desktop:window:toggle-maximize"),
   closeWindow: () => ipcRenderer.invoke("desktop:window:close"),
+  getWindowState: () => ipcRenderer.invoke("desktop:window:state"),
+  onWindowState: (callback) => {
+    if (typeof callback !== "function") throw new TypeError("Callback inválido.");
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on("desktop:window:state", listener);
+    return () => ipcRenderer.removeListener("desktop:window:state", listener);
+  },
   getPreferences: () => ipcRenderer.invoke("desktop:preferences:get"),
   setPreference: (key, value) =>
     ipcRenderer.invoke("desktop:preferences:set", { key, value }),

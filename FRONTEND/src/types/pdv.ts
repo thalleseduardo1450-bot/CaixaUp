@@ -51,6 +51,9 @@ export type PdvDensity = "confortavel" | "compacta";
 
 /** Venda suspensa: o operador guardou o carrinho para atender outro cliente. */
 export type PdvSuspendedSale = {
+  itemCount?: number;
+  revision?: number;
+  claimToken?: string;
   id: string;
   /** Rótulo curto que o operador reconhece ("Cliente de boné", "Mesa 4"). */
   label: string;
@@ -64,6 +67,8 @@ export type PdvSuspendedSale = {
 
 /** Rascunho da venda em andamento, salvo para sobreviver a queda de energia. */
 export type PdvDraft = {
+  claimToken?: string;
+  requestId?: string;
   items: PdvCartItem[];
   customerId: string;
   savedAt: number;

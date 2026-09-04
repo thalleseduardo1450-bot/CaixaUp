@@ -15,24 +15,29 @@
  * financeira — a venda só existe de fato depois que a API confirma.
  */
 import type { PdvCartItem, PdvDraft, PdvSuspendedSale } from "@/types/pdv";
+import { getStoredAuthUser } from "@/utils/authStorage";
+
+function scopedKey(key: string) {
+  const user = getStoredAuthUser();
+  return `${key}:${user?.companyId ?? 'anonymous'}:${user?.id ?? 'anonymous'}`;
+}
 
 export const PDV_DRAFT_STORAGE_KEY = "horus-pdv-draft";
 export const PDV_SUSPENDED_STORAGE_KEY = "horus-pdv-suspended";
 
 /** Rascunho mais velho que isso é considerado abandonado e descartado. */
-const DRAFT_MAX_AGE_MS = 12 * 60 * 60 * 1000; // 12 horas
 /** Trava para o localStorage não crescer sem limite. */
 const MAX_SUSPENDED_SALES = 20;
 
 function readJson<T>(key: string): T | null {
   try {
-    const raw = window.localStorage.getItem(key);
+    const raw = window.localStorage.getItem(scopedKey(key));
     if (!raw) return null;
     return JSON.parse(raw) as T;
   } catch {
     // JSON corrompido ou storage bloqueado: limpa e segue sem quebrar a tela.
     try {
-      window.localStorage.removeItem(key);
+      window.localStorage.removeItem(scopedKey(key));
     } catch {
       /* storage indisponível — nada a fazer */
     }
@@ -42,7 +47,7 @@ function readJson<T>(key: string): T | null {
 
 function writeJson(key: string, value: unknown): boolean {
   try {
-    window.localStorage.setItem(key, JSON.stringify(value));
+    window.localStorage.setItem(scopedKey(key), JSON.stringify(value));
     return true;
   } catch {
     // Modo privado ou cota cheia. O PDV continua funcionando em memória.
@@ -55,13 +60,13 @@ function writeJson(key: string, value: unknown): boolean {
  * ------------------------------------------------------------------ */
 
 /** Grava o carrinho atual. Chamado com debounce pelo hook do carrinho. */
-export function saveDraft(items: PdvCartItem[], customerId: string): void {
+export function saveDraft(items: PdvCartItem[], customerId: string, requestId?: string, claimToken?: string): boolean {
   if (items.length === 0) {
     clearDraft();
-    return;
+    return true;
   }
-  const draft: PdvDraft = { items, customerId, savedAt: Date.now() };
-  writeJson(PDV_DRAFT_STORAGE_KEY, draft);
+  const draft: PdvDraft = { items, customerId, savedAt: Date.now(), requestId, claimToken };
+  return writeJson(PDV_DRAFT_STORAGE_KEY, draft);
 }
 
 /** Lê o rascunho, ignorando o que estiver velho ou malformado. */
@@ -69,16 +74,12 @@ export function loadDraft(): PdvDraft | null {
   const draft = readJson<PdvDraft>(PDV_DRAFT_STORAGE_KEY);
   if (!draft || !Array.isArray(draft.items) || draft.items.length === 0) return null;
   if (!Number.isFinite(draft.savedAt)) return null;
-  if (Date.now() - draft.savedAt > DRAFT_MAX_AGE_MS) {
-    clearDraft();
-    return null;
-  }
   return draft;
 }
 
 export function clearDraft(): void {
   try {
-    window.localStorage.removeItem(PDV_DRAFT_STORAGE_KEY);
+    window.localStorage.removeItem(scopedKey(PDV_DRAFT_STORAGE_KEY));
   } catch {
     /* storage indisponível */
   }
@@ -111,8 +112,10 @@ export function suspendSale(
     suspendedAt: Date.now(),
   };
 
-  const next = [entry, ...listSuspendedSales()].slice(0, MAX_SUSPENDED_SALES);
-  writeJson(PDV_SUSPENDED_STORAGE_KEY, next);
+  const existing = listSuspendedSales();
+  if (existing.length >= MAX_SUSPENDED_SALES) return null;
+  const next = [entry, ...existing];
+  if (!writeJson(PDV_SUSPENDED_STORAGE_KEY, next)) return null;
   return next;
 }
 
@@ -125,7 +128,7 @@ export function removeSuspendedSale(id: string): PdvSuspendedSale[] {
 
 export function clearSuspendedSales(): void {
   try {
-    window.localStorage.removeItem(PDV_SUSPENDED_STORAGE_KEY);
+    window.localStorage.removeItem(scopedKey(PDV_SUSPENDED_STORAGE_KEY));
   } catch {
     /* storage indisponível */
   }

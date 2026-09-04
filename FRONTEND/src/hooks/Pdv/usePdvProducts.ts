@@ -228,11 +228,19 @@ export function usePdvProducts() {
     setUsageCounts(registerProductUsage(productId));
   }, []);
 
+  const applySale = useCallback((items: Array<{ id: string; quantity: number }>) => {
+    const quantities = new Map(items.map((item) => [item.id, item.quantity]));
+    setProducts((current) => current.map((product) => ({
+      ...product, stock: product.stock - (quantities.get(product.id) ?? 0),
+    })));
+  }, []);
+
   return {
     products,
     isLoading,
     loadError,
     reload: load,
+    applySale,
     categories,
     filter,
     findByExactCode,

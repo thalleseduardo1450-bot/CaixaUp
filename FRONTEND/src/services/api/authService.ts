@@ -96,21 +96,9 @@ async function readProfile(userId: string) {
 }
 
 async function ensureUserProvisioned(user: User) {
-  let profile = await readProfile(user.id);
-  if (!profile) {
-    const { error } = await supabase.from("perfis").upsert({
-      id: user.id,
-      nome: String(user.user_metadata?.nome || user.email?.split("@")[0] || "Usuário"),
-      email: user.email || "",
-      telefone: String(user.user_metadata?.telefone || ""),
-      cargo: "proprietario",
-    });
-    throwSchemaError(error);
-    profile = await readProfile(user.id);
-  }
-
-  if (!profile) throw new Error("Não foi possível criar o perfil deste usuário.");
-  if (profile.empresa_id) return profile;
+  const profile = await readProfile(user.id);
+  if (profile?.ativo === false) throw new Error("Acesso desativado. Procure o administrador.");
+  if (profile?.empresa_id) return profile;
 
   const companyName = String(user.user_metadata?.nome || "Minha Empresa");
   const { error: provisionError } = await supabase.rpc(

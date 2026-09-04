@@ -19,14 +19,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { PdvCartItem, PdvProduct, PdvSuspendedSale } from "@/types/pdv";
+import { suspendedSalesService } from "@/services/api/suspendedSalesService";
 import {
   buildSuspendedLabel,
   clearDraft,
-  listSuspendedSales,
   loadDraft,
-  removeSuspendedSale,
   saveDraft,
-  suspendSale,
 } from "@/utils/pdvDrafts";
 
 /** Quantidade máxima por linha — trava contra o scanner "travado" repetindo leitura. */
@@ -47,9 +45,12 @@ export type UsePdvCartOptions = {
 
 export function usePdvCart({
   allowSellingWithoutStock,
-  operatorName,
 }: UsePdvCartOptions) {
   const itemsRef = useRef<PdvCartItem[]>([]);
+  const requestIdRef = useRef<string>(crypto.randomUUID());
+  const claimTokenRef = useRef<string | undefined>(undefined);
+  const operationRef = useRef(false);
+  const customerRef = useRef("");
   const [items, setItemsState] = useState<PdvCartItem[]>([]);
   const [lastTouchedId, setLastTouchedId] = useState<string | null>(null);
   const [suspended, setSuspended] = useState<PdvSuspendedSale[]>([]);
@@ -72,19 +73,22 @@ export function usePdvCart({
 
   useEffect(() => {
     const draft = loadDraft();
+    if (draft?.requestId) requestIdRef.current = draft.requestId;
+    claimTokenRef.current = draft?.claimToken;
+    customerRef.current = draft?.customerId ?? "";
     if (draft && draft.items.length > 0) {
       setRecoverableItems(draft.items);
     } else {
       draftReadyRef.current = true;
     }
-    setSuspended(listSuspendedSales());
+    void suspendedSalesService.list().then(setSuspended).catch(() => {});
   }, []);
 
   /* ---------------- gravação automática do rascunho ---------------- */
 
   useEffect(() => {
     if (!draftReadyRef.current) return;
-    const timer = window.setTimeout(() => saveDraft(items, ""), DRAFT_DEBOUNCE_MS);
+    const timer = window.setTimeout(() => saveDraft(items, customerRef.current, requestIdRef.current, claimTokenRef.current), DRAFT_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [items]);
 
@@ -201,6 +205,9 @@ export function usePdvCart({
   );
 
   const clear = useCallback(() => {
+    requestIdRef.current = crypto.randomUUID();
+    claimTokenRef.current = undefined;
+    customerRef.current = "";
     commit([]);
     setLastTouchedId(null);
     clearDraft();
@@ -218,29 +225,26 @@ export function usePdvCart({
     setRecoverableItems(null);
     draftReadyRef.current = true;
     clearDraft();
+    requestIdRef.current = crypto.randomUUID();
+    claimTokenRef.current = undefined;
   }, []);
 
   /* ---------------- vendas suspensas ---------------- */
 
   const suspendCurrent = useCallback(
-    (meta: { customerId: string; customerName: string; label?: string }) => {
+    async (meta: { customerId: string; customerName: string; label?: string }) => {
       if (itemsRef.current.length === 0) return false;
-      const next = suspendSale({
-        label: meta.label?.trim() || buildSuspendedLabel(),
-        items: itemsRef.current,
-        customerId: meta.customerId,
-        customerName: meta.customerName,
-        operatorName,
-        totalCents,
-      });
-      if (!next) return false;
-      setSuspended(next);
-      commit([]);
-      setLastTouchedId(null);
-      clearDraft();
-      return true;
+      if (operationRef.current) return false;
+      operationRef.current = true;
+      try {
+        await suspendedSalesService.suspend(requestIdRef.current, itemsRef.current,
+          meta.label?.trim() || buildSuspendedLabel(), meta.customerId, claimTokenRef.current);
+        clear();
+        void suspendedSalesService.list().then(setSuspended).catch(() => {});
+        return true;
+      } finally { operationRef.current = false; }
     },
-    [commit, operatorName, totalCents],
+    [clear],
   );
 
   /**
@@ -248,35 +252,40 @@ export function usePdvCart({
    * eles são suspensos antes — o operador nunca perde o que estava passando.
    */
   const resumeSuspended = useCallback(
-    (id: string, meta: { customerId: string; customerName: string }) => {
-      const target = listSuspendedSales().find((sale) => sale.id === id);
-      if (!target) return null;
-
+    async (id: string, meta: { customerId: string; customerName: string }) => {
       if (itemsRef.current.length > 0) {
-        const parked = suspendSale({
-          label: buildSuspendedLabel(),
-          items: itemsRef.current,
-          customerId: meta.customerId,
-          customerName: meta.customerName,
-          operatorName,
-          totalCents,
-        });
-        if (parked) setSuspended(parked);
+        throw new Error("Suspenda a venda atual antes de retomar outra.");
       }
-
-      setSuspended(removeSuspendedSale(id));
+      if (operationRef.current) return null;
+      operationRef.current = true;
+      let target: PdvSuspendedSale;
+      try { target = await suspendedSalesService.resume(id); }
+      finally { operationRef.current = false; }
+      requestIdRef.current = target.id;
+      claimTokenRef.current = target.claimToken;
+      customerRef.current = target.customerId || meta.customerId;
+      saveDraft(target.items, customerRef.current, target.id, target.claimToken);
+      setSuspended((current) => current.filter((sale) => sale.id !== id));
       commit(target.items);
       setLastTouchedId(null);
       return target;
     },
-    [commit, operatorName, totalCents],
+    [commit],
   );
 
-  const discardSuspended = useCallback((id: string) => {
-    setSuspended(removeSuspendedSale(id));
+  const discardSuspended = useCallback(async (id: string) => {
+    await suspendedSalesService.discard(id);
+    setSuspended((current) => current.filter((sale) => sale.id !== id));
   }, []);
 
   return {
+    requestId: requestIdRef.current,
+    claimToken: claimTokenRef.current,
+    refreshSuspended: async () => setSuspended(await suspendedSalesService.list()),
+    persist: (customerId: string) => {
+      customerRef.current = customerId;
+      return saveDraft(itemsRef.current, customerId, requestIdRef.current, claimTokenRef.current);
+    },
     items,
     totalCents,
     itemCount,

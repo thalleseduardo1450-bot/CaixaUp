@@ -160,6 +160,7 @@ export default function SalesStartPage({
   const [suspendedOpen, setSuspendedOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   const [lastReceipt, setLastReceipt] = useState<SaleReceipt | null>(readLastReceipt);
   const [successSale, setSuccessSale] = useState<SaleReceipt | null>(null);
@@ -388,12 +389,13 @@ export default function SalesStartPage({
     focusSearch();
   }, [cart, focusSearch, statusDialog]);
 
-  const suspendSale = useCallback(() => {
+  const suspendSale = useCallback(async () => {
     if (cart.isEmpty) {
       Toast.info("Não há itens para suspender.");
       return;
     }
-    const suspended = cart.suspendCurrent({
+    try {
+    const suspended = await cart.suspendCurrent({
       customerId,
       customerName: selectedCustomer?.customerName ?? "",
     });
@@ -402,11 +404,13 @@ export default function SalesStartPage({
     setCpfOnReceipt("");
     Toast.success("Venda suspensa. Use F6 para retomar.");
     focusSearch();
+    } catch (error) { Toast.error(error instanceof Error ? error.message : String((error as { message?: string }).message || "Não foi possível suspender.")); }
   }, [cart, customerId, focusSearch, selectedCustomer]);
 
   const resumeSale = useCallback(
-    (id: string) => {
-      const resumed = cart.resumeSuspended(id, {
+    async (id: string) => {
+      try {
+      const resumed = await cart.resumeSuspended(id, {
         customerId,
         customerName: selectedCustomer?.customerName ?? "",
       });
@@ -418,6 +422,7 @@ export default function SalesStartPage({
       setSuspendedOpen(false);
       Toast.success(`${resumed.label} retomada.`);
       focusSearch();
+      } catch (error) { Toast.error(String((error as { message?: string }).message || "Não foi possível retomar.")); }
     },
     [cart, customerId, focusSearch, selectedCustomer],
   );
@@ -441,20 +446,20 @@ export default function SalesStartPage({
 
   const confirmPayment = useCallback(
     async (payment: PdvCheckoutResult) => {
-      if (isSubmitting) return;
+      if (submittingRef.current) return;
+      submittingRef.current = true;
       setIsSubmitting(true);
 
       try {
-        const status = await loadCashStatus();
-        if (!status?.canSell) {
-          Toast.error(status?.blockReason || "Abra o caixa antes de confirmar a venda.");
-          return;
-        }
+        if (!cart.persist(payment.customerId || "")) throw new Error("Não foi possível salvar a recuperação local. Libere espaço antes de finalizar.");
 
         const documentOnReceipt =
           payment.customerDocument || cpfOnReceipt.trim() || "-";
 
         const result = await salesHistoryService.register({
+          requestId: cart.requestId,
+          claimToken: cart.claimToken,
+          discountAmount: toReais(payment.discountCents),
           customerId: payment.customerId,
           customerName: payment.customerName || "Consumidor",
           customerCpf: documentOnReceipt,
@@ -469,6 +474,7 @@ export default function SalesStartPage({
             valor: toReais(line.amountCents),
           })),
           items: cart.items.map((item) => ({
+            productId: item.id,
             productCode: item.code,
             productName: item.name,
             quantity: item.quantity,
@@ -546,13 +552,14 @@ export default function SalesStartPage({
 
         if (soundEnabled) playSaleComplete();
         setSuccessSale(receipt);
-        void products.reload();
+        products.applySale(cart.items);
 
       } catch (error) {
         Toast.error(
           error instanceof Error ? error.message : "Erro ao registrar a venda.",
         );
       } finally {
+        submittingRef.current = false;
         setIsSubmitting(false);
       }
     },
@@ -933,7 +940,7 @@ export default function SalesStartPage({
         <PdvSuspendedSalesModal
           sales={cart.suspended}
           onResume={resumeSale}
-          onDiscard={cart.discardSuspended}
+          onDiscard={(id) => void cart.discardSuspended(id).catch((error) => Toast.error(error.message || "Não foi possível descartar."))}
           onClose={() => {
             setSuspendedOpen(false);
             focusSearch();
