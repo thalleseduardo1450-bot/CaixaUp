@@ -226,7 +226,6 @@ export default function SalesHistoryPage({ onNavigate }: Props) {
           <table className="w-full min-w-[760px] table-fixed text-sm 2xl:min-w-[1180px]">
             <thead className="bg-bg-primary text-left text-text-secondary">
               <tr>
-                <th className="w-[7%] px-3 py-3">Venda</th>
                 <th className="w-[12%] px-3 py-3">Cliente</th>
                 <th className="hidden w-[9%] px-3 py-3 2xl:table-cell">CPF</th>
                 <th className="hidden w-[14%] px-3 py-3 2xl:table-cell">Cód. Produto</th>
@@ -241,7 +240,6 @@ export default function SalesHistoryPage({ onNavigate }: Props) {
             <tbody>
               {paginatedSales.map((sale) => (
                 <tr key={`${sale.saleNumber}-${sale.productCode}`} className="border-t border-border-primary">
-                  <td className="px-3 py-3 font-semibold text-text-primary">{sale.saleNumber}</td>
                   <td className="whitespace-nowrap px-3 py-3">
                     <span className="block break-words leading-snug" title={sale.customerName}>
                       {sale.customerName}
