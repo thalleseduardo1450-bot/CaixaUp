@@ -47,6 +47,13 @@ function toCompanyReceipt(company: CompanyDto | null): SaleReceipt["company"] {
 }
 
 function splitSaleDate(value: string) {
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return {
+      date: parsed.toLocaleDateString("pt-BR"),
+      time: parsed.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+    };
+  }
   const [date = value, time = ""] = value.split(" ");
   return { date, time };
 }
