@@ -216,7 +216,7 @@ export default function SalesHistoryPage({ onNavigate }: Props) {
       <Reveal delay={80}>
         <section className="card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] table-fixed text-sm">
+          <table className="w-full min-w-[1180px] table-fixed text-sm">
             <thead className="bg-bg-primary text-left text-text-secondary">
               <tr>
                 <th className="w-[7%] px-3 py-3">Venda</th>
@@ -227,15 +227,15 @@ export default function SalesHistoryPage({ onNavigate }: Props) {
                 <th className="w-[5%] px-3 py-3 text-center">QNT</th>
                 <th className="w-[9%] px-3 py-3 text-right">Vl. Unit.</th>
                 <th className="w-[9%] px-3 py-3 text-right">Vl. Total</th>
-                <th className="w-[9%] px-3 py-3">Data</th>
-                <th className="w-[12%] px-3 py-3 text-center">Ações</th>
+                <th className="w-[11%] px-3 py-3">Data</th>
+                <th className="w-[18%] px-3 py-3 text-center">Ações</th>
               </tr>
             </thead>
             <tbody>
               {paginatedSales.map((sale) => (
                 <tr key={`${sale.saleNumber}-${sale.productCode}`} className="border-t border-border-primary">
                   <td className="px-3 py-3 font-semibold text-text-primary">{sale.saleNumber}</td>
-                  <td className="px-3 py-3">
+                  <td className="whitespace-nowrap px-3 py-3">
                     <span className="block break-words leading-snug" title={sale.customerName}>
                       {sale.customerName}
                     </span>
@@ -264,8 +264,8 @@ export default function SalesHistoryPage({ onNavigate }: Props) {
                       {splitSaleDate(sale.saleDate).time}
                     </span>
                   </td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center justify-center gap-1.5">
+                  <td className="whitespace-nowrap px-3 py-3">
+                    <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => void openSale(sale, "view")}
