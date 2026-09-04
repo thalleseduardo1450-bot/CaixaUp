@@ -60,12 +60,12 @@ function writeJson(key: string, value: unknown): boolean {
  * ------------------------------------------------------------------ */
 
 /** Grava o carrinho atual. Chamado com debounce pelo hook do carrinho. */
-export function saveDraft(items: PdvCartItem[], customerId: string, requestId?: string, claimToken?: string): boolean {
+export function saveDraft(items: PdvCartItem[], customerId: string, requestId?: string, claimToken?: string, options?: { openImmediately?: boolean }): boolean {
   if (items.length === 0) {
     clearDraft();
     return true;
   }
-  const draft: PdvDraft = { items, customerId, savedAt: Date.now(), requestId, claimToken };
+  const draft: PdvDraft = { items, customerId, savedAt: Date.now(), requestId, claimToken, openImmediately: options?.openImmediately };
   return writeJson(PDV_DRAFT_STORAGE_KEY, draft);
 }
 

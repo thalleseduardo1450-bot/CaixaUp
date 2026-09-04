@@ -69,6 +69,7 @@ export type PdvSuspendedSale = {
 export type PdvDraft = {
   claimToken?: string;
   requestId?: string;
+  openImmediately?: boolean;
   items: PdvCartItem[];
   customerId: string;
   savedAt: number;

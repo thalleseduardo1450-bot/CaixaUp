@@ -77,7 +77,10 @@ export function usePdvCart({
     if (draft?.requestId) requestIdRef.current = draft.requestId;
     claimTokenRef.current = draft?.claimToken;
     customerRef.current = draft?.customerId ?? "";
-    if (draft && draft.items.length > 0) {
+    if (draft?.openImmediately && draft.items.length > 0) {
+      commit(draft.items);
+      draftReadyRef.current = true;
+    } else if (draft && draft.items.length > 0) {
       setRecoverableItems(draft.items);
     } else {
       draftReadyRef.current = true;

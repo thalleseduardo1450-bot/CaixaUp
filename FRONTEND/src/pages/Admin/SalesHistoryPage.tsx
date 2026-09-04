@@ -179,7 +179,7 @@ export default function SalesHistoryPage({ onNavigate }: Props) {
       unitPriceCents: Math.round(parseMoneyBr(entry.unitPrice || "0,00") * 100),
       addedAt: Date.now() + index,
     }));
-    if (!items.length || !saveDraft(items, "")) {
+    if (!items.length || !saveDraft(items, "", undefined, undefined, { openImmediately: true })) {
       Toast.error("Não foi possível preparar a venda para edição neste computador.");
       return;
     }
