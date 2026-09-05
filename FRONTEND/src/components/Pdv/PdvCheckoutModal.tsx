@@ -158,8 +158,10 @@ export default function PdvCheckoutModal({
 
   /** Valores digitados pelo operador. Forma ausente = nunca digitada. */
   const [typed, setTyped] = useState<Record<string, number>>({});
+  const [typedText, setTypedText] = useState<Record<string, string>>({});
   const [active, setActive] = useState("dinheiro");
   const [discountCents, setDiscountCents] = useState(0);
+  const [discountText, setDiscountText] = useState<string | null>(null);
   const [discountOpen, setDiscountOpen] = useState(false);
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [onAccount, setOnAccount] = useState(false);
@@ -383,15 +385,17 @@ export default function PdvCheckoutModal({
                 ref={discountInputRef}
                 type="text"
                 inputMode="numeric"
-                value={formatCents(discountCents)}
-                onChange={(event) =>
+                value={discountText ?? formatCents(discountCents)}
+                onChange={(event) => {
+                  setDiscountText(event.target.value);
                   setDiscountCents(
                     Math.min(
                       Math.max(0, totalCents - 1),
                       parseTypedCents(event.target.value),
                     ),
-                  )
-                }
+                  );
+                }}
+                onBlur={() => setDiscountText(formatCents(discountCents))}
                 onFocus={(event) => event.currentTarget.select()}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -409,6 +413,7 @@ export default function PdvCheckoutModal({
                 type="button"
                 onClick={() => {
                   setDiscountCents(0);
+                  setDiscountText(null);
                   setDiscountOpen(false);
                 }}
                 className="rounded-lg border border-border-secondary px-3 py-2 text-sm font-semibold text-text-secondary transition hover:border-primary hover:text-primary"
@@ -459,15 +464,24 @@ export default function PdvCheckoutModal({
                     ref={isActive ? activeInputRef : undefined}
                     type="text"
                     inputMode="numeric"
-                    value={showValue ? formatCents(cents) : ""}
+                    value={typedText[method.value] ?? (showValue ? formatCents(cents) : "")}
                     onFocus={() => setActive(method.value)}
                     onChange={(event) => {
+                      const text = event.target.value;
                       setActive(method.value);
+                      setTypedText((current) => ({ ...current, [method.value]: text }));
                       setTyped((current) => ({
                         ...current,
-                        [method.value]: parseTypedCents(event.target.value),
+                        [method.value]: parseTypedCents(text),
                       }));
                       setError("");
+                    }}
+                    onBlur={() => {
+                      if (typed[method.value] === undefined) return;
+                      setTypedText((current) => ({
+                        ...current,
+                        [method.value]: formatCents(typed[method.value]),
+                      }));
                     }}
                     className="pdv-pay-value"
                     aria-label={`Valor em ${method.label}`}

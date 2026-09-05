@@ -743,7 +743,7 @@ export default function ProductRegisterPage() {
         throw new Error("Nenhum produto válido foi encontrado no arquivo.");
       }
 
-      const currentProducts = await productService.list();
+      const currentProducts = await productService.list({ includeInactive: true });
       const productsByCode = new Map<string, ProductDto>();
       for (const product of currentProducts) {
         productsByCode.set(product.productCode.trim().toLowerCase(), product);

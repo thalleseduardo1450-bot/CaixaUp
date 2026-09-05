@@ -1,5 +1,5 @@
 import { Check, Eye, Printer, ShoppingCart } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useModalExit } from "@/hooks/useModalExit";
 import { receiptTotal, type SaleReceipt } from "./ReceiptPreviewModal";
 
@@ -20,6 +20,16 @@ export default function SaleSuccessModal({
   const { closing, requestClose } = useModalExit(onStartNewSale);
   const itemCount = receipt.items.reduce((sum, item) => sum + item.quantity, 0);
   const total = receiptTotal(receipt);
+
+  useEffect(() => {
+    const handleEnter = (event: KeyboardEvent) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      requestClose();
+    };
+    window.addEventListener("keydown", handleEnter);
+    return () => window.removeEventListener("keydown", handleEnter);
+  }, [requestClose]);
 
   return (
     <div

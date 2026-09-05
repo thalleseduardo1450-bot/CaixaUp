@@ -167,7 +167,7 @@ export const productService = {
     if (!empresaId) throw new Error("Nenhuma empresa vinculada ao seu usuário.");
     const { data, error } = await supabase
       .from("produtos")
-      .update(fields)
+      .update({ ...fields, ativo: true })
       .eq("id", id)
       .eq("empresa_id", empresaId)
       .select()

@@ -85,6 +85,7 @@ test('blank quantity on edit preserves existing stock and scopes company', async
   const f = fixture();
   await f.service.update('product-test', payload);
   assert.equal('estoque_atual' in f.writes[0], false);
+  assert.equal(f.writes[0].ativo, true);
   assert.ok(f.filters.some(([field, value]) => field === 'empresa_id' && value === 'company-test'));
 });
 

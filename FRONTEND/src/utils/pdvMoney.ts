@@ -45,15 +45,14 @@ export function parseCentsBr(text: string | null | undefined): number {
   return Number(reaisPart) * 100 + Number(centsPart);
 }
 
-/**
- * Lê o texto de um input com máscara de moeda onde o operador digita da direita
- * para a esquerda (padrão de PDV: teclar 1-2-3-4 resulta em R$ 12,34).
- */
+/** Lê valor digitado em reais: "10" = R$ 10,00 e "10,50" = R$ 10,50. */
 export function parseTypedCents(text: string | null | undefined): number {
-  if (!text) return 0;
-  const digitsOnly = String(text).replace(/[^\d]/g, "");
-  if (!digitsOnly) return 0;
-  return Number(digitsOnly.slice(0, 12));
+  const value = String(text ?? "").trim();
+  if (!value) return 0;
+  if (!value.includes(",") && /^\d+\.\d{1,2}$/.test(value)) {
+    return parseCentsBr(value.replace(".", ","));
+  }
+  return parseCentsBr(value);
 }
 
 /** Formata centavos como "1.234,56" (sem o prefixo R$). */

@@ -8,6 +8,9 @@
 - Produtos inativos aparecem identificados no cadastro e podem ser reativados.
 - Produtos inativos continuam ocultos na frente de caixa.
 - Exclusão e reativação respeitam a empresa do usuário.
+- Valores do pagamento são digitados em reais por padrão; centavos são opcionais.
+- A tecla Enter fecha a confirmação de venda e inicia a próxima venda.
+- Produtos editados ou importados são reativados automaticamente.
 
 ## 3.3.26
 
