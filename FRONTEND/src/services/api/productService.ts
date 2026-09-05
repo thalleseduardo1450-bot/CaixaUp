@@ -18,9 +18,12 @@ export type ProductDto = {
   productUnitPrice: string;
   productSalePrice: string;
   totalPriceOnProduct: string;
+  productActive?: boolean;
 };
 
 export type ProductPayload = Omit<ProductDto, "id">;
+
+const PRODUCT_PAGE_SIZE = 1000;
 
 /** numeric(12,2) -> "9,99" (texto pt-BR que o frontend já espera) */
 function reaisToText(value: number | string | null | undefined): string {
@@ -71,19 +74,27 @@ function saveError(error: { code?: string; message?: string }): Error {
 }
 
 export const productService = {
-  async list() {
+  async list(options: { includeInactive?: boolean } = {}) {
     const empresaId = await currentCompanyId();
     if (!empresaId) return [];
 
-    const { data, error } = await supabase
-      .from("produtos")
-      .select("id, nome, descricao, codigo_barras, sku, preco_venda, preco_custo, estoque_atual, estoque_minimo, unidade, ativo, categorias(nome)")
-      .eq("empresa_id", empresaId)
-      .eq("ativo", true)
-      .order("nome");
-    if (error) throw error;
+    const rows: any[] = [];
+    for (let from = 0; ; from += PRODUCT_PAGE_SIZE) {
+      let query = supabase
+        .from("produtos")
+        .select("id, nome, descricao, codigo_barras, sku, preco_venda, preco_custo, estoque_atual, estoque_minimo, unidade, ativo, categorias(nome)")
+        .eq("empresa_id", empresaId);
+      if (!options.includeInactive) query = query.eq("ativo", true);
+      const { data, error } = await query
+        .order("nome")
+        .order("id")
+        .range(from, from + PRODUCT_PAGE_SIZE - 1);
+      if (error) throw error;
+      rows.push(...(data ?? []));
+      if ((data?.length ?? 0) < PRODUCT_PAGE_SIZE) break;
+    }
 
-    return (data ?? []).map((p: any) => ({
+    return rows.map((p: any) => ({
       id: p.id,
       productImageUrl: "",
       productImageName: "",
@@ -96,6 +107,7 @@ export const productService = {
       productUnitPrice: reaisToText(p.preco_custo),
       productSalePrice: reaisToText(p.preco_venda),
       totalPriceOnProduct: reaisToText(p.preco_venda),
+      productActive: p.ativo !== false,
     }));
   },
 
@@ -145,6 +157,7 @@ export const productService = {
       productUnitPrice: reaisToText(p.preco_custo),
       productSalePrice: reaisToText(p.preco_venda),
       totalPriceOnProduct: reaisToText(p.preco_venda),
+      productActive: p.ativo !== false,
     };
   },
 
@@ -175,14 +188,29 @@ export const productService = {
       productUnitPrice: reaisToText(p.preco_custo),
       productSalePrice: reaisToText(p.preco_venda),
       totalPriceOnProduct: reaisToText(p.preco_venda),
+      productActive: p.ativo !== false,
     };
   },
 
+  async restore(id: string) {
+    const empresaId = await currentCompanyId();
+    if (!empresaId) throw new Error("Nenhuma empresa vinculada ao seu usuário.");
+    const { error } = await supabase
+      .from("produtos")
+      .update({ ativo: true })
+      .eq("id", id)
+      .eq("empresa_id", empresaId);
+    if (error) throw saveError(error);
+  },
+
   async remove(id: string) {
+    const empresaId = await currentCompanyId();
+    if (!empresaId) throw new Error("Nenhuma empresa vinculada ao seu usuário.");
     const { error } = await supabase
       .from("produtos")
       .update({ ativo: false })
-      .eq("id", id);
-    if (error) throw error;
+      .eq("id", id)
+      .eq("empresa_id", empresaId);
+    if (error) throw saveError(error);
   },
 };

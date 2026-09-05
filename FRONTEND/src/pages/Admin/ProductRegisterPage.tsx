@@ -38,6 +38,7 @@ type Product = {
   productUnitPrice: string;
   productSalePrice: string;
   totalPriceOnProduct: string;
+  productActive?: boolean;
 };
 
 type ProductFormData = Omit<Product, "id">;
@@ -525,7 +526,7 @@ export default function ProductRegisterPage() {
     setLoadingProducts(true);
     setProductsError("");
     try {
-      setProducts(await productService.list());
+      setProducts(await productService.list({ includeInactive: true }));
     } catch (error) {
       setProducts([]);
       setProductsError(
@@ -626,6 +627,25 @@ export default function ProductRegisterPage() {
       statusDialog.success("Produto excluído com sucesso.");
     } catch (error) {
       Toast.error(error instanceof Error ? error.message : "Erro ao excluir produto.");
+    } finally {
+      setDeletingProductIds((current) => {
+        const next = new Set(current);
+        next.delete(product.id);
+        return next;
+      });
+    }
+  };
+
+  const handleRestore = async (product: Product) => {
+    setDeletingProductIds((current) => new Set(current).add(product.id));
+    try {
+      await productService.restore(product.id);
+      setProducts((current) => current.map((item) =>
+        item.id === product.id ? { ...item, productActive: true } : item,
+      ));
+      statusDialog.success("Produto reativado com sucesso.");
+    } catch (error) {
+      Toast.error(error instanceof Error ? error.message : "Erro ao reativar produto.");
     } finally {
       setDeletingProductIds((current) => {
         const next = new Set(current);
@@ -1006,7 +1026,12 @@ export default function ProductRegisterPage() {
                       className="h-4 w-4 rounded border-border-secondary accent-accent"
                     />
                   </td>
-                  <td className="px-4 py-3 font-semibold text-text-primary">{product.productName}</td>
+                  <td className="px-4 py-3 font-semibold text-text-primary">
+                    {product.productName}
+                    {product.productActive === false ? (
+                      <span className="ml-2 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">Inativo</span>
+                    ) : null}
+                  </td>
                   <td className="px-4 py-3">{product.productCode}</td>
                   <td className="px-4 py-3">{product.productSupplier}</td>
                   <td className="px-4 py-3">{product.productQnt}</td>
@@ -1020,15 +1045,24 @@ export default function ProductRegisterPage() {
                           icon: <Pencil size={13} />,
                           onClick: () => openEditDrawer(product),
                         },
-                        {
-                          key: "delete",
-                          label: "Excluir",
-                          icon: <Trash2 size={13} />,
-                          onClick: () => handleDelete(product),
-                          loading: deletingProductIds.has(product.id),
-                          loadingLabel: "Excluindo...",
-                          danger: true,
-                        },
+                        product.productActive === false
+                          ? {
+                              key: "restore",
+                              label: "Reativar",
+                              icon: <RefreshCw size={13} />,
+                              onClick: () => void handleRestore(product),
+                              loading: deletingProductIds.has(product.id),
+                              loadingLabel: "Reativando...",
+                            }
+                          : {
+                              key: "delete",
+                              label: "Excluir",
+                              icon: <Trash2 size={13} />,
+                              onClick: () => void handleDelete(product),
+                              loading: deletingProductIds.has(product.id),
+                              loadingLabel: "Excluindo...",
+                              danger: true,
+                            },
                       ]}
                     />
                   </td>

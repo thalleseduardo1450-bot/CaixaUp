@@ -31,6 +31,47 @@ function fixture(error = null, company = 'company-test') {
   return { service: exports.productService, writes, filters };
 }
 
+function listFixture(pageLengths) {
+  const ranges = [];
+  const filters = [];
+  const chain = {
+    select() { return this; },
+    eq(...args) { filters.push(args); return this; },
+    order() { return this; },
+    async range(from, to) {
+      ranges.push([from, to]);
+      const length = pageLengths[ranges.length - 1] ?? 0;
+      return {
+        data: Array.from({ length }, (_, index) => ({
+          id: `product-${from + index}`,
+          nome: `Produto ${from + index}`,
+          codigo_barras: String(from + index),
+          sku: '',
+          preco_venda: 1,
+          preco_custo: 0,
+          estoque_atual: 1,
+          ativo: true,
+        })),
+        error: null,
+      };
+    },
+  };
+  const exports = {};
+  vm.runInNewContext(compiled, {
+    exports,
+    require: () => ({ supabase: { from: () => chain }, currentCompanyId: async () => 'company-test' }),
+  });
+  return { service: exports.productService, ranges, filters };
+}
+
+test('loads every product beyond the Supabase 1000 row limit', async () => {
+  const f = listFixture([1000, 10]);
+  const products = await f.service.list();
+  assert.equal(products.length, 1010);
+  assert.deepEqual(f.ranges, [[0, 999], [1000, 1999]]);
+  assert.ok(f.filters.some(([field, value]) => field === 'ativo' && value === true));
+});
+
 test('creates with optional fields empty and stock/cost zero', async () => {
   const f = fixture();
   const saved = await f.service.create(payload);

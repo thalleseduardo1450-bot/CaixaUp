@@ -1,5 +1,14 @@
 # Novidades do CaixaUp
 
+## 3.3.27
+
+### Catálogo completo de produtos
+
+- A lista agora carrega todos os produtos, mesmo quando passa do limite de 1000 registros do Supabase.
+- Produtos inativos aparecem identificados no cadastro e podem ser reativados.
+- Produtos inativos continuam ocultos na frente de caixa.
+- Exclusão e reativação respeitam a empresa do usuário.
+
 ## 3.3.26
 
 ### Cadastro de produtos, caixa e interface
