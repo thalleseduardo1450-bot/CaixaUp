@@ -74,7 +74,7 @@ export default function RegisterPage({
         : "";
       const result = await onRegister(form, recaptchaToken);
       setFeedback(result);
-      if (result.success) {
+      if (result.success && !result.data?.requiresEmailConfirmation) {
         onRegisterSuccess(form.email);
         setForm(initialRegisterForm);
       }

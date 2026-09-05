@@ -7,6 +7,7 @@ export type AuthResultData = {
   resetToken?: string;
   maskedEmail?: string;
   expiresAt?: string;
+  requiresEmailConfirmation?: boolean;
 };
 
 export type AuthActionResult = {

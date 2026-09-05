@@ -24,6 +24,8 @@ const WEB_PORT = 4173;
 const WEB_ORIGIN = `http://127.0.0.1:${WEB_PORT}`;
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 
+if (process.platform === "win32") app.setAsDefaultProtocolClient("caixaup");
+
 if (!hasSingleInstanceLock) {
   app.quit();
 }
@@ -39,6 +41,7 @@ let mainWindow = null;
 let updatePromptShown = false;
 let appIsQuitting = false;
 let updateStatus = { status: "idle", message: "Atualizações automáticas ativas" };
+let pendingAuthCallback = null;
 
 const DEFAULT_DESKTOP_PREFERENCES = {
   startWithWindows: false,
@@ -62,7 +65,6 @@ const MIME = {
   ".woff": "font/woff",
   ".woff2": "font/woff2",
   ".ttf": "font/ttf",
-  ".map": "application/json; charset=utf-8",
 };
 
 function isContainedPath(root, target) {
@@ -83,7 +85,7 @@ function openExternalLink(value) {
   try {
     if (typeof value !== "string" || /[\s\u0000-\u001f\u007f\\]/.test(value)) return;
     const url = new URL(value);
-    if (!["https:", "http:"].includes(url.protocol) || !url.hostname || url.username || url.password) return;
+    if (url.protocol !== "https:" || !url.hostname || url.username || url.password) return;
     void shell.openExternal(url.href).catch((error) => {
       console.log(`[rede] nao foi possivel abrir link: ${error.message || error}`);
     });
@@ -92,13 +94,39 @@ function openExternalLink(value) {
   }
 }
 
+function acceptAuthCallback(value) {
+  if (typeof value !== "string" || !value.startsWith("caixaup://auth/callback")) return;
+  try {
+    const url = new URL(value);
+    if (url.searchParams.has("code") || url.hash.includes("access_token")) {
+      pendingAuthCallback = value;
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("desktop:auth:callback", value);
+    }
+  } catch {
+    return;
+  }
+}
+
+for (const argument of process.argv) acceptAuthCallback(argument);
+app.on("second-instance", (_event, commandLine) => {
+  for (const argument of commandLine) acceptAuthCallback(argument);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
+
 function startWebServer() {
   return new Promise((resolve, reject) => {
     const server = http.createServer(async (req, res) => {
       res.setHeader("X-Content-Type-Options", "nosniff");
       res.setHeader("X-Frame-Options", "DENY");
       res.setHeader("Referrer-Policy", "no-referrer");
-      res.setHeader("Content-Security-Policy", "base-uri 'self'; object-src 'none'; frame-ancestors 'none'");
+      res.setHeader(
+        "Content-Security-Policy",
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://viacep.com.br https://brasilapi.com.br https://opencep.com https://world.openfoodfacts.org; frame-src 'none'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
+      );
+      res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
       res.setHeader("Cache-Control", "no-store");
       if (req.headers.host !== `127.0.0.1:${WEB_PORT}`) {
         res.writeHead(403).end("Forbidden");
@@ -113,6 +141,14 @@ function startWebServer() {
         if (!req.url || !req.url.startsWith("/") || req.url.startsWith("//")) throw new Error("Invalid URL");
         const url = new URL(req.url, WEB_ORIGIN);
         if (!isTrustedUrl(url.href)) throw new Error("Invalid URL");
+        if (url.pathname === "/auth/callback/" && url.searchParams.has("code")) {
+          const callback = new URL("caixaup://auth/callback/");
+          callback.search = url.search;
+          acceptAuthCallback(callback.toString());
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+          res.end("<!doctype html><title>CaixaUp</title><p>Login recebido. Volte para o CaixaUp.</p>");
+          return;
+        }
         urlPath = decodeURIComponent(req.url.split("?")[0]);
         if (/[\u0000-\u001f\u007f\\:#]/.test(urlPath)) throw new Error("Invalid path");
       } catch {
@@ -120,6 +156,10 @@ function startWebServer() {
         return;
       }
       let filePath = path.resolve(webDir, `.${urlPath}`);
+      if (path.extname(filePath).toLowerCase() === ".map") {
+        res.writeHead(404).end("Not found");
+        return;
+      }
       if (!isContainedPath(webDir, filePath)) {
         res.writeHead(403).end("Forbidden");
         return;
@@ -256,6 +296,8 @@ function createMainWindow() {
     openExternalLink(url);
     return { action: "deny" };
   });
+  mainWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
+  mainWindow.webContents.session.setPermissionCheckHandler(() => false);
 
   mainWindow.webContents.on("console-message", (_e, nivel, mensagem, linha, origem) => {
     if (nivel < 2) return;
@@ -553,6 +595,12 @@ function handleDesktopIpc(channel, handler) {
 }
 
 function configureDesktopIpc() {
+  handleDesktopIpc("desktop:open-external", (value) => {
+    if (typeof value !== "string") return false;
+    openExternalLink(value);
+    return /^https:\/\//.test(value);
+  });
+  handleDesktopIpc("desktop:auth:pending", () => pendingAuthCallback);
   handleDesktopIpc("desktop:window:state", getWindowState);
   handleDesktopIpc("desktop:window:minimize", () => {
     if (!mainWindow || mainWindow.isDestroyed()) return false;
@@ -614,6 +662,11 @@ app.whenReady().then(async () => {
   try {
     webServer = await startWebServer();
     createMainWindow();
+    if (pendingAuthCallback) {
+      mainWindow.webContents.once("did-finish-load", () => {
+        if (pendingAuthCallback) mainWindow.webContents.send("desktop:auth:callback", pendingAuthCallback);
+      });
+    }
     applyDesktopPreferences();
     configureAutoUpdater();
     setTimeout(() => void showInstalledUpdate(), 2500);

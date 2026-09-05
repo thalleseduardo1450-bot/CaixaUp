@@ -21,6 +21,7 @@ import RegisterPage from "@/pages/Auth/RegisterPage";
 import ResetPasswordPage from "@/pages/Auth/ResetPasswordPage";
 import type { RegisterFormPayload } from "@/pages/Auth/types";
 import { authService } from "@/services/api/authService";
+import { supabase } from "@/lib/supabase";
 import { autoLoginAtivo, tentarAutoLogin } from "@/utils/autoLogin";
 import { cashRegisterService } from "@/services/api/cashRegisterService";
 import {
@@ -154,7 +155,6 @@ function hasSupabaseRecoveryCallback() {
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   return (
     query.get("recovery") === "1" ||
-    query.has("code") ||
     query.has("resetToken") ||
     query.has("token") ||
     hash.get("type") === "recovery"
@@ -193,9 +193,19 @@ export default function App() {
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("pdv") === "1";
 
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() =>
+    typeof window !== "undefined" && window.innerWidth <= 1100,
+  );
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
+
+  useEffect(() => {
+    const keepCompactOnSmallViewport = () => {
+      if (window.innerWidth <= 1100) setCollapsed(true);
+    };
+    window.addEventListener("resize", keepCompactOnSmallViewport);
+    return () => window.removeEventListener("resize", keepCompactOnSmallViewport);
+  }, []);
   const [activePage, setActivePage] = useState<PageKey>(() => {
     return "home";
   });
@@ -221,7 +231,7 @@ export default function App() {
     return storedTheme === "dark" ? "dark" : "light";
   });
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    if (typeof window === "undefined") return false;
+    if (typeof window === "undefined" || isRecoveryFlow) return false;
     return Boolean(getStoredAuthUser());
   });
   const [isCheckingAuth, setIsCheckingAuth] = useState(() => {
@@ -298,7 +308,7 @@ export default function App() {
       case "cadastro-produto":
         return ProductRegisterPage;
       case "historico-vendas":
-        return () => <SalesHistoryPage onNavigate={setActivePage} />;
+        return EmptyPage;
       case "relatorios":
         return ReportsPage;
       case "fiscal":
@@ -332,7 +342,7 @@ export default function App() {
       case "admin-plataforma":
         return PlatformAdminPage;
       case "vendas-suspensas":
-        return () => <ResumeSalesPage onNavigate={setActivePage} />;
+        return EmptyPage;
       default:
         return EmptyPage;
     }
@@ -518,6 +528,18 @@ export default function App() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    try {
+      await authService.loginWithGoogle();
+      return { success: true, message: "Abrindo o login seguro do Google..." };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Não foi possível iniciar o login com Google.",
+      };
+    }
+  };
+
   const handleResetPassword = async (
     token: string,
     nextPassword: string,
@@ -568,6 +590,7 @@ export default function App() {
         message: result.requiresEmailConfirmation
           ? "Cadastro criado. Confirme o e-mail recebido antes de entrar."
           : "Cadastro criado e liberado. Faça login para continuar.",
+        data: { requiresEmailConfirmation: result.requiresEmailConfirmation },
       };
     } catch (error) {
       return {
@@ -580,8 +603,6 @@ export default function App() {
 
   useEffect(() => {
     if (isRecoveryFlow) {
-      setIsAuthenticated(false);
-      setIsCheckingAuth(false);
       return;
     }
 
@@ -620,6 +641,48 @@ export default function App() {
         setIsCheckingAuth(false);
       });
   }, [isRecoveryFlow, isStandalonePos]);
+
+  useEffect(() => {
+    const completeDesktopOAuth = async (callbackUrl: string) => {
+      try {
+        await authService.completeOAuthCallback(callbackUrl);
+        const user = await authService.me();
+        if (!user) throw new Error("Não foi possível carregar o perfil da conta.");
+        setAuthSession(user);
+        setCurrentUser(toCurrentUser(user));
+        setIsAuthenticated(true);
+        setActivePage("home");
+      } catch (error) {
+        Toast.error(error instanceof Error ? error.message : "Não foi possível concluir o login.");
+      }
+    };
+    const desktop = window.caixaUpDesktop;
+    if (!desktop) return;
+    const unsubscribe = desktop.onAuthCallback((url) => void completeDesktopOAuth(url));
+    void desktop.getPendingAuthCallback().then((url) => {
+      if (url) void completeDesktopOAuth(url);
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT" || event === "TOKEN_REFRESHED" && !getStoredAuthUser()) {
+        clearAuthSession();
+        setIsAuthenticated(false);
+        return;
+      }
+      if (event === "SIGNED_IN" || event === "USER_UPDATED" || event === "TOKEN_REFRESHED") {
+        void authService.me().then((user) => {
+          if (!user) return;
+          setAuthSession(user);
+          setCurrentUser(toCurrentUser(user));
+          setIsAuthenticated(true);
+        }).catch(() => undefined);
+      }
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!autoLoginAtivo) return;
@@ -804,6 +867,7 @@ export default function App() {
           onLogin={handleLogin}
           onOpenForgotPassword={() => setPublicAuthPage("forgot-password")}
           onOpenRegister={() => setPublicAuthPage("register")}
+          onGoogleLogin={handleGoogleLogin}
           initialEmail={loginInitialEmail}
           notice={loginNotice}
         />
@@ -946,6 +1010,10 @@ export default function App() {
                 onNavigate={setActivePage}
                 onOpenSalesInNewTab={handleOpenSalesInNewTab}
               />
+            ) : activePage === "historico-vendas" ? (
+              <SalesHistoryPage onNavigate={setActivePage} />
+            ) : activePage === "vendas-suspensas" ? (
+              <ResumeSalesPage onNavigate={setActivePage} />
             ) : (
               <CurrentPage />
             )}

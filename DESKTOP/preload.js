@@ -27,4 +27,12 @@ contextBridge.exposeInMainWorld("caixaUpDesktop", {
     ipcRenderer.on("desktop:update-installed", listener);
     return () => ipcRenderer.removeListener("desktop:update-installed", listener);
   },
+  openExternal: (url) => ipcRenderer.invoke("desktop:open-external", url),
+  getPendingAuthCallback: () => ipcRenderer.invoke("desktop:auth:pending"),
+  onAuthCallback: (callback) => {
+    if (typeof callback !== "function") throw new TypeError("Callback inválido.");
+    const listener = (_event, url) => callback(url);
+    ipcRenderer.on("desktop:auth:callback", listener);
+    return () => ipcRenderer.removeListener("desktop:auth:callback", listener);
+  },
 });

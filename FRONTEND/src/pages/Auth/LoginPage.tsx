@@ -22,6 +22,7 @@ type LoginPageProps = {
   ) => Promise<AuthActionResult>;
   onOpenForgotPassword: () => void;
   onOpenRegister: () => void;
+  onGoogleLogin: () => Promise<AuthActionResult>;
   initialEmail?: string;
   notice?: string;
 };
@@ -30,6 +31,7 @@ export default function LoginPage({
   onLogin,
   onOpenForgotPassword,
   onOpenRegister,
+  onGoogleLogin,
   initialEmail = "",
   notice = "",
 }: LoginPageProps) {
@@ -39,6 +41,7 @@ export default function LoginPage({
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<AuthActionResult | null>(() =>
     notice ? { success: true, message: notice } : null,
   );
@@ -122,6 +125,20 @@ export default function LoginPage({
         <LogIn size={16} />
         Entrar
       </LoadingButton>
+
+      <button
+        type="button"
+        onClick={async () => {
+          setIsGoogleSubmitting(true);
+          setFeedback(await onGoogleLogin());
+          setIsGoogleSubmitting(false);
+        }}
+        disabled={isSubmitting || isGoogleSubmitting}
+        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-border-primary bg-bg-light px-4 font-semibold text-text-primary transition hover:bg-hover-light disabled:opacity-60"
+      >
+        <span aria-hidden="true" className="font-bold">G</span>
+        {isGoogleSubmitting ? "Abrindo Google..." : "Continuar com Google"}
+      </button>
 
       <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-text-secondary">
         <span>Não tem uma conta?</span>

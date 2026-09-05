@@ -141,6 +141,7 @@ export default function AppSidebar({
     <>
       <aside
         data-app-sidebar
+        data-collapsed={collapsed}
         className={`fixed top-0 left-0 z-layer-sidebar h-screen bg-bg-light border-r border-border-primary transition-all duration-200 flex flex-col justify-between ${
           collapsed ? "w-20" : "w-72"
         } ${mobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0 lg:static`}

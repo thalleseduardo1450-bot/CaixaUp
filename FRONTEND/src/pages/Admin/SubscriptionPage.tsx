@@ -73,6 +73,7 @@ export default function SubscriptionPage() {
   });
   const [checkout, setCheckout] = useState<PlanCode | null>(null);
   const [checkoutError, setCheckoutError] = useState("");
+  const [subscriptionAction, setSubscriptionAction] = useState(false);
   const checkoutLock = useRef(false);
 
   useEffect(() => {
@@ -123,6 +124,19 @@ export default function SubscriptionPage() {
     }
   }
 
+  async function changeRenewal(cancel: boolean) {
+    if (!subscription || subscriptionAction) return;
+    setSubscriptionAction(true);
+    setCheckoutError("");
+    try {
+      const { error } = await supabase.rpc("alterar_cancelamento_assinatura", { p_cancelar: cancel });
+      if (error) throw error;
+      setView((previous) => ({ ...previous, subscription: previous.subscription ? { ...previous.subscription, cancelAtPeriodEnd: cancel } : null }));
+    } catch {
+      setCheckoutError("Não foi possível atualizar o cancelamento. Tente novamente.");
+    } finally { setSubscriptionAction(false); }
+  }
+
   const subscription = view.subscription;
   const remaining = subscription?.expiresAt ? Date.parse(subscription.expiresAt) - Date.parse(subscription.serverNow) : null;
   const expired = remaining !== null && remaining <= 0;
@@ -146,6 +160,7 @@ export default function SubscriptionPage() {
           {remaining !== null && <p className="text-sm">{expired ? "Atualize a consulta para confirmar o acesso vigente." : `${Math.ceil(remaining / 86400000)} dia(s) restante(s) na última consulta.`}</p>}
           <p className="text-sm text-text-secondary">Referência do servidor: {dateTime.format(new Date(subscription.serverNow))}. O relógio deste dispositivo não define a validade.</p>
           {subscription.cancelAtPeriodEnd && <p className="font-semibold">Cancelamento agendado para o fim do período vigente.</p>}
+          {subscription.status === "active" && <button type="button" className="btn-outline-secondary" disabled={subscriptionAction} onClick={() => void changeRenewal(!subscription.cancelAtPeriodEnd)}>{subscription.cancelAtPeriodEnd ? "Reativar renovação" : "Cancelar renovação"}</button>}
           <details className="text-sm"><summary className="cursor-pointer font-semibold">Configuração da assinatura</summary><div className="mt-3"><ResourceList resources={subscription.features} /></div></details>
         </section>
       )}

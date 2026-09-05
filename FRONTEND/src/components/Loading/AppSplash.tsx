@@ -8,11 +8,11 @@
  * a abertura precisa ser percebida — sem ela a tela piscava e sumia no mesmo quadro.
  * Não é espera artificial longa: é o tempo da própria animação de entrada terminar.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { CaixaUpMark } from "@/components/Brand/CaixaUpLogo";
 
-const MIN_VISIBLE_MS = 1400;
+const MIN_VISIBLE_MS = 700;
 const LEAVE_MS = 460;
 
 type AppSplashProps = {
@@ -24,6 +24,7 @@ export default function AppSplash({ ready, onFinished }: AppSplashProps) {
   const [leaving, setLeaving] = useState(false);
   const mountedAt = useRef(0);
   const finished = useRef(false);
+  const finish = useEffectEvent(onFinished);
 
   // Date.now() é impuro: só pode rodar dentro de efeito, nunca durante o render.
   useEffect(() => {
@@ -35,22 +36,27 @@ export default function AppSplash({ ready, onFinished }: AppSplashProps) {
 
     // Faltou tempo para a abertura? Espera o restante antes de sair.
     const elapsed = Date.now() - (mountedAt.current || Date.now());
-    const remaining = Math.max(0, MIN_VISIBLE_MS - elapsed);
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const remaining = reducedMotion ? 0 : Math.max(0, MIN_VISIBLE_MS - elapsed);
     const leaveTimer = window.setTimeout(() => setLeaving(true), remaining);
     return () => window.clearTimeout(leaveTimer);
   }, [ready, leaving]);
 
   useEffect(() => {
     if (!leaving || finished.current) return;
-    finished.current = true;
-    const finishTimer = window.setTimeout(onFinished, LEAVE_MS);
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const finishTimer = window.setTimeout(() => {
+      finished.current = true;
+      finish();
+    }, reducedMotion ? 0 : LEAVE_MS);
     return () => window.clearTimeout(finishTimer);
-  }, [leaving, onFinished]);
+  }, [leaving]);
 
   return (
-    <div className={`splash ${leaving ? "splash-leave" : ""}`} aria-hidden="true">
+    <div className={`splash ${leaving ? "splash-leave" : ""}`} role="status" aria-live="polite" aria-label={ready ? "CaixaUp pronto" : "Carregando CaixaUp"}>
       <div className="flex flex-col items-center gap-5 px-6 text-center">
         <div className="splash-mark">
+          <span className="splash-orbit" aria-hidden="true" />
           <CaixaUpMark height={96} />
         </div>
 
@@ -65,6 +71,7 @@ export default function AppSplash({ ready, onFinished }: AppSplashProps) {
         </p>
 
         <div className="splash-status mt-2 flex flex-col items-center gap-4">
+          <span className="text-sm text-text-secondary">{ready ? "Tudo pronto para começar" : "Preparando seu espaço de trabalho"}</span>
           <div className="splash-track">
             <div className="splash-track-fill" />
           </div>

@@ -1,5 +1,15 @@
 # Novidades do CaixaUp
 
+## 3.3.26
+
+### Cadastro de produtos, caixa e interface
+
+- Descrição, preço unitário e quantidade inicial agora são opcionais no cadastro de produtos.
+- Novo produto sem quantidade começa com estoque zero; ao editar, quantidade vazia preserva o estoque atual.
+- Salvamento de produtos valida valores inválidos e informa erros de código duplicado, permissão e conexão de forma clara.
+- Fechamento de caixa ganhou confirmação mais clara, foco por teclado e adaptação para `1024 × 768`.
+- Tela de abertura, transições de páginas e revelação ao rolar foram refinadas, com suporte a movimento reduzido.
+
 ## 3.3.15
 
 ### Visual mais moderno e cupom corrigido

@@ -192,7 +192,10 @@ export default function CashRegisterPage() {
   };
 
   const closeCashRegister = async () => {
-    const confirmed = await statusDialog.confirm("Fechar o caixa atual?");
+    const confirmed = await statusDialog.confirm("Fechar o caixa atual? Novas vendas ficam bloqueadas até a próxima abertura.", {
+      cancelLabel: "Continuar no caixa",
+      confirmLabel: "Fechar caixa",
+    });
     if (!confirmed) return;
 
     setSaving(true);
@@ -230,7 +233,7 @@ export default function CashRegisterPage() {
   }
 
   return (
-    <PageLayout size="wide" className="space-y-4 py-4 md:space-y-6 md:py-6 lg:py-8">
+    <PageLayout size="wide" className="cash-register-layout space-y-4 py-4 md:space-y-6 md:py-6 lg:py-8">
       <PageHeader
         title="Abertura e Fechamento de Caixa"
         description="Controle operacional do caixa obrigatório para iniciar vendas no PDV."
@@ -343,7 +346,7 @@ export default function CashRegisterPage() {
         )}
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="card rounded-2xl p-4">
           <div className="mb-4 flex items-center gap-2 text-text-primary">
             <Banknote size={18} />
@@ -399,16 +402,18 @@ export default function CashRegisterPage() {
                 />
               </label>
 
-              <LoadingButton
-                type="button"
-                onClick={closeCashRegister}
-                isLoading={saving}
-                loadingLabel="Fechando..."
-                className="btn-primary inline-flex w-full items-center justify-center gap-2 sm:w-auto"
-              >
-                <LockKeyhole size={16} />
-                Fechar caixa
-              </LoadingButton>
+              <div className="cash-close-actions">
+                <LoadingButton
+                  type="button"
+                  onClick={closeCashRegister}
+                  isLoading={saving}
+                  loadingLabel="Fechando..."
+                  className="btn-primary inline-flex w-full items-center justify-center gap-2 sm:w-auto"
+                >
+                  <LockKeyhole size={16} />
+                  Fechar caixa
+                </LoadingButton>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">

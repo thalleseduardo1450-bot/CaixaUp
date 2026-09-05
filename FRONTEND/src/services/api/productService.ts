@@ -31,9 +31,43 @@ function reaisToText(value: number | string | null | undefined): string {
 
 /** "9,99" ou 12.34 -> number */
 function parseReais(value: string | number | null | undefined): number {
-  if (typeof value === "number") return value;
-  const num = Number(String(value ?? "").replace(/\./g, "").replace(",", "."));
-  return Number.isFinite(num) ? num : 0;
+  const text = String(value ?? "").trim();
+  const num = typeof value === "number" ? value : Number(text.replace(/\./g, "").replace(",", "."));
+  if (!Number.isFinite(num) || num < 0 || num > 9999999999.99) {
+    throw new Error("Informe um preço válido entre 0 e 9.999.999.999,99.");
+  }
+  return num;
+}
+
+function productFields(payload: ProductPayload) {
+  const nome = payload.productName.trim();
+  const codigo = payload.productCode.trim();
+  if (nome.length < 3 || !codigo || !String(payload.productSalePrice ?? "").trim()) {
+    throw new Error("Informe nome com pelo menos 3 caracteres, código e preço de venda.");
+  }
+  const quantityText = String(payload.productQnt ?? "").trim().replace(",", ".");
+  const quantity = Number(quantityText);
+  if (!Number.isFinite(quantity) || quantity < 0 || quantity > 999999999.999) {
+    throw new Error("Informe uma quantidade válida e não negativa.");
+  }
+  return {
+    nome,
+    descricao: payload.productDescription?.trim() ?? "",
+    codigo_barras: codigo,
+    sku: payload.productAlternateCode?.trim() || codigo,
+    preco_venda: parseReais(payload.productSalePrice),
+    preco_custo: parseReais(payload.productUnitPrice),
+    ...(quantityText ? { estoque_atual: quantity } : {}),
+  };
+}
+
+function saveError(error: { code?: string; message?: string }): Error {
+  if (error.code === "23505") return new Error("Já existe um produto com este código, inclusive entre os inativos. Use outro código ou edite o produto existente.");
+  if (error.code === "42501") return new Error("Sua conta não tem permissão para salvar produtos nesta empresa.");
+  if (error.code === "PGRST116") return new Error("Não foi possível confirmar o produto salvo. Atualize a lista antes de tentar novamente.");
+  if (["23502", "23503", "23514", "22003", "22P02"].includes(error.code ?? "")) return new Error("O banco rejeitou os dados do produto. Verifique código, preços e quantidade.");
+  if (/fetch|network|timeout/i.test(error.message ?? "")) return new Error("Falha de conexão ao salvar. Atualize a lista para verificar se o produto foi registrado antes de tentar novamente.");
+  return new Error("Não foi possível salvar o produto. Verifique sua sessão e a conexão e atualize a lista antes de tentar novamente.");
 }
 
 export const productService = {
@@ -66,18 +100,20 @@ export const productService = {
   },
 
   async create(payload: ProductPayload) {
+    const fields = productFields(payload);
     const empresaId = await currentCompanyId();
     if (!empresaId) throw new Error("Nenhuma empresa vinculada ao seu usuário.");
 
     // Categoria pelo nome (productSupplier é usado como categoria no PDV)
     let categoriaId: string | null = null;
     if (payload.productSupplier?.trim()) {
-      const { data: cat } = await supabase
+      const { data: cat, error: categoryError } = await supabase
         .from("categorias")
         .select("id")
         .eq("empresa_id", empresaId)
         .eq("nome", payload.productSupplier.trim())
         .maybeSingle();
+      if (categoryError) throw saveError(categoryError);
       if (cat) categoriaId = cat.id;
     }
 
@@ -85,22 +121,17 @@ export const productService = {
       .from("produtos")
       .insert({
         empresa_id: empresaId,
-        nome: payload.productName,
-        descricao: payload.productDescription ?? "",
-        codigo_barras: payload.productCode ?? "",
-        sku: payload.productAlternateCode || payload.productCode || "",
-        preco_venda: parseReais(payload.productSalePrice),
-        preco_custo: parseReais(payload.productUnitPrice),
-        estoque_atual: Number(payload.productQnt ?? 0),
+        estoque_atual: 0,
+        ...fields,
         unidade: "un",
         ativo: true,
         categoria_id: categoriaId,
       })
       .select()
       .single();
-    if (error) throw error;
+    if (error) throw saveError(error);
 
-    const p = data as any;
+    const p = data;
     return {
       id: p.id,
       productImageUrl: "",
@@ -118,23 +149,19 @@ export const productService = {
   },
 
   async update(id: string, payload: ProductPayload) {
+    const fields = productFields(payload);
+    const empresaId = await currentCompanyId();
+    if (!empresaId) throw new Error("Nenhuma empresa vinculada ao seu usuário.");
     const { data, error } = await supabase
       .from("produtos")
-      .update({
-        nome: payload.productName,
-        descricao: payload.productDescription ?? "",
-        codigo_barras: payload.productCode ?? "",
-        sku: payload.productAlternateCode || payload.productCode || "",
-        preco_venda: parseReais(payload.productSalePrice),
-        preco_custo: parseReais(payload.productUnitPrice),
-        estoque_atual: Number(payload.productQnt ?? 0),
-      })
+      .update(fields)
       .eq("id", id)
+      .eq("empresa_id", empresaId)
       .select()
       .single();
-    if (error) throw error;
+    if (error) throw saveError(error);
 
-    const p = data as any;
+    const p = data;
     return {
       id: p.id,
       productImageUrl: "",

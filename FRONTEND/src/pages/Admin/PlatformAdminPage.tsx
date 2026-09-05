@@ -17,6 +17,33 @@ type Company = {
   trial_ends_at: string | null;
   paid_until: string | null;
 };
+type Account = {
+  usuario_id: string;
+  nome_usuario: string;
+  email: string;
+  cargo: string;
+  usuario_ativo: boolean;
+  empresa_id: string | null;
+  empresa: string | null;
+  empresa_ativa: boolean | null;
+  plano: string | null;
+  plano_efetivo: string | null;
+  trial_ends_at: string | null;
+  paid_until: string | null;
+};
+type Invoice = {
+  id: string;
+  numero: number;
+  empresa_id: string;
+  empresa: string;
+  plano: string;
+  valor_centavos: number;
+  desconto_centavos: number;
+  vencimento: string;
+  status: string;
+  observacao: string;
+  criado_em: string;
+};
 type PlanCode = "gratis" | "pro" | "premium";
 type Enrollment = { id: string; qr: string; secret: string };
 const planNames: Record<string, string> = { gratis: "Grátis", pro: "Pro", premium: "Premium" };
@@ -66,6 +93,24 @@ function isCompany(value: unknown): value is Company {
     && ["email", "plano", "plano_efetivo", "trial_ends_at", "paid_until"].every((key) => company[key] === null || typeof company[key] === "string");
 }
 
+function isAccount(value: unknown): value is Account {
+  if (typeof value !== "object" || value === null) return false;
+  const account = value as Record<string, unknown>;
+  return typeof account.usuario_id === "string" && typeof account.nome_usuario === "string"
+    && typeof account.email === "string" && typeof account.usuario_ativo === "boolean";
+}
+
+function isInvoice(value: unknown): value is Invoice {
+  if (typeof value !== "object" || value === null) return false;
+  const invoice = value as Record<string, unknown>;
+  return typeof invoice.id === "string" && typeof invoice.numero === "number"
+    && typeof invoice.valor_centavos === "number" && typeof invoice.vencimento === "string";
+}
+
+function formatCents(value: number) {
+  return (value / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 export default function PlatformAdminPage() {
   const [access, setAccess] = useState<Access>({ stage: "checking" });
   const [authRevision, setAuthRevision] = useState(0);
@@ -78,8 +123,10 @@ export default function PlatformAdminPage() {
   const [query, setQuery] = useState({ search: "", page: 1 });
   const [revision, setRevision] = useState(0);
   const [list, setList] = useState({ loading: true, companies: [] as Company[], error: "" });
+  const [accounts, setAccounts] = useState({ loading: true, rows: [] as Account[], error: "" });
+  const [invoices, setInvoices] = useState({ loading: false, rows: [] as Invoice[], error: "" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [change, setChange] = useState({ plan: "gratis" as PlanCode, until: "", reason: "" });
+  const [change, setChange] = useState({ plan: "gratis" as PlanCode, until: "", discount: "0", reason: "" });
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
@@ -91,6 +138,8 @@ export default function PlatformAdminPage() {
         setFactorId("");
         setSelectedId(null);
         setList({ loading: true, companies: [], error: "" });
+        setAccounts({ loading: true, rows: [], error: "" });
+        setInvoices({ loading: false, rows: [], error: "" });
         setFeedback({ error: "", success: "" });
         setAuthRevision((previous) => previous + 1);
       }
@@ -112,15 +161,41 @@ export default function PlatformAdminPage() {
     let active = true;
     const timer = window.setTimeout(async () => {
       try {
-        const { data, error } = await supabase.rpc("admin_empresas", { p_busca: query.search.trim(), p_pagina: query.page }).abortSignal(controller.signal);
-        if (error || !Array.isArray(data) || !data.every(isCompany)) throw new Error("Lista indisponível");
-        if (active) setList({ loading: false, companies: data, error: "" });
+        const [companiesResult, accountsResult] = await Promise.all([
+          supabase.rpc("admin_empresas", { p_busca: query.search.trim(), p_pagina: query.page }).abortSignal(controller.signal),
+          supabase.rpc("admin_contas", { p_busca: query.search.trim(), p_pagina: query.page }).abortSignal(controller.signal),
+        ]);
+        if (companiesResult.error || !Array.isArray(companiesResult.data) || !companiesResult.data.every(isCompany)) throw new Error("Lista indisponível");
+        if (accountsResult.error || !Array.isArray(accountsResult.data) || !accountsResult.data.every(isAccount)) throw new Error("Contas indisponíveis");
+        if (active) {
+          setList({ loading: false, companies: companiesResult.data, error: "" });
+          setAccounts({ loading: false, rows: accountsResult.data, error: "" });
+        }
       } catch {
         if (active) setList({ loading: false, companies: [], error: "Não foi possível consultar as empresas. Verifique sua permissão e tente novamente." });
+        if (active) setAccounts({ loading: false, rows: [], error: "Não foi possível consultar as contas cadastradas." });
       }
     }, 350);
     return () => { active = false; window.clearTimeout(timer); controller.abort(); };
   }, [access, query, revision]);
+
+  useEffect(() => {
+    if (access.stage !== "allowed" || !selectedId) {
+      setInvoices({ loading: false, rows: [], error: "" });
+      return;
+    }
+    let active = true;
+    setInvoices({ loading: true, rows: [], error: "" });
+    supabase.rpc("admin_faturas", { p_empresa: selectedId }).then(({ data, error }) => {
+      if (!active) return;
+      if (error || !Array.isArray(data) || !data.every(isInvoice)) {
+        setInvoices({ loading: false, rows: [], error: "Não foi possível consultar as faturas." });
+        return;
+      }
+      setInvoices({ loading: false, rows: data, error: "" });
+    });
+    return () => { active = false; };
+  }, [access, selectedId, revision]);
 
   async function enroll() {
     if (operationLock.current || access.stage !== "mfa") return;
@@ -204,6 +279,36 @@ export default function PlatformAdminPage() {
     setFeedback({ error: "", success: "" });
   }
 
+  async function generateInvoice(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected || !superadmin || operationLock.current) return;
+    const discount = Number(change.discount.replace(",", "."));
+    const discountCents = Math.round(discount * 100);
+    const due = new Date(change.until);
+    if (!change.until || !Number.isFinite(due.getTime()) || discountCents < 0) {
+      setFeedback({ error: "Informe vencimento e desconto válidos.", success: "" });
+      return;
+    }
+    operationLock.current = true;
+    setOperation("invoice");
+    setFeedback({ error: "", success: "" });
+    try {
+      const { error } = await supabase.rpc("admin_gerar_fatura", {
+        p_empresa: selected.id,
+        p_plano: change.plan,
+        p_vencimento: due.toISOString(),
+        p_desconto_centavos: discountCents,
+        p_observacao: change.reason.trim(),
+      });
+      if (error) throw error;
+      setFeedback({ error: "", success: "Fatura gerada e registrada no histórico." });
+      setInvoices((previous) => ({ ...previous, loading: true }));
+      setRevision((previous) => previous + 1);
+    } catch {
+      setFeedback({ error: "Não foi possível gerar a fatura. Confira o plano, o desconto e o vencimento.", success: "" });
+    } finally { operationLock.current = false; setOperation(null); }
+  }
+
   return (
     <PageLayout size="wide">
       <PageHeader title="Administração da plataforma" description="Consulta e gestão de empresas com permissão de plataforma e autenticação em duas etapas." />
@@ -242,6 +347,12 @@ export default function PlatformAdminPage() {
       {access.stage === "allowed" && (
         <>
           <p className="text-sm text-text-secondary">Papel: {access.role}. {superadmin ? "Alterações exigem um motivo e validação no servidor." : "Acesso somente para consulta."}</p>
+          <section className="card space-y-4 p-5" aria-label="Contas cadastradas">
+            <div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-bold">Contas cadastradas</h2><p className="text-sm text-text-secondary">Todos os e-mails, empresas, planos e vencimentos.</p></div><span className="text-sm text-text-secondary">{accounts.rows.length} nesta página</span></div>
+            {accounts.loading ? <p role="status">Consultando contas…</p> : accounts.error ? <p role="alert" className="text-primary">{accounts.error}</p> : (
+              <div className="overflow-x-auto"><table className="w-full text-left text-sm"><caption className="sr-only">Contas cadastradas</caption><thead><tr className="border-b border-border-primary"><th className="p-3">Usuário</th><th className="p-3">Empresa</th><th className="p-3">Plano</th><th className="p-3">Vencimento</th><th className="p-3">Status</th></tr></thead><tbody>{accounts.rows.map((account) => <tr key={account.usuario_id} className="border-b border-border-primary"><td className="p-3"><strong>{account.nome_usuario || "Sem nome"}</strong><br /><span className="break-all text-text-secondary">{account.email}</span></td><td className="p-3">{account.empresa || "Sem empresa"}</td><td className="p-3">{planNames[account.plano_efetivo || ""] || account.plano_efetivo || "Grátis"}</td><td className="p-3">{formatDate(account.paid_until || account.trial_ends_at)}</td><td className="p-3">{account.usuario_ativo && account.empresa_ativa !== false ? "Ativo" : "Bloqueado"}</td></tr>)}</tbody></table>{accounts.rows.length === 0 && <p className="py-5 text-text-secondary">Nenhuma conta encontrada.</p>}</div>
+            )}
+          </section>
           <section className="card space-y-4 p-5">
             <div className="flex flex-wrap items-end gap-3">
               <label className="min-w-0 flex-1 space-y-2 text-sm font-semibold">Buscar empresas
@@ -256,7 +367,7 @@ export default function PlatformAdminPage() {
                   <thead><tr className="border-b border-border-primary"><th scope="col" className="p-3">Empresa</th><th scope="col" className="p-3">E-mail</th><th scope="col" className="p-3">Plano efetivo</th><th scope="col" className="p-3">Acesso</th><th scope="col" className="p-3">Detalhes</th></tr></thead>
                   <tbody>{list.companies.map((company) => <tr key={company.id} className="border-b border-border-primary"><td className="p-3 font-semibold">{company.nome}</td><td className="break-all p-3">{company.email || "Não informado"}</td><td className="p-3">{planNames[company.plano_efetivo || ""] || company.plano_efetivo || "Não informado"}</td><td className="p-3">{company.ativo ? "Ativo" : "Bloqueado"}</td><td className="p-3"><button type="button" className="btn-outline-secondary" disabled={operation !== null} aria-pressed={selectedId === company.id} aria-label={`Ver detalhes de ${company.nome}`} onClick={() => {
                     setSelectedId(company.id);
-                    setChange({ plan: company.plano === "pro" || company.plano === "premium" ? company.plano : "gratis", until: "", reason: "" });
+                    setChange({ plan: company.plano === "pro" || company.plano === "premium" ? company.plano : "gratis", until: "", discount: "0", reason: "" });
                     setFeedback({ error: "", success: "" });
                   }}>Detalhes</button></td></tr>)}</tbody>
                 </table>
@@ -303,6 +414,31 @@ export default function PlatformAdminPage() {
                   <p className="text-sm text-text-secondary">Esta alteração administrativa não realiza cobrança nem estorno.</p>
                 </form>
               )}
+              {superadmin && (
+                <form className="space-y-4 border-t border-border-primary pt-5" onSubmit={(event) => void generateInvoice(event)}>
+                  <h3 className="font-bold">Gerar fatura</h3>
+                  <p className="text-sm text-text-secondary">Cria um registro administrativo para esta empresa. A cobrança no cartão continua sendo feita pelo provedor configurado.</p>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <label className="space-y-2 text-sm font-semibold">Plano
+                      <select className="input-field w-full" value={change.plan} disabled={operation !== null} onChange={(event) => setChange((previous) => ({ ...previous, plan: event.target.value as PlanCode }))}><option value="gratis">Grátis</option><option value="pro">Pro</option><option value="premium">Premium</option></select>
+                    </label>
+                    <label className="space-y-2 text-sm font-semibold">Vencimento
+                      <input type="datetime-local" className="input-field w-full" value={change.until} disabled={operation !== null} required onChange={(event) => setChange((previous) => ({ ...previous, until: event.target.value }))} />
+                    </label>
+                    <label className="space-y-2 text-sm font-semibold">Desconto (R$)
+                      <input type="text" inputMode="decimal" className="input-field w-full" value={change.discount} disabled={operation !== null} onChange={(event) => setChange((previous) => ({ ...previous, discount: event.target.value.replace(/[^0-9,.]/g, "") }))} />
+                    </label>
+                  </div>
+                  <label className="block space-y-2 text-sm font-semibold">Observação / motivo
+                    <textarea className="input-field min-h-20 w-full" maxLength={500} value={change.reason} required disabled={operation !== null} onChange={(event) => setChange((previous) => ({ ...previous, reason: event.target.value }))} />
+                  </label>
+                  <button type="submit" className="btn-primary" disabled={operation !== null || !change.reason.trim()}>{operation === "invoice" ? "Gerando…" : "Gerar fatura"}</button>
+                </form>
+              )}
+              <section className="space-y-3 border-t border-border-primary pt-5" aria-label="Faturas da empresa">
+                <h3 className="font-bold">Faturas desta empresa</h3>
+                {invoices.loading ? <p role="status">Consultando faturas…</p> : invoices.error ? <p role="alert" className="text-primary">{invoices.error}</p> : invoices.rows.length === 0 ? <p className="text-sm text-text-secondary">Nenhuma fatura gerada.</p> : <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-border-primary"><th className="p-3">Número</th><th className="p-3">Plano</th><th className="p-3">Valor</th><th className="p-3">Desconto</th><th className="p-3">Vencimento</th><th className="p-3">Status</th></tr></thead><tbody>{invoices.rows.map((invoice) => <tr key={invoice.id} className="border-b border-border-primary"><td className="p-3">#{invoice.numero}</td><td className="p-3">{planNames[invoice.plano] || invoice.plano}</td><td className="p-3">{formatCents(invoice.valor_centavos)}</td><td className="p-3">{formatCents(invoice.desconto_centavos)}</td><td className="p-3">{formatDate(invoice.vencimento)}</td><td className="p-3">{invoice.status}</td></tr>)}</tbody></table></div>}
+              </section>
             </section>
           )}
         </>

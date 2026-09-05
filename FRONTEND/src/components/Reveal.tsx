@@ -3,13 +3,8 @@
  * Objetivo: revelar conteúdo ao rolar — suave, sem exagero.
  * Entradas esperadas: qualquer árvore de componentes como children.
  *
- * Dois caminhos, mesmo resultado:
- * - Navegador com Scroll-driven Animations: o CSS (index.css, `.reveal`)
- *   já anima pelo progresso do scroll e o IntersectionObserver abaixo é
- *   inofensivo (a animação sobrepõe a transição da classe).
- * - Navegador sem suporte (Electron antigo): o observer adiciona
- *   `.reveal-in` quando o elemento encosta na viewport.
- * O observer se desconecta após revelar — sem listener eterno vazando.
+ * Revela uma vez por montagem, inclusive blocos maiores que a viewport.
+ * O observer se desconecta após revelar.
  */
 import { useEffect, useRef, type ReactNode } from "react";
 
@@ -39,7 +34,7 @@ export default function Reveal({ children, className = "", delay = 0 }: RevealPr
           observer.disconnect();
         }
       },
-      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
+      { threshold: 0 },
     );
 
     observer.observe(element);
@@ -49,6 +44,7 @@ export default function Reveal({ children, className = "", delay = 0 }: RevealPr
   return (
     <div
       ref={ref}
+      onFocusCapture={() => ref.current?.classList.add("reveal-in")}
       className={`reveal ${className}`}
       style={delay ? { transitionDelay: `${delay}ms` } : undefined}
     >

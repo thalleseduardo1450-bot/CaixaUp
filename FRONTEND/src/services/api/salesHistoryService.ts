@@ -14,6 +14,8 @@ export type SaleHistoryDto = {
   unitPrice: string;
   itemTotal: string;
   saleDate: string;
+  payments: Array<{ forma: string; valor: number }>;
+  discountAmount: string;
 };
 
 export type RegisterSalePayload = {
@@ -42,6 +44,8 @@ type LocalSale = {
   operatorName: string;
   saleDate: string;
   items: RegisterSalePayload["items"];
+  payments: Array<{ forma: string; valor: number }>;
+  discountAmount: string;
 };
 
 const SALES_KEY = "caixaup.local-sales.v1";
@@ -102,6 +106,8 @@ function saleRows(sale: LocalSale): SaleHistoryDto[] {
     unitPrice: toText(item.unitPrice),
     itemTotal: toText(item.unitPrice * item.quantity),
     saleDate: sale.saleDate,
+    payments: sale.payments ?? [{ forma: sale.paymentType, valor: toNumber(sale.totalAmount) }],
+    discountAmount: sale.discountAmount ?? "0,00",
   }));
 }
 
@@ -137,6 +143,11 @@ export const salesHistoryService = {
       operatorName: payload.operatorName,
       saleDate: new Date().toISOString(),
       items: payload.items,
+      payments: (payload.payments?.length ? payload.payments : [{ forma: payload.paymentType, valor: total }]).map((payment) => ({
+        forma: payment.forma,
+        valor: toNumber(payment.valor),
+      })),
+      discountAmount: toText(payload.discountAmount ?? 0),
     };
     saveSales(oldSale ? sales.map((entry) => entry.saleNumber === sale.saleNumber ? sale : entry) : [...sales, sale]);
     return { saleNumber: sale.saleNumber, saleId: sale.id, total, replayed: false };

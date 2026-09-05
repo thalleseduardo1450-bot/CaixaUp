@@ -1,0 +1,5 @@
+# Configurações locais e segredos nunca entram no repositório.
+.env.local
+.env.*.local
+
+.vercel

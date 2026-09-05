@@ -253,7 +253,7 @@ function ProductFormDrawer({
               {isEditMode ? "Editar produto" : "Novo produto"}
             </h3>
             <p className="mt-1 text-sm text-text-secondary">
-              Cadastre nome, preços e quantidade. O fornecedor é opcional.
+              Informe nome, código e preço de venda. Os demais campos são opcionais.
             </p>
           </div>
           <button
@@ -303,7 +303,7 @@ function ProductFormDrawer({
               />
               <label className="block md:col-span-2">
                 <span className="mb-1.5 block text-sm text-text-secondary">
-                  Descrição do Produto *
+                  Descrição do Produto (opcional)
                 </span>
                 <textarea
                   value={value.productDescription}
@@ -317,10 +317,11 @@ function ProductFormDrawer({
 
           <section className="card rounded-2xl p-4">
             <h4 className="text-sm font-semibold text-text-secondary">Preço e estoque</h4>
+            <p className="mt-1 text-sm text-text-secondary">Sem quantidade inicial, o novo produto começa com estoque zero. Na edição, deixar em branco mantém o estoque atual.</p>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <label className="block">
                 <span className="mb-1.5 block text-sm text-text-secondary">
-                  Quantidade do Produto *
+                  Quantidade inicial (opcional)
                 </span>
                 <input
                   value={value.productQnt}
@@ -329,12 +330,12 @@ function ProductFormDrawer({
                     setField("productQnt", sanitizeIntegerInput(event.target.value).slice(0, 8))
                   }
                   className="input-field w-full"
-                  placeholder="Quantidade"
+                  placeholder="0"
                 />
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-sm text-text-secondary">
-                  Preço Unitário do Produto *
+                  Preço Unitário do Produto (opcional)
                 </span>
                 <input
                   value={value.productUnitPrice}
@@ -364,7 +365,7 @@ function ProductFormDrawer({
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-sm text-text-secondary">
-                  Preço Total em Produto *
+                  Preço Total em Produto (calculado)
                 </span>
                 <input
                   value={value.totalPriceOnProduct}
@@ -799,11 +800,7 @@ export default function ProductRegisterPage() {
     const requiredFields: Array<keyof ProductFormData> = [
       "productName",
       "productCode",
-      "productDescription",
-      "productQnt",
-      "productUnitPrice",
       "productSalePrice",
-      "totalPriceOnProduct",
     ];
 
     const missing = requiredFields.some((field) => !String(form[field]).trim());
@@ -826,6 +823,7 @@ export default function ProductRegisterPage() {
   };
 
   const handleSave = async () => {
+    if (saving) return;
     if (!validateForm()) return;
 
     setSaving(true);

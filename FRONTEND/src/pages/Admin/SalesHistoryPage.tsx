@@ -133,12 +133,17 @@ export default function SalesHistoryPage({ onNavigate }: Props) {
       company: toCompanyReceipt(company),
       customerCpf: first.customerCpf || "-",
       paymentType,
-      paymentLabel: PAYMENT_LABEL[paymentType] || paymentType || "-",
+      paymentLabel: first.payments?.map((payment) => `${PAYMENT_LABEL[payment.forma] || payment.forma} ${formatMoneyBr(payment.valor)}`).join(" + ") || PAYMENT_LABEL[paymentType] || paymentType || "-",
       operatorName: first.operatorName || storedUser?.name || "Operador",
-      subtotal: receiptTotal,
+      subtotal: receiptTotal + parseMoneyBr(first.discountAmount || "0,00"),
       cashGiven: paymentType === "dinheiro" ? receiptTotal : 0,
       change: 0,
       items,
+      paymentLines: first.payments?.map((payment) => ({
+        label: PAYMENT_LABEL[payment.forma] || payment.forma,
+        amount: payment.valor,
+      })),
+      discount: parseMoneyBr(first.discountAmount || "0,00"),
     };
   };
 

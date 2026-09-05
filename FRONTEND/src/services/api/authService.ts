@@ -8,7 +8,10 @@ import { supabase } from "@/lib/supabase";
 import type { AuthenticatedUser } from "@/utils/authStorage";
 import type { User } from "@supabase/supabase-js";
 
-const AUTH_CALLBACK_URL = "https://thalleseduardo1450-bot.github.io/CaixaUp/auth/";
+const AUTH_CALLBACK_URL = String(
+  import.meta.env.VITE_AUTH_CALLBACK_URL ||
+    "https://caixaup-site.vercel.app/",
+).trim();
 
 export type LoginPayload = {
   email: string;
@@ -138,6 +141,39 @@ async function buildAuthenticatedUser(user: User | null | undefined): Promise<Au
 }
 
 export const authService = {
+  async loginWithGoogle() {
+    const redirectTo = window.caixaUpDesktop
+      ? "http://127.0.0.1:4173/auth/callback/?auth=google"
+      : `${window.location.origin}/auth/callback/?auth=google`;
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo, skipBrowserRedirect: true },
+    });
+    throwAuthError(error);
+    if (!data.url) throw new Error("Não foi possível iniciar o login com Google.");
+    if (window.caixaUpDesktop) {
+      await window.caixaUpDesktop.openExternal(data.url);
+    } else {
+      window.location.assign(data.url);
+    }
+  },
+
+  async completeOAuthCallback(callbackUrl: string) {
+    const url = new URL(callbackUrl);
+    const code = url.searchParams.get("code");
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      throwAuthError(error);
+      return;
+    }
+    const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+    const accessToken = hash.get("access_token");
+    const refreshToken = hash.get("refresh_token");
+    if (!accessToken || !refreshToken) throw new Error("Retorno do Google inválido ou expirado.");
+    const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    throwAuthError(error);
+  },
+
   async login(payload: LoginPayload) {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: payload.email,

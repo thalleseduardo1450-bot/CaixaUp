@@ -40,6 +40,9 @@ declare global {
       checkForUpdates: () => Promise<DesktopUpdateStatus>;
       onUpdateStatus: (callback: (status: DesktopUpdateStatus) => void) => () => void;
       onUpdateInstalled: (callback: (update: DesktopInstalledUpdate) => void) => () => void;
+      openExternal: (url: string) => Promise<boolean>;
+      getPendingAuthCallback: () => Promise<string | null>;
+      onAuthCallback: (callback: (url: string) => void) => () => void;
     };
   }
 }

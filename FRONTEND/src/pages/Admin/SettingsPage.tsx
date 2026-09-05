@@ -3,7 +3,7 @@
  * Objetivo: renderiza página de configurações com tema e segurança de sessões.
  * Entradas esperadas: estado do tema e callback para alternância.
  */
-import { Package } from "lucide-react";
+import { Download, Package, Upload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { YesNoSegmentedControl } from "@/components/Form";
 import {
@@ -19,6 +19,7 @@ import {
   getSellWithoutStockEnabled,
   setSellWithoutStockEnabled,
 } from "@/utils/pdvPreferences";
+import { downloadLocalBackup, restoreLocalBackup } from "@/utils/localBackup";
 
 type ThemeMode = "light" | "dark";
 
@@ -36,6 +37,7 @@ export default function SettingsPage({
   const [sellWithoutStockEnabled, setSellWithoutStockEnabledState] = useState(() =>
     getSellWithoutStockEnabled(),
   );
+  const [backupMessage, setBackupMessage] = useState("");
 
   useEffect(() => {
     sessionService.list().then(setSessions).catch(() => setSessions([]));
@@ -91,6 +93,19 @@ export default function SettingsPage({
           <div className="space-y-4 px-6 py-6">
             <ThemeSettingsCard themeMode={themeMode} onToggleTheme={onToggleTheme} />
             <DesktopBehaviorCard />
+            <div className="rounded-xl border border-border-primary bg-bg-primary p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-base font-semibold text-text-primary">Backup das vendas deste computador</p>
+                  <p className="mt-1 text-sm text-text-secondary">Exporta vendas, rascunhos e vendas suspensas sem apagar seus dados.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className="btn-outline-secondary" onClick={() => { downloadLocalBackup(); setBackupMessage("Backup baixado."); }}><Download size={16} className="mr-2 inline" />Baixar backup</button>
+                  <label className="btn-outline-secondary cursor-pointer"><Upload size={16} className="mr-2 inline" />Restaurar backup<input type="file" accept="application/json,.json" className="sr-only" onChange={async (event) => { const file = event.target.files?.[0]; event.target.value = ""; if (!file) return; try { const count = restoreLocalBackup(await file.text()); setBackupMessage(`${count} registro(s) restaurado(s). Recarregue a página para atualizar.`); } catch (error) { setBackupMessage(error instanceof Error ? error.message : "Não foi possível restaurar o backup."); } }} /></label>
+                </div>
+              </div>
+              {backupMessage && <p role="status" className="mt-3 text-sm text-text-secondary">{backupMessage}</p>}
+            </div>
             <div className="rounded-xl border border-border-primary bg-bg-primary p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="flex gap-3">

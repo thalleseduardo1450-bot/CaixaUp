@@ -333,7 +333,7 @@ export default function PdvCheckoutModal({
 
   return (
     <div
-      className={`fixed inset-0 z-layer-dialog grid place-items-center bg-black/50 p-3 ${
+      className={`pdv-checkout-overlay fixed inset-0 z-layer-dialog grid place-items-center bg-black/50 p-3 ${
         closing ? "modal-overlay-out" : "modal-overlay-in"
       }`}
       role="dialog"
@@ -341,7 +341,7 @@ export default function PdvCheckoutModal({
       aria-label="Pagamento"
     >
       <div
-        className={`flex max-h-[96vh] w-full max-w-[560px] flex-col overflow-hidden rounded-xl border border-border-primary bg-bg-light shadow-2xl ${
+        className={`pdv-checkout-panel flex max-h-[96vh] w-full max-w-[560px] flex-col overflow-hidden rounded-xl border border-border-primary bg-bg-light shadow-2xl ${
           closing ? "modal-panel-out" : "modal-panel-in"
         }`}
       >

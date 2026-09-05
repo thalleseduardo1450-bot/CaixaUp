@@ -12,6 +12,7 @@
     "build:desktop": "tsc -b && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && vite build --mode desktop",
     "build:prod": "tsc -b && node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && vite build --mode prod",
     "lint": "eslint .",
+    "test:ui": "playwright test --config playwright.ui.config.ts",
     "preview": "vite preview",
     "smoke": "playwright test --config playwright.config.ts",
     "smoke:headed": "playwright test --config playwright.config.ts --headed",
