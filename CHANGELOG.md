@@ -1,6 +1,6 @@
 # Novidades do CaixaUp
 
-## 3.3.27
+## 3.3.28
 
 ### Catálogo completo de produtos
 
