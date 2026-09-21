@@ -54,8 +54,13 @@ function EditableQuantity({
   onCommit: (quantity: number) => void;
 }) {
   const [draft, setDraft] = useState(String(quantity));
+  const [shownQuantity, setShownQuantity] = useState(quantity);
 
-  useEffect(() => setDraft(String(quantity)), [quantity]);
+  // A quantidade mudou por fora (leitor, atalho): o campo acompanha no mesmo render.
+  if (quantity !== shownQuantity) {
+    setShownQuantity(quantity);
+    setDraft(String(quantity));
+  }
 
   const commit = () => {
     const next = Number(draft);
@@ -252,7 +257,7 @@ export default function PdvCart({
             aria-live="polite"
             aria-label={`Total da venda ${formatCentsBrl(totalCents)}`}
           >
-            <span className="text-lg font-bold">R$</span>
+            <span className="text-2xl font-bold">R$</span>
             <span>{formatCents(totalCents)}</span>
           </span>
         </div>
@@ -261,7 +266,7 @@ export default function PdvCart({
           type="button"
           onClick={onCheckout}
           disabled={isEmpty || checkoutDisabled}
-          className="btn-success pdv-checkout-btn flex w-full items-center justify-center gap-2.5 py-4 text-xl disabled:cursor-not-allowed disabled:opacity-60"
+          className="btn-success pdv-checkout-btn flex w-full items-center justify-center gap-3 rounded-xl py-4 text-xl font-bold tracking-wide disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Wallet size={24} />
           {isSubmitting ? "Enviando..." : "Finalizar e pagar"}
@@ -286,7 +291,11 @@ export default function PdvCart({
             type="button"
             onClick={onOpenSuspended}
             title="Vendas suspensas (F6)"
-            className="relative flex flex-col items-center gap-0.5 rounded-lg border border-border-secondary bg-bg-light px-2 py-2 text-xs font-semibold text-text-secondary transition hover:border-accent hover:text-accent"
+            className={`relative flex flex-col items-center gap-0.5 rounded-lg border px-2 py-2 text-xs font-semibold transition hover:border-accent hover:text-accent ${
+              suspendedCount > 0
+                ? "border-accent/60 bg-accent/10 text-accent shadow-sm"
+                : "border-border-secondary bg-bg-light text-text-secondary"
+            }`}
           >
             Retomar
             <span className="text-[11px] font-normal text-text-tertiary">F6</span>

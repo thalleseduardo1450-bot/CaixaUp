@@ -21,8 +21,8 @@ type EditProfilePageProps = {
   userPhone: string;
   userRole: string;
   userAvatarUrl: string | null;
-  onUploadAvatar: (file: File) => void;
-  onRemoveAvatar: () => void;
+  onUploadAvatar: (file: File) => Promise<void> | void;
+  onRemoveAvatar: () => Promise<void> | void;
   onChangePassword: (currentPassword: string, nextPassword: string) => Promise<ChangePasswordResult>;
   onUpdateProfile: (name: string, email: string, phone: string) => Promise<ChangePasswordResult>;
 };
@@ -57,9 +57,17 @@ export default function EditProfilePage({
 
   const handleSelectFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
-    if (!file) return;
-    onUploadAvatar(file);
     event.target.value = "";
+    if (!file) return;
+    void Promise.resolve(onUploadAvatar(file)).catch((error: unknown) => {
+      statusDialog.error(error instanceof Error ? error.message : "Não foi possível salvar a logo.");
+    });
+  };
+
+  const handleRemoveLogo = () => {
+    void Promise.resolve(onRemoveAvatar()).catch((error: unknown) => {
+      statusDialog.error(error instanceof Error ? error.message : "Não foi possível remover a logo.");
+    });
   };
 
   const handleChangePassword = async () => {
@@ -118,7 +126,7 @@ export default function EditProfilePage({
         <div className="border-b border-border-primary bg-gradient-to-r from-secondary/10 via-bg-light to-accent/10 px-4 py-4 md:px-5">
           <h3 className="text-lg font-semibold text-text-primary">Perfil do usuário</h3>
           <p className="text-sm text-text-secondary">
-            Dados de acesso e foto de exibição da sua conta.
+            Dados de acesso da sua conta. A logo é da empresa e aparece para todos os usuários dela.
           </p>
         </div>
 
@@ -140,7 +148,7 @@ export default function EditProfilePage({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="absolute -right-1 -bottom-1 inline-flex h-11 w-11 items-center justify-center rounded-full border border-border-primary bg-white text-accent shadow-sm transition hover:bg-accent/10 md:h-10 md:w-10"
-                aria-label="Alterar foto do perfil"
+                aria-label="Alterar logo da empresa"
               >
                 <Camera size={16} />
               </button>
@@ -161,16 +169,16 @@ export default function EditProfilePage({
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload size={14} />
-                Subir foto
+                Trocar logo
               </button>
               {userAvatarUrl && (
                 <button
                   type="button"
                   className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border-primary px-4 py-2 text-sm font-semibold text-primary transition hover:bg-red-50"
-                  onClick={onRemoveAvatar}
+                  onClick={handleRemoveLogo}
                 >
                   <Trash2 size={14} />
-                  Remover foto
+                  Remover logo
                 </button>
               )}
             </div>

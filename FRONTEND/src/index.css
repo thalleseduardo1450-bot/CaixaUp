@@ -127,9 +127,16 @@
   }
 
   .desktop-window-shell {
+    user-select: none;
     border: 0;
     border-radius: 0;
     background: var(--color-bg-primary);
+  }
+
+  .desktop-window-shell input,
+  .desktop-window-shell textarea,
+  .desktop-window-shell [contenteditable="true"] {
+    user-select: text;
   }
 
   .desktop-titlebar {
@@ -774,6 +781,14 @@
   scrollbar-color: var(--color-border-secondary) var(--color-bg-gray-theme);
 }
 
+.app-content-scroll {
+  scrollbar-width: none;
+}
+
+.app-content-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 *::-webkit-scrollbar {
   width: 14px;
   height: 14px;
@@ -982,16 +997,78 @@ html[data-theme="dark"] .bg-accent.text-text-light {
 @keyframes pageIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translate3d(0, 14px, 0) scale(0.992);
+    filter: blur(5px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
   }
 }
 
 .page-enter {
-  animation: pageIn 0.3s cubic-bezier(0.2, 0.85, 0.25, 1) backwards;
+  animation: none;
+  transform-origin: 50% 12%;
+  will-change: auto;
+}
+
+@keyframes systemAura {
+  0%, 100% { transform: translate3d(-3%, -3%, 0) scale(1); opacity: 0.34; }
+  50% { transform: translate3d(4%, 3%, 0) scale(1.12); opacity: 0.5; }
+}
+
+@keyframes systemSweep {
+  0% { transform: translate3d(-125%, 0, 0) rotate(10deg); opacity: 0; }
+  8% { opacity: 0.65; }
+  38% { opacity: 0.65; }
+  45%, 100% { transform: translate3d(225%, 0, 0) rotate(10deg); opacity: 0; }
+}
+
+.system-stage {
+  position: relative;
+  isolation: isolate;
+}
+
+.system-stage .reveal {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  transition: none;
+}
+
+.system-stage::before {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  top: -22%;
+  right: -12%;
+  width: min(48vw, 760px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 14%, transparent) 0%, transparent 68%);
+  filter: blur(18px);
+  animation: none;
+}
+
+.system-stage::after {
+  content: "";
+  position: fixed;
+  z-index: 20;
+  top: -20%;
+  bottom: -20%;
+  left: 0;
+  width: 18%;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-accent) 7%, transparent), transparent);
+  animation: none;
+}
+
+.system-stage--pos::before,
+.system-stage--pos::after {
+  position: absolute;
 }
 
 /* Entrada em cascata de cards (delay definido inline via style) */
@@ -1007,7 +1084,7 @@ html[data-theme="dark"] .bg-accent.text-text-light {
 }
 
 .card-in {
-  animation: cardIn 0.42s cubic-bezier(0.2, 0.85, 0.25, 1) backwards;
+  animation: none;
 }
 
 /* Toast: sobe e se acomoda na base da tela */
@@ -1064,6 +1141,7 @@ html[data-theme="dark"] .bg-accent.text-text-light {
 .sidebar-item {
   position: relative;
   overflow: hidden;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.22s ease, box-shadow 0.22s ease;
 }
 
 .sidebar-item::before {
@@ -1081,6 +1159,15 @@ html[data-theme="dark"] .bg-accent.text-text-light {
 
 .sidebar-item[aria-current="page"]::before {
   transform: scaleY(1);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+
+.sidebar-item[aria-current="page"] {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 12%, transparent), 0 7px 22px color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.sidebar-item:hover {
+  transform: translateX(3px);
 }
 
 .sidebar-item:active {
@@ -1138,8 +1225,14 @@ main {
   .toast-enter,
   .popover-enter,
   .success-pop,
-  .bag-float {
+  .bag-float,
+  .system-stage::before,
+  .system-stage::after {
     animation: none !important;
+  }
+
+  .page-enter {
+    filter: none !important;
   }
 
   .btn-primary:hover,
@@ -1153,6 +1246,10 @@ main {
   .btn-back:active,
   .btn-outline-secondary:active,
   .sidebar-item:active {
+    transform: none !important;
+  }
+
+  .sidebar-item:hover {
     transform: none !important;
   }
 
@@ -1248,7 +1345,9 @@ html[data-theme="dark"] .pdv-tile:focus-visible {
   border-radius: 9999px;
   padding: 0.125rem 0.5rem;
   font-weight: 700;
-  background: color-mix(in srgb, currentColor 14%, transparent);
+  /* Fundo da mesma cor do texto, forte o bastante para ler de longe no balcão. */
+  background: color-mix(in srgb, currentColor 20%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
 }
 
 /* Linha selecionada do cupom: barra na lateral em vez de só

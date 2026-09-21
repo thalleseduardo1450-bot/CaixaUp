@@ -24,7 +24,12 @@ export type CompanyDto = {
   complement: string;
 };
 
-function toCompanyDto(e: any): CompanyDto {
+type EmpresaRow = Partial<Record<
+  "nome" | "nome_fantasia" | "documento" | "email" | "telefone" | "cep" | "endereco" | "numero" | "bairro" | "cidade" | "uf",
+  string | null
+>>;
+
+function toCompanyDto(e: EmpresaRow): CompanyDto {
   return {
     fantasyName: e.nome_fantasia || e.nome || "",
     corporateName: e.nome || "",
@@ -46,6 +51,34 @@ function toCompanyDto(e: any): CompanyDto {
 }
 
 export const companyService = {
+  /**
+   * Logo da empresa, compartilhada por todos os usuários dela.
+   * `undefined` = não deu para saber (sem rede, ou a migração 0011 ainda não
+   * foi aplicada); quem chama deve manter o que já tinha.
+   */
+  async getLogo(): Promise<string | null | undefined> {
+    const empresaId = await currentCompanyId();
+    if (!empresaId) return undefined;
+    const { data, error } = await supabase.from("empresas").select("logo").eq("id", empresaId).maybeSingle();
+    if (error || !data) return undefined;
+    return (data as { logo: string | null }).logo ?? null;
+  },
+
+  /** Grava a logo (data URL) ou remove com `null`. A RLS limita a proprietário/administrador. */
+  async saveLogo(logo: string | null) {
+    const empresaId = await currentCompanyId();
+    if (!empresaId) throw new Error("Nenhuma empresa vinculada ao seu usuário.");
+
+    const { data, error } = await supabase
+      .from("empresas")
+      .update({ logo })
+      .eq("id", empresaId)
+      .select("id");
+    if (error) throw new Error("Não foi possível salvar a logo da empresa. Tente novamente.");
+    // Sem erro e sem linha atualizada: a política de update barrou este usuário.
+    if (!data?.length) throw new Error("Só o proprietário ou um administrador pode trocar a logo da empresa.");
+  },
+
   async get() {
     const empresaId = await currentCompanyId();
     if (!empresaId) return null;

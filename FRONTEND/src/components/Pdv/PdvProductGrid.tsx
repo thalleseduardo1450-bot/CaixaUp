@@ -33,7 +33,7 @@ type PdvProductGridProps = {
   onEmptyAction?: () => void;
 };
 
-/** Estoque virou cor: vermelho zerado, âmbar acabando, cinza normal. */
+/** Estoque com fundo de cor: vermelho zerado, âmbar acabando, verde disponível. */
 function stockTone(stock: number): { className: string; label: string } {
   if (stock <= 0) {
     return { className: "text-primary", label: "Sem estoque" };
@@ -41,7 +41,7 @@ function stockTone(stock: number): { className: string; label: string } {
   if (stock <= 5) {
     return { className: "text-[#b45309]", label: `Resta ${stock}` };
   }
-  return { className: "text-text-tertiary", label: `${stock} em estoque` };
+  return { className: "text-success", label: `${stock} em estoque` };
 }
 
 export default function PdvProductGrid({

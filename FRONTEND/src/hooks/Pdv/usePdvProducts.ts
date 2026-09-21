@@ -56,6 +56,18 @@ export function normalizeSearchText(value: string): string {
   return value.normalize("NFD").replace(COMBINING_MARKS, "").toLowerCase().trim();
 }
 
+/**
+ * Ordem da busca: 0 = o nome começa com o que foi digitado; 1 = alguma palavra
+ * do nome começa com a primeira palavra digitada; 2 = só contém.
+ * `query` já vem normalizada.
+ */
+export function prefixRank(name: string, query: string): number {
+  const normalizedName = normalizeSearchText(name);
+  if (normalizedName.startsWith(query)) return 0;
+  const firstToken = query.split(/\s+/)[0];
+  return normalizedName.split(/\s+/).some((word) => word.startsWith(firstToken)) ? 1 : 2;
+}
+
 export type PdvProductsFilter = {
   query: string;
   category: string;
@@ -66,44 +78,52 @@ export function usePdvProducts() {
   const [products, setProducts] = useState<PdvProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
-  const [usageCounts, setUsageCounts] = useState<PdvUsageMap>({});
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => getFavoriteIds());
+  const [usageCounts, setUsageCounts] = useState<PdvUsageMap>(() => getUsageCounts());
 
+  /** Só a parte assíncrona: todo setState roda nos callbacks da promise. */
+  const fetchProducts = useCallback(
+    () =>
+      productService
+        .list()
+        .then((items) => {
+          setProducts(
+            items.map((item) => ({
+              id: item.id,
+              name: item.productName,
+              code: item.productCode,
+              alternateCodes: item.productAlternateCode
+                ? [item.productAlternateCode]
+                : [],
+              stock: Number(item.productQnt || 0),
+              unitPriceCents: centsFromApi(item.productSalePrice),
+              imageUrl: item.productImageUrl || productImagePath(item.productName, item.productCode),
+              supplier: item.productSupplier,
+            })),
+          );
+        })
+        .catch((error: unknown) => {
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : "Verifique se o servidor do Hórus está rodando e tente de novo.",
+          );
+        })
+        .finally(() => setIsLoading(false)),
+    [],
+  );
+
+  /** Recarga pedida pelo operador: mostra o carregando de novo. */
   const load = useCallback(async () => {
     setIsLoading(true);
     setLoadError("");
-    try {
-      const items = await productService.list();
-      setProducts(
-        items.map((item) => ({
-          id: item.id,
-          name: item.productName,
-          code: item.productCode,
-          alternateCodes: item.productAlternateCode
-            ? [item.productAlternateCode]
-            : [],
-          stock: Number(item.productQnt || 0),
-          unitPriceCents: centsFromApi(item.productSalePrice),
-          imageUrl: item.productImageUrl || productImagePath(item.productName, item.productCode),
-          supplier: item.productSupplier,
-        })),
-      );
-    } catch (error) {
-      setLoadError(
-        error instanceof Error
-          ? error.message
-          : "Verifique se o servidor do Hórus está rodando e tente de novo.",
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    await fetchProducts();
+  }, [fetchProducts]);
 
+  // Na montagem o estado inicial já é "carregando", então basta buscar.
   useEffect(() => {
-    void load();
-    setFavoriteIds(getFavoriteIds());
-    setUsageCounts(getUsageCounts());
-  }, [load]);
+    void fetchProducts();
+  }, [fetchProducts]);
 
   /** Fornecedor virou "categoria": é o único agrupamento que o cadastro tem hoje. */
   const categories = useMemo(() => {
@@ -154,6 +174,14 @@ export function usePdvProducts() {
         return [...result]
           .filter((product) => (usageCounts[product.id] ?? 0) > 0)
           .sort((a, b) => (usageCounts[b.id] ?? 0) - (usageCounts[a.id] ?? 0));
+      }
+
+      // Digitou "c": quem começa com C vem primeiro. O sort é estável, então a
+      // ordem original se mantém dentro de cada grupo.
+      if (normalizedQuery) {
+        return [...result].sort(
+          (a, b) => prefixRank(a.name, normalizedQuery) - prefixRank(b.name, normalizedQuery),
+        );
       }
 
       return result;

@@ -17,7 +17,6 @@ import {
   ShoppingCart,
   Truck,
   CreditCard,
-  ShieldCheck,
   UserRoundPlus,
 } from "lucide-react";
 import { type ReactNode } from "react";
@@ -223,6 +222,13 @@ export default function AppSidebar({
               collapsed={collapsed}
               onClick={() => handleChangePage("caixa")}
             />
+            <SidebarItem
+              icon={<CreditCard size={22} />}
+              label="Pagamentos e Fiado"
+              active={activePage === "pagamentos"}
+              collapsed={collapsed}
+              onClick={() => handleChangePage("pagamentos")}
+            />
           </div>
 
           <div className="space-y-2">
@@ -280,13 +286,6 @@ export default function AppSidebar({
               collapsed={collapsed}
               onClick={() => handleChangePage("relatorios")}
             />
-            <SidebarItem
-              icon={<CreditCard size={22} />}
-              label="Assinatura"
-              active={activePage === "assinatura"}
-              collapsed={collapsed}
-              onClick={() => handleChangePage("assinatura")}
-            />
           </div>
 
           <div className="space-y-2">
@@ -304,13 +303,6 @@ export default function AppSidebar({
               active={activePage === "configuracoes"}
               collapsed={collapsed}
               onClick={() => handleChangePage("configuracoes")}
-            />
-            <SidebarItem
-              icon={<ShieldCheck size={22} />}
-              label="Administração"
-              active={activePage === "admin-plataforma"}
-              collapsed={collapsed}
-              onClick={() => handleChangePage("admin-plataforma")}
             />
           </div>
         </nav>

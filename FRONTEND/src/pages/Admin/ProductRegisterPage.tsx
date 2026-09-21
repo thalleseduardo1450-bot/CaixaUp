@@ -17,6 +17,7 @@ import useInputMasks from "@/hooks/InputMasks/useInputMasks";
 import PageLayout from "@/layout/PageLayout";
 import { productService, type ProductDto } from "@/services/api/productService";
 import { supplierService, type SupplierPayload } from "@/services/api/supplierService";
+import { normalizeSearchText, prefixRank } from "@/hooks/Pdv/usePdvProducts";
 import { lookupAddressByCep } from "@/utils/cepLookup";
 import { onlyDigits } from "@/utils/inputMasks";
 import { isValidCnpj, isValidEmail } from "@/utils/validators";
@@ -522,24 +523,29 @@ export default function ProductRegisterPage() {
   const [importingNextar, setImportingNextar] = useState(false);
   const nextarFileRef = useRef<HTMLInputElement | null>(null);
 
+  /** Só a parte assíncrona: todo setState roda nos callbacks da promise. */
+  const fetchProducts = () =>
+    productService
+      .list({ includeInactive: true })
+      .then((items) => setProducts(items))
+      .catch((error: unknown) => {
+        setProducts([]);
+        setProductsError(
+          error instanceof Error ? error.message : "Não foi possível carregar produtos.",
+        );
+        Toast.error("Não foi possível carregar produtos da API.");
+      })
+      .finally(() => setLoadingProducts(false));
+
   const loadProducts = async () => {
     setLoadingProducts(true);
     setProductsError("");
-    try {
-      setProducts(await productService.list({ includeInactive: true }));
-    } catch (error) {
-      setProducts([]);
-      setProductsError(
-        error instanceof Error ? error.message : "Não foi possível carregar produtos.",
-      );
-      Toast.error("Não foi possível carregar produtos da API.");
-    } finally {
-      setLoadingProducts(false);
-    }
+    await fetchProducts();
   };
 
+  // Na montagem o estado inicial já é "carregando", então basta buscar.
   useEffect(() => {
-    void loadProducts();
+    void fetchProducts();
     supplierService
       .list()
       .then((items) =>
@@ -553,13 +559,16 @@ export default function ProductRegisterPage() {
   }, []);
 
   const filteredProducts = useMemo(() => {
-    const normalized = search.trim().toLowerCase();
+    const normalized = normalizeSearchText(search);
     if (!normalized) return products;
-    return products.filter(
-      (product) =>
-        product.productName.toLowerCase().includes(normalized) ||
-        product.productCode.toLowerCase().includes(normalized),
-    );
+    // Mesma regra do PDV: sem acento, e quem começa com o que foi digitado vem primeiro.
+    return products
+      .filter(
+        (product) =>
+          normalizeSearchText(product.productName).includes(normalized) ||
+          product.productCode.toLowerCase().includes(normalized),
+      )
+      .sort((a, b) => prefixRank(a.productName, normalized) - prefixRank(b.productName, normalized));
   }, [products, search]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));

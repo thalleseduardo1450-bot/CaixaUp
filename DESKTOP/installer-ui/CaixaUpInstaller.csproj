@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Instalador do CaixaUp.
+
+    A tela é WPF; quem instala de fato continua sendo o NSIS do electron-builder,
+    rodando em modo silencioso. Isso preserva o desinstalador, as entradas do
+    Painel de Controle e a atualização automática do electron-updater.
+
+    O setup do NSIS não é um recurso embutido: ele é anexado ao fim do .exe
+    publicado por `empacotar.ps1`. Assim a compilação continua leve e o
+    resultado é um arquivo único.
+  -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <AssemblyName>CaixaUp-Instalador</AssemblyName>
+    <RootNamespace>CaixaUp.Instalador</RootNamespace>
+    <ApplicationManifest>Installer.manifest</ApplicationManifest>
+    <ApplicationIcon>..\build\icon.ico</ApplicationIcon>
+
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <SatelliteResourceLanguages>pt-BR</SatelliteResourceLanguages>
+    <DebugType>none</DebugType>
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+
+    <Product>CaixaUp</Product>
+    <Company>CaixaUp</Company>
+    <AssemblyTitle>Instalador do CaixaUp</AssemblyTitle>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="assets\marca.png" />
+  </ItemGroup>
+
+</Project>

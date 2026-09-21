@@ -183,10 +183,13 @@ export default function SalesStartPage({
     return () => window.clearInterval(timer);
   }, []);
 
-  /** Foco no campo de leitura: o leitor de código depende disso para funcionar. */
+  /**
+   * Foco no campo de leitura: o leitor de código depende disso para funcionar.
+   * Vai no primeiro quadro depois da pintura, sem os 150 ms de espera fixa.
+   */
   useEffect(() => {
-    const timer = window.setTimeout(() => searchInputRef.current?.focus(), 150);
-    return () => window.clearTimeout(timer);
+    const frame = window.requestAnimationFrame(() => searchInputRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   /** Preferências mudam na tela de Configurações; aqui só escutamos os avisos. */

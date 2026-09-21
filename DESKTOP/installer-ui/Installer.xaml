@@ -1,0 +1,516 @@
+<Window x:Class="CaixaUp.Instalador.Installer"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Instalador do CaixaUp" Width="940" Height="620"
+        WindowStartupLocation="CenterScreen" WindowStyle="None"
+        AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
+        UseLayoutRounding="True" SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display" FontFamily="Segoe UI" FontSize="13">
+
+  <!--
+    Paleta tirada da própria logo: o navy do "Caixa" manda no painel lateral, o
+    azul de ação vem do símbolo, e o verde fica reservado ao "Up" — é o único
+    lugar onde ele aparece, como na marca.
+  -->
+  <Window.Resources>
+    <FontFamily x:Key="FonteTexto">Segoe UI</FontFamily>
+    <FontFamily x:Key="FonteDisplay">Segoe UI</FontFamily>
+    <SolidColorBrush x:Key="Fundo" Color="#FAFBFC" />
+    <SolidColorBrush x:Key="Borda" Color="#E2E8F0" />
+    <SolidColorBrush x:Key="Texto" Color="#0F2744" />
+    <SolidColorBrush x:Key="TextoFraco" Color="#5A6B80" />
+    <SolidColorBrush x:Key="TextoApagado" Color="#8296AC" />
+    <SolidColorBrush x:Key="Marca" Color="#2563EB" />
+    <SolidColorBrush x:Key="MarcaSuave" Color="#E8F0FE" />
+    <SolidColorBrush x:Key="Verde" Color="#10B981" />
+
+    <Style x:Key="FocoTeclado" TargetType="Control">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate>
+            <Border Margin="-4" BorderBrush="#2563EB" BorderThickness="2" CornerRadius="12" />
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style x:Key="BotaoBase" TargetType="Button">
+      <Setter Property="Height" Value="46" />
+      <Setter Property="Padding" Value="22,0" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="FocusVisualStyle" Value="{StaticResource FocoTeclado}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Superficie" Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="10" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                RecognizesAccessKey="True" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Superficie" Property="Opacity" Value="0.85" />
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Superficie" Property="Opacity" Value="0.7" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Superficie" Property="Opacity" Value="0.4" />
+                <Setter Property="Cursor" Value="Arrow" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="BotaoPrimario" TargetType="Button" BasedOn="{StaticResource BotaoBase}">
+      <Setter Property="MinWidth" Value="138" />
+      <Setter Property="Background" Value="{StaticResource Marca}" />
+      <Setter Property="BorderBrush" Value="{StaticResource Marca}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style x:Key="BotaoFantasma" TargetType="Button" BasedOn="{StaticResource BotaoBase}">
+      <Setter Property="Background" Value="White" />
+      <Setter Property="BorderBrush" Value="{StaticResource Borda}" />
+      <Setter Property="Foreground" Value="{StaticResource Texto}" />
+    </Style>
+    <Style x:Key="BotaoJanela" TargetType="Button" BasedOn="{StaticResource BotaoBase}">
+      <Setter Property="Width" Value="34" />
+      <Setter Property="Height" Value="32" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="4,0,0,0" />
+      <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+      <Setter Property="FontSize" Value="10" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="Foreground" Value="{StaticResource TextoFraco}" />
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Background" Value="#E8EEF6" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="CampoPasta" TargetType="TextBox">
+      <Setter Property="Height" Value="46" />
+      <Setter Property="Padding" Value="14,0" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{StaticResource Texto}" />
+      <Setter Property="CaretBrush" Value="{StaticResource Marca}" />
+      <Setter Property="SelectionBrush" Value="#BFDBFE" />
+      <Setter Property="Background" Value="White" />
+      <Setter Property="BorderBrush" Value="{StaticResource Borda}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TextBox">
+            <Border x:Name="Moldura" CornerRadius="10" Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+              <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                <Setter TargetName="Moldura" Property="BorderBrush" Value="{StaticResource Marca}" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Moldura" Property="Opacity" Value="0.5" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="AceiteTermos" TargetType="CheckBox">
+      <Setter Property="Foreground" Value="{StaticResource TextoFraco}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="FocusVisualStyle" Value="{StaticResource FocoTeclado}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CheckBox">
+            <Grid Background="Transparent">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="20" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Border x:Name="Caixa" Width="20" Height="20" CornerRadius="5"
+                      VerticalAlignment="Top" Background="White" BorderBrush="#A3B3C6" BorderThickness="1">
+                <Path x:Name="Marca" Width="11" Height="8" Stretch="Fill" Visibility="Collapsed"
+                      Data="M 1,4 L 4,7 L 10,1" Stroke="White" StrokeThickness="1.7"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+              </Border>
+              <ContentPresenter Grid.Column="1" Margin="12,0,0,0" RecognizesAccessKey="True">
+                <ContentPresenter.Resources>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="TextWrapping" Value="Wrap" />
+                    <Setter Property="LineHeight" Value="20" />
+                  </Style>
+                </ContentPresenter.Resources>
+              </ContentPresenter>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Caixa" Property="Background" Value="{StaticResource Marca}" />
+                <Setter TargetName="Caixa" Property="BorderBrush" Value="{StaticResource Marca}" />
+                <Setter TargetName="Marca" Property="Visibility" Value="Visible" />
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Caixa" Property="BorderBrush" Value="{StaticResource Marca}" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.5" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="BarraFina" TargetType="ProgressBar">
+      <Setter Property="Height" Value="8" />
+      <Setter Property="Background" Value="#E4EAF2" />
+      <Setter Property="Foreground" Value="{StaticResource Marca}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ProgressBar">
+            <Grid ClipToBounds="True">
+              <Border x:Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="4" />
+              <Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="4"
+                      Background="{TemplateBinding Foreground}" />
+              <Border x:Name="Pulso" CornerRadius="4" Background="{TemplateBinding Foreground}"
+                      Visibility="Collapsed" Opacity="0.25" />
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsIndeterminate" Value="True">
+                <Setter TargetName="PART_Indicator" Property="Visibility" Value="Collapsed" />
+                <Setter TargetName="Pulso" Property="Visibility" Value="Visible" />
+                <Trigger.EnterActions>
+                  <BeginStoryboard x:Name="AnimacaoProgresso">
+                    <Storyboard>
+                      <DoubleAnimation Storyboard.TargetName="Pulso" Storyboard.TargetProperty="Opacity"
+                                       From="0.2" To="0.75" Duration="0:0:0.9"
+                                       AutoReverse="True" RepeatBehavior="Forever" />
+                    </Storyboard>
+                  </BeginStoryboard>
+                </Trigger.EnterActions>
+                <Trigger.ExitActions>
+                  <StopStoryboard BeginStoryboardName="AnimacaoProgresso" />
+                </Trigger.ExitActions>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="TituloPagina" TargetType="TextBlock">
+      <Setter Property="FontFamily" Value="{StaticResource FonteDisplay}" />
+      <Setter Property="FontSize" Value="30" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{StaticResource Texto}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style x:Key="Descricao" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="LineHeight" Value="22" />
+      <Setter Property="Foreground" Value="{StaticResource TextoFraco}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style x:Key="Etapa" TargetType="Border">
+      <Setter Property="CornerRadius" Value="11" />
+      <Setter Property="Padding" Value="14,12" />
+      <Setter Property="Margin" Value="0,0,0,7" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Opacity" Value="0.58" />
+    </Style>
+    <Style x:Key="NumeroEtapa" TargetType="TextBlock">
+      <Setter Property="Width" Value="31" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#8FB8F0" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+  </Window.Resources>
+
+  <Border Margin="12" Background="{StaticResource Fundo}" CornerRadius="20">
+    <Border.Effect>
+      <DropShadowEffect BlurRadius="20" ShadowDepth="3" Opacity="0.16" Color="#0F2744" />
+    </Border.Effect>
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="270" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+
+      <!-- Identidade e etapas: o destaque acompanha a visibilidade dos painéis. -->
+      <Border CornerRadius="20,0,0,20">
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#1E3A5F" Offset="0" />
+            <GradientStop Color="#0C1E36" Offset="1" />
+          </LinearGradientBrush>
+        </Border.Background>
+        <Grid Margin="26,30,26,25">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <StackPanel Orientation="Horizontal">
+            <!-- A logo vai num quadrado branco: o símbolo é azul e sumiria no navy. -->
+            <Border Width="38" Height="38" CornerRadius="11" Background="White" Margin="0,0,11,0">
+              <Image Source="assets/marca.png" Width="27" Height="27"
+                     RenderOptions.BitmapScalingMode="HighQuality" />
+            </Border>
+            <TextBlock FontSize="27" FontWeight="SemiBold" VerticalAlignment="Center">
+              <Run Text="Caixa" Foreground="White" /><Run Text="Up" Foreground="#34D399" />
+            </TextBlock>
+          </StackPanel>
+          <StackPanel Grid.Row="1" Margin="0,44,0,0">
+            <TextBlock Text="UM NOVO COMEÇO" FontSize="10" FontWeight="SemiBold" Foreground="#9DBBDD" />
+            <TextBlock Text="Seu negócio.&#x0a;No seu ritmo." Margin="0,13,0,0" FontSize="30"
+                       LineHeight="38" FontWeight="SemiBold" Foreground="White" />
+            <TextBlock Text="Tudo começa por aqui." Margin="0,13,0,0"
+                       FontSize="12" Foreground="#AFC8E2" />
+          </StackPanel>
+          <StackPanel Grid.Row="2" VerticalAlignment="Center" Margin="-1,16,-1,10">
+            <Border>
+              <Border.Style>
+                <Style TargetType="Border" BasedOn="{StaticResource Etapa}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Visibility, ElementName=PainelBoasVindas}" Value="Visible">
+                      <Setter Property="Background" Value="#26466E" />
+                      <Setter Property="BorderBrush" Value="#3C6399" />
+                      <Setter Property="Opacity" Value="1" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Border.Style>
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="01" Style="{StaticResource NumeroEtapa}" />
+                <TextBlock Text="Boas-vindas" Foreground="White" FontWeight="SemiBold" />
+              </StackPanel>
+            </Border>
+            <Border>
+              <Border.Style>
+                <Style TargetType="Border" BasedOn="{StaticResource Etapa}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Visibility, ElementName=PainelPasta}" Value="Visible">
+                      <Setter Property="Background" Value="#26466E" />
+                      <Setter Property="BorderBrush" Value="#3C6399" />
+                      <Setter Property="Opacity" Value="1" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Border.Style>
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="02" Style="{StaticResource NumeroEtapa}" />
+                <TextBlock Text="Preferências" Foreground="White" FontWeight="SemiBold" />
+              </StackPanel>
+            </Border>
+            <Border>
+              <Border.Style>
+                <Style TargetType="Border" BasedOn="{StaticResource Etapa}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Visibility, ElementName=PainelInstalando}" Value="Visible">
+                      <Setter Property="Background" Value="#26466E" />
+                      <Setter Property="BorderBrush" Value="#3C6399" />
+                      <Setter Property="Opacity" Value="1" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Border.Style>
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="03" Style="{StaticResource NumeroEtapa}" />
+                <TextBlock Text="Instalação" Foreground="White" FontWeight="SemiBold" />
+              </StackPanel>
+            </Border>
+            <Border>
+              <Border.Style>
+                <Style TargetType="Border" BasedOn="{StaticResource Etapa}">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Visibility, ElementName=PainelPronto}" Value="Visible">
+                      <Setter Property="Background" Value="#26466E" />
+                      <Setter Property="BorderBrush" Value="#3C6399" />
+                      <Setter Property="Opacity" Value="1" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Border.Style>
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="04" Style="{StaticResource NumeroEtapa}" />
+                <TextBlock Text="Tudo pronto" Foreground="White" FontWeight="SemiBold" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+          <Border Grid.Row="3" BorderBrush="#33527A" BorderThickness="0,1,0,0" Padding="0,18,0,0">
+            <StackPanel Orientation="Horizontal">
+              <Ellipse Width="6" Height="6" Fill="#34D399" Margin="0,0,9,0" />
+              <TextBlock Text="CAIXAUP PARA WINDOWS" FontSize="9" Foreground="#AFC8E2" />
+            </StackPanel>
+          </Border>
+        </Grid>
+      </Border>
+
+      <Grid Grid.Column="1">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="64" />
+          <RowDefinition Height="*" />
+          <RowDefinition Height="98" />
+        </Grid.RowDefinitions>
+
+        <Grid Background="Transparent" MouseLeftButtonDown="ArrastarJanela" Margin="32,0,18,0">
+          <TextBlock Text="ASSISTENTE DE INSTALAÇÃO" FontSize="10" FontWeight="SemiBold"
+                     Foreground="{StaticResource TextoApagado}" VerticalAlignment="Center" />
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <Button x:Name="BotaoMinimizar" Style="{StaticResource BotaoJanela}" Content="&#xE921;"
+                    Click="Minimizar" ToolTip="Minimizar" AutomationProperties.Name="Minimizar" />
+            <Button x:Name="BotaoFechar" Content="&#xE8BB;" Click="Fechar"
+                    ToolTip="Fechar" AutomationProperties.Name="Fechar">
+              <Button.Style>
+                <Style TargetType="Button" BasedOn="{StaticResource BotaoJanela}">
+                  <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                      <Setter Property="Background" Value="#FBE7E7" />
+                      <Setter Property="Foreground" Value="#B42332" />
+                    </Trigger>
+                  </Style.Triggers>
+                </Style>
+              </Button.Style>
+            </Button>
+          </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="42,4,42,12">
+          <!-- Os nomes e os tipos dos controles originais são preservados. -->
+          <StackPanel x:Name="PainelBoasVindas" VerticalAlignment="Center">
+            <!-- A logo abre a primeira tela, em vez de um ícone genérico. -->
+            <Border Width="66" Height="66" CornerRadius="19" Background="White"
+                    BorderBrush="{StaticResource Borda}" BorderThickness="1"
+                    HorizontalAlignment="Left" Margin="0,0,0,24">
+              <Image Source="assets/marca.png" Width="42" Height="42"
+                     RenderOptions.BitmapScalingMode="HighQuality" />
+            </Border>
+            <TextBlock Text="Seu próximo passo&#x0a;começa com o CaixaUp." Style="{StaticResource TituloPagina}"
+                       FontSize="33" LineHeight="41" />
+            <TextBlock Text="Vamos preparar tudo para você começar.&#x0a;Siga as etapas e instale o CaixaUp neste computador."
+                       Style="{StaticResource Descricao}" Margin="0,16,0,0" />
+            <Border Margin="0,27,0,0" Padding="17,15" CornerRadius="12" Background="White"
+                    BorderBrush="{StaticResource Borda}" BorderThickness="1">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="34" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Path Data="M 7,19 C 0,19 0,9 7,9 C 8,0 21,0 23,9 C 31,8 33,19 25,19 Z"
+                      Width="23" Height="18" Stretch="Uniform" Stroke="{StaticResource Marca}"
+                      StrokeThickness="1.5" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1">
+                  <TextBlock Text="Seus dados continuam na nuvem" Foreground="{StaticResource Texto}"
+                             FontSize="12" FontWeight="SemiBold" />
+                  <TextBlock Text="Aqui, instalamos apenas o programa." Margin="0,4,0,0"
+                             Foreground="{StaticResource TextoFraco}" FontSize="12" />
+                </StackPanel>
+              </Grid>
+            </Border>
+          </StackPanel>
+
+          <StackPanel x:Name="PainelPasta" VerticalAlignment="Center" Visibility="Collapsed">
+            <TextBlock Text="DO SEU JEITO" Foreground="{StaticResource Marca}" FontSize="10" FontWeight="SemiBold" />
+            <TextBlock Text="Onde vamos instalar?" Style="{StaticResource TituloPagina}" Margin="0,12,0,0" />
+            <TextBlock Text="O CaixaUp guarda os dados na nuvem. Esta pasta recebe só o programa."
+                       Style="{StaticResource Descricao}" Margin="0,12,0,0" />
+            <TextBlock Text="PASTA DE DESTINO" Foreground="{StaticResource TextoFraco}"
+                       FontSize="10" FontWeight="SemiBold" Margin="0,27,0,10" />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBox x:Name="CampoDestino" Style="{StaticResource CampoPasta}"
+                       AutomationProperties.Name="Pasta de destino" />
+              <Button x:Name="BotaoProcurar" Grid.Column="1" Margin="10,0,0,0"
+                      Style="{StaticResource BotaoFantasma}" Content="Procurar" Click="EscolherPasta" Padding="16,0" />
+            </Grid>
+            <TextBlock x:Name="AvisoEspaco" Margin="2,10,0,0" FontSize="11"
+                       TextWrapping="Wrap" Foreground="{StaticResource TextoApagado}" />
+            <Border BorderBrush="{StaticResource Borda}" BorderThickness="0,1,0,0" Margin="0,24,0,0" Padding="0,22,0,0">
+              <CheckBox x:Name="AceiteTermos" Style="{StaticResource AceiteTermos}"
+                        Content="Li e aceito os Termos de Uso e a Política de Privacidade."
+                        Checked="AceiteMudou" Unchecked="AceiteMudou" />
+            </Border>
+          </StackPanel>
+
+          <StackPanel x:Name="PainelInstalando" VerticalAlignment="Center" Visibility="Collapsed">
+            <Border Width="60" Height="60" CornerRadius="18" Background="{StaticResource MarcaSuave}"
+                    HorizontalAlignment="Left" Margin="0,0,0,24">
+              <Path Data="M 2,9 L 15,2 L 28,9 L 15,16 Z M 2,9 L 2,24 L 15,31 L 28,24 L 28,9 M 15,16 L 15,31 M 8,5 L 21,12"
+                    Width="27" Height="29" Stretch="Uniform" Stroke="{StaticResource Marca}"
+                    StrokeThickness="1.6" StrokeLineJoin="Round" />
+            </Border>
+            <TextBlock x:Name="TituloInstalando" Text="Instalando o CaixaUp" Style="{StaticResource TituloPagina}" />
+            <TextBlock x:Name="DetalheInstalando" Text="Preparando os arquivos…"
+                       Style="{StaticResource Descricao}" Margin="0,12,0,0" />
+            <Border Margin="0,30,0,0" Padding="22" Background="White" CornerRadius="14"
+                    BorderBrush="{StaticResource Borda}" BorderThickness="1">
+              <StackPanel>
+                <Grid Margin="0,0,0,18">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="Progresso da instalação" Foreground="{StaticResource TextoFraco}"
+                             FontSize="12" VerticalAlignment="Center" />
+                  <TextBlock x:Name="Porcentagem" Grid.Column="1" FontSize="23" FontWeight="SemiBold"
+                             Foreground="{StaticResource Marca}" Text="0%" Margin="12,0,0,0" />
+                </Grid>
+                <ProgressBar x:Name="Barra" Style="{StaticResource BarraFina}" Minimum="0" Maximum="100"
+                             AutomationProperties.Name="Progresso da instalação" />
+                <TextBlock x:Name="Medida" Margin="0,13,0,0" FontSize="11" TextWrapping="Wrap"
+                           Foreground="{StaticResource TextoApagado}" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <StackPanel x:Name="PainelPronto" VerticalAlignment="Center" Visibility="Collapsed">
+            <Border Width="78" Height="78" CornerRadius="39" Background="#E7F7F0"
+                    HorizontalAlignment="Left" Margin="0,0,0,26">
+              <Border Width="54" Height="54" CornerRadius="27" Background="{StaticResource Verde}">
+                <Path Width="23" Height="17" Stretch="Fill" Data="M 2,9 L 9,16 L 23,2"
+                      Stroke="White" StrokeThickness="2.3" StrokeStartLineCap="Round"
+                      StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+              </Border>
+            </Border>
+            <TextBlock x:Name="TituloPronto" Text="Tudo pronto!" Style="{StaticResource TituloPagina}" FontSize="36" />
+            <TextBlock x:Name="DetalhePronto" Text="O CaixaUp foi instalado nesta máquina."
+                       Style="{StaticResource Descricao}" Margin="0,14,0,0" />
+          </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="2" BorderBrush="{StaticResource Borda}" BorderThickness="0,1,0,0" Margin="42,0,42,0">
+          <Grid Margin="0,0,0,2">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="Versao" VerticalAlignment="Center" FontSize="11" Margin="0,0,12,0"
+                       TextTrimming="CharacterEllipsis" Foreground="{StaticResource TextoApagado}" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+              <Button x:Name="BotaoVoltar" Style="{StaticResource BotaoFantasma}" Content="Voltar"
+                      Margin="0,0,10,0" Click="Voltar" Visibility="Collapsed" />
+              <Button x:Name="BotaoAvancar" Style="{StaticResource BotaoPrimario}" Content="Próximo" Click="Avancar" />
+            </StackPanel>
+          </Grid>
+        </Border>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

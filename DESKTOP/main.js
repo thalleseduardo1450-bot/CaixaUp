@@ -37,6 +37,7 @@ const webDir = packaged
 
 let webServer = null;
 let splash = null;
+let splashFinished = Promise.resolve();
 let mainWindow = null;
 let updatePromptShown = false;
 let appIsQuitting = false;
@@ -65,6 +66,8 @@ const MIME = {
   ".woff": "font/woff",
   ".woff2": "font/woff2",
   ".ttf": "font/ttf",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
 };
 
 function isContainedPath(root, target) {
@@ -120,11 +123,12 @@ function startWebServer() {
   return new Promise((resolve, reject) => {
     const server = http.createServer(async (req, res) => {
       res.setHeader("X-Content-Type-Options", "nosniff");
-      res.setHeader("X-Frame-Options", "DENY");
+      const isOpeningMotion = req.url?.split("?")[0] === "/opening-motion.html";
+      res.setHeader("X-Frame-Options", isOpeningMotion ? "SAMEORIGIN" : "DENY");
       res.setHeader("Referrer-Policy", "no-referrer");
       res.setHeader(
         "Content-Security-Policy",
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://viacep.com.br https://brasilapi.com.br https://opencep.com https://world.openfoodfacts.org; frame-src 'none'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
+        `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://caixaup-api.squareweb.app https://viacep.com.br https://brasilapi.com.br https://opencep.com https://world.openfoodfacts.org; frame-src ${WEB_ORIGIN}/opening-motion.html; base-uri 'self'; object-src 'none'; frame-ancestors ${isOpeningMotion ? "'self'" : "'none'"}; form-action 'self'`,
       );
       res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
       res.setHeader("Cache-Control", "no-store");
@@ -239,21 +243,59 @@ function applyWindowZoom() {
 
 function createSplash() {
   const zoom = computeZoom();
+  let finishSplash = () => {};
   splash = new BrowserWindow({
-    width: Math.round(460 * zoom),
-    height: Math.round(300 * zoom),
+    width: Math.round(760 * zoom),
+    height: Math.round(428 * zoom),
     frame: false,
     resizable: false,
     center: true,
-    show: true,
-    backgroundColor: "#2563EB",
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, zoomFactor: zoom },
+    show: false,
+    backgroundColor: "#ffffff",
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      zoomFactor: zoom,
+      backgroundThrottling: false,
+      autoplayPolicy: "no-user-gesture-required",
+      preload: path.join(__dirname, "splash-preload.js"),
+    },
+  });
+  splashFinished = new Promise((resolve) => {
+    let completed = false;
+    let finishTimer = null;
+    const finish = () => {
+      if (completed) return;
+      completed = true;
+      clearTimeout(fallback);
+      clearTimeout(finishTimer);
+      ipcMain.removeListener("desktop:splash:state", onPlaybackState);
+      resolve();
+    };
+    finishSplash = finish;
+    const onPlaybackState = (event, state) => {
+      if (!splash || splash.isDestroyed() || event.sender !== splash.webContents) return;
+      if (state === "finished" || state === "skipped" || state === "dismissed") finish();
+      if (state === "failed") finishTimer = setTimeout(finish, 500);
+    };
+    const fallback = setTimeout(finish, 15000);
+    ipcMain.on("desktop:splash:state", onPlaybackState);
+    splash.once("ready-to-show", () => {
+      if (!splash || splash.isDestroyed()) return;
+      splash.show();
+      splash.webContents.send("desktop:splash:play");
+    });
   });
   splash.webContents.on("will-navigate", (event) => event.preventDefault());
   splash.webContents.on("will-frame-navigate", (event) => event.preventDefault());
   splash.webContents.on("will-redirect", (event) => event.preventDefault());
   splash.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  splash.loadFile(path.join(__dirname, "splash.html"));
+  splash.loadFile(path.join(webDir, "opening-motion.html")).catch(() => {
+    if (!splash || splash.isDestroyed()) return;
+    splash.loadFile(path.join(__dirname, "splash.html"));
+    setTimeout(finishSplash, 1200);
+  });
 }
 
 function createMainWindow() {
@@ -307,13 +349,27 @@ function createMainWindow() {
     console.log(`[tela] falha ao carregar ${url}: ${desc} (${cod})`);
   });
 
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    try {
+      fs.appendFileSync(path.join(app.getPath("userData"), "caixaup-stability.log"), `${new Date().toISOString()} renderer=${details.reason} exit=${details.exitCode}\n`);
+    } catch {}
+  });
+  mainWindow.on("unresponsive", () => {
+    try {
+      fs.appendFileSync(path.join(app.getPath("userData"), "caixaup-stability.log"), `${new Date().toISOString()} unresponsive\n`);
+    } catch {}
+  });
+
   mainWindow.loadURL(WEB_ORIGIN);
 
   let janelaExibida = false;
-  const exibirJanela = (origem) => {
+  const exibirJanela = async (origem) => {
     if (janelaExibida) return;
     if (!mainWindow || mainWindow.isDestroyed()) return;
     janelaExibida = true;
+    // A abertura toca inteira; quem atalha é o botão Pular do canto.
+    await splashFinished;
+    if (!mainWindow || mainWindow.isDestroyed()) return;
     console.log(`[janela] exibindo (disparado por: ${origem})`);
     if (splash && !splash.isDestroyed()) splash.destroy();
     mainWindow.maximize();
@@ -413,7 +469,8 @@ function saveDesktopPreferences() {
   );
 }
 
-function showMainWindow() {
+async function showMainWindow() {
+  await splashFinished;
   if (!mainWindow || mainWindow.isDestroyed()) return;
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.show();
@@ -600,7 +657,11 @@ function configureDesktopIpc() {
     openExternalLink(value);
     return /^https:\/\//.test(value);
   });
-  handleDesktopIpc("desktop:auth:pending", () => pendingAuthCallback);
+  handleDesktopIpc("desktop:auth:pending", () => {
+    const callback = pendingAuthCallback;
+    pendingAuthCallback = null;
+    return callback;
+  });
   handleDesktopIpc("desktop:window:state", getWindowState);
   handleDesktopIpc("desktop:window:minimize", () => {
     if (!mainWindow || mainWindow.isDestroyed()) return false;
@@ -669,7 +730,7 @@ app.whenReady().then(async () => {
     }
     applyDesktopPreferences();
     configureAutoUpdater();
-    setTimeout(() => void showInstalledUpdate(), 2500);
+    void splashFinished.then(() => showInstalledUpdate());
   } catch (err) {
     if (splash && !splash.isDestroyed()) splash.destroy();
     dialog.showErrorBox("CaixaUp - falha ao iniciar", String(err.message || err));

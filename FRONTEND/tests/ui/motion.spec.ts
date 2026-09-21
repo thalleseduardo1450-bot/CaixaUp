@@ -1,7 +1,23 @@
 import { expect, test, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import { rmSync, writeFileSync } from "node:fs";
+import path from "node:path";
 
 // Exercise real components without accessing accounts, sales or payment services.
 async function mount(page: Page, body: string) {
+  const fixtureName = `.generated-${randomUUID()}.tsx`;
+  const fixturePath = path.join(process.cwd(), "tests", "ui", fixtureName);
+  writeFileSync(fixturePath, `import React from 'react';
+    import { createRoot } from 'react-dom/client';
+    import '../../src/index.css';
+    import AppSplash from '../../src/components/Loading/AppSplash';
+    import { useStatusDialog } from '../../src/hooks/Dialog/useStatusDialog';
+    import Reveal from '../../src/components/Reveal';
+    import PageLayout from '../../src/layout/PageLayout';
+    const h = React.createElement;
+    ${body}
+    createRoot(document.getElementById('root')!).render(h(React.StrictMode, null, h(Harness)));
+    (window as Window & { __UI_MOUNTED__?: boolean }).__UI_MOUNTED__ = true;`);
   page.on("pageerror", error => console.error(error.message));
   await page.route("**/__ui_test__", route => route.fulfill({
     contentType: "text/html",
@@ -12,19 +28,12 @@ async function mount(page: Page, body: string) {
         window.$RefreshReg$ = () => {};
         window.$RefreshSig$ = () => type => type;
         window.__vite_plugin_react_preamble_installed__ = true;
-        const { default: React } = await import('/node_modules/.vite/deps/react.js');
-        const { default: { createRoot } } = await import('/node_modules/.vite/deps/react-dom_client.js');
-        await import('/src/index.css');
-        const { default: AppSplash } = await import('/src/components/Loading/AppSplash.tsx');
-        const { useStatusDialog } = await import('/src/hooks/Dialog/useStatusDialog.tsx');
-        const { default: Reveal } = await import('/src/components/Reveal.tsx');
-        const { default: PageLayout } = await import('/src/layout/PageLayout.tsx');
-        const h = React.createElement;
-        ${body}
-        createRoot(document.getElementById('root')).render(h(React.StrictMode, null, h(Harness)));
+        await import('/tests/ui/${fixtureName}');
       </script></body></html>`,
   }));
+  page.once("close", () => rmSync(fixturePath, { force: true }));
   await page.goto("/__ui_test__");
+  await page.waitForFunction(() => (window as Window & { __UI_MOUNTED__?: boolean }).__UI_MOUNTED__ === true);
 }
 
 test("splash completes despite parent rerenders during exit", async ({ page }) => {
@@ -34,7 +43,7 @@ test("splash completes despite parent rerenders during exit", async ({ page }) =
     React.useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 60); return () => clearInterval(id); }, []);
     return done ? h('p', null, 'Ready') : h(AppSplash, { ready: tick > 2, onFinished: () => setDone(true) });
   }`);
-  await expect(page.getByText("Ready", { exact: true })).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText("Ready", { exact: true })).toBeVisible({ timeout: 10000 });
 });
 
 test("reduced motion skips the splash delay", async ({ page }) => {
@@ -44,6 +53,29 @@ test("reduced motion skips the splash delay", async ({ page }) => {
     return done ? h('p', null, 'Ready') : h(AppSplash, { ready: true, onFinished: () => setDone(true) });
   }`);
   await expect(page.getByText("Ready", { exact: true })).toBeVisible();
+});
+
+test("splash waits for the opening to play even when the app is already ready", async ({ page }) => {
+  await mount(page, `function Harness() {
+    const [done, setDone] = React.useState(false);
+    return done ? h('p', null, 'Ready') : h(AppSplash, { ready: true, onFinished: () => setDone(true) });
+  }`);
+  // A abertura tem 7,8 s: pronto não basta, tem de tocar.
+  await expect(page.getByRole("status", { name: "Preparando CaixaUp" })).toBeVisible();
+  await page.waitForTimeout(1200);
+  await expect(page.getByText("Ready", { exact: true })).toBeHidden();
+});
+
+test("the skip button ends the opening at once", async ({ page }) => {
+  await mount(page, `function Harness() {
+    const [done, setDone] = React.useState(false);
+    return done ? h('p', null, 'Ready') : h(AppSplash, { ready: true, onFinished: () => setDone(true) });
+  }`);
+  const opening = page.frameLocator('iframe[title="Abertura animada CaixaUp"]');
+  const skip = opening.getByRole("button", { name: "Pular" });
+  await expect(skip).toBeVisible({ timeout: 10000 });
+  await skip.click();
+  await expect(page.getByText("Ready", { exact: true })).toBeVisible({ timeout: 3000 });
 });
 
 const dialogHarness = `function Harness() {

@@ -130,10 +130,12 @@ export default function UserAccountsPage() {
     setCurrentPage(1);
   }, [searchTerm, roleFilter, statusFilter]);
 
+  /*
+   * A lista paginada sai de dados que já estão em memória: não há o que esperar.
+   * O carregamento fingido de 140 ms só atrasava cada filtro e cada troca de página.
+   */
   useEffect(() => {
-    setIsLoading(true);
-    const timeoutId = window.setTimeout(() => setIsLoading(false), 140);
-    return () => window.clearTimeout(timeoutId);
+    setIsLoading(false);
   }, [filteredUsers, currentPage, itemsPerPage]);
 
   useEffect(() => {

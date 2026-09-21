@@ -1,7 +1,7 @@
 {
     "name": "caixaup-desktop",
     "productName": "CaixaUp",
-    "version": "3.3.28",
+    "version": "3.3.46",
     "description": "CaixaUp - frente de caixa. Dados no Supabase (nuvem), sem banco local.",
     "main": "main.js",
     "private": true,
@@ -9,11 +9,13 @@
         "icon": "node make-icon.js",
         "start": "electron .",
         "dist": "electron-builder --win nsis --x64",
+        "dist:custom": "node ../gerar-instalador.cjs",
+        "installer:custom": "powershell -NoProfile -ExecutionPolicy Bypass -File installer-ui/empacotar.ps1 -Versao %npm_package_version%",
         "dist:publish": "electron-builder --win nsis --x64 --publish always"
     },
     "devDependencies": {
-        "electron": "^33.2.0",
-        "electron-builder": "^25.1.8"
+        "electron": "^44.3.0",
+        "electron-builder": "^26.15.3"
     },
     "build": {
         "appId": "br.com.caixaup.desktop",
@@ -34,8 +36,10 @@
         "files": [
             "main.js",
             "preload.js",
+            "splash-preload.js",
             "splash.html",
-            "build/icon.png"
+            "build/icon.png",
+            "build/icon.ico"
         ],
         "extraResources": [
             {
@@ -44,7 +48,7 @@
             }
         ],
         "win": {
-            "icon": "build/icon.png",
+            "icon": "build/icon.ico",
             "target": [
                 {
                     "target": "nsis",
@@ -65,7 +69,7 @@
         }
     },
     "allowScripts": {
-        "electron@33.4.11": true
+        "electron@44.3.0": true
     },
     "dependencies": {
         "electron-updater": "^6.8.9"

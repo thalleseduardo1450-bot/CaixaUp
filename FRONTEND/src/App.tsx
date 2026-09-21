@@ -24,6 +24,8 @@ import { authService } from "@/services/api/authService";
 import { supabase } from "@/lib/supabase";
 import { autoLoginAtivo, tentarAutoLogin } from "@/utils/autoLogin";
 import { cashRegisterService } from "@/services/api/cashRegisterService";
+import { homeService } from "@/services/api/homeService";
+import { companyService } from "@/services/api/companyService";
 import {
   clearAuthSession,
   getStoredAuthUser,
@@ -31,7 +33,10 @@ import {
   type AuthenticatedUser,
 } from "@/utils/authStorage";
 
-const HomePage = lazy(() => import("@/pages/Admin/HomePage"));
+const loadHomePage = () => import("@/pages/Admin/HomePage");
+const loadPaymentsPage = () => import("@/pages/Admin/PaymentsPage");
+const loadCashRegisterPage = () => import("@/pages/Admin/CashRegisterPage");
+const HomePage = lazy(loadHomePage);
 const CustomerRegisterPage = lazy(
   () => import("@/pages/Admin/CustomerRegisterPage"),
 );
@@ -46,9 +51,9 @@ const SalesStartPage = lazy(() => import("@/pages/Admin/SalesStartPage"));
 const ReportsPage = lazy(() => import("@/pages/Admin/ReportsPage"));
 const UserAccountsPage = lazy(() => import("@/pages/Admin/UserAccountsPage"));
 const FiscalPage = lazy(() => import("@/pages/Admin/FiscalPage"));
-const PaymentsPage = lazy(() => import("@/pages/Admin/PaymentsPage"));
+const PaymentsPage = lazy(loadPaymentsPage);
 const StockPage = lazy(() => import("@/pages/Admin/StockPage"));
-const CashRegisterPage = lazy(() => import("@/pages/Admin/CashRegisterPage"));
+const CashRegisterPage = lazy(loadCashRegisterPage);
 const PurchasesPage = lazy(() => import("@/pages/Admin/PurchasesPage"));
 const ReturnsPage = lazy(() => import("@/pages/Admin/ReturnsPage"));
 const CrmLoyaltyPage = lazy(() => import("@/pages/Admin/CrmLoyaltyPage"));
@@ -64,6 +69,68 @@ const SubscriptionPage = lazy(() => import("@/pages/Admin/SubscriptionPage"));
 const PlatformAdminPage = lazy(() => import("@/pages/Admin/PlatformAdminPage"));
 const ResumeSalesPage = lazy(() => import("@/pages/Admin/ResumeSalesPage"));
 const PROFILE_AVATAR_STORAGE_KEY = "horuspdv.profile.avatar";
+
+/*
+ * A logo é da empresa e mora no banco (empresas.logo). O localStorage é só
+ * cache para aparecer na hora — e por empresa: com a chave global de antes, a
+ * logo de uma empresa aparecia para outra no mesmo computador.
+ */
+function logoCacheKey(companyId: string | undefined) {
+  return companyId ? `${PROFILE_AVATAR_STORAGE_KEY}:${companyId}` : null;
+}
+
+function readCachedLogo(companyId: string | undefined): string | null {
+  const key = logoCacheKey(companyId);
+  if (!key || typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedLogo(companyId: string | undefined, logo: string | null) {
+  const key = logoCacheKey(companyId);
+  if (!key) return;
+  try {
+    if (logo) window.localStorage.setItem(key, logo);
+    else window.localStorage.removeItem(key);
+  } catch {
+    /* cota cheia ou storage bloqueado: a logo continua vindo do banco */
+  }
+}
+
+/** Reduz para no máximo 256 px antes de gravar: cabe folgado no banco e carrega rápido. */
+function shrinkLogo(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("Escolha um arquivo de imagem."));
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, 256 / Math.max(image.width, image.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const context = canvas.getContext("2d");
+      if (!context) {
+        reject(new Error("Não foi possível preparar a imagem."));
+        return;
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Não foi possível ler esta imagem."));
+    };
+    image.src = url;
+  });
+}
+
 const ACTIVE_PAGE_STORAGE_KEY = "horuspdv.activePage";
 const THEME_STORAGE_KEY = "horuspdv.theme";
 const LOGIN_ALIAS = String(import.meta.env.VITE_LOGIN_ALIAS || "").trim();
@@ -178,15 +245,16 @@ function toCurrentUser(user: AuthenticatedUser): CurrentUser {
     email: user.email,
     phone: user.phone,
     permission: formatRole(user.role),
-    avatarUrl:
-      typeof window !== "undefined"
-        ? window.localStorage.getItem(PROFILE_AVATAR_STORAGE_KEY)
-        : null,
+    avatarUrl: readCachedLogo(user.companyId),
   };
 }
 
 export default function App() {
+  useEffect(() => {
+    void Promise.allSettled([loadHomePage(), loadPaymentsPage(), loadCashRegisterPage()]);
+  }, []);
   const pageScrollRef = useRef<HTMLElement | null>(null);
+  const processedOAuthCallbacksRef = useRef(new Set<string>());
   const statusDialog = useStatusDialog();
   const [isRecoveryFlow] = useState(hasSupabaseRecoveryCallback);
   const isStandalonePos =
@@ -234,6 +302,10 @@ export default function App() {
     if (typeof window === "undefined" || isRecoveryFlow) return false;
     return Boolean(getStoredAuthUser());
   });
+  useEffect(() => {
+    if (isAuthenticated) void homeService.get().catch(() => undefined);
+  }, [isAuthenticated]);
+
   const [isCheckingAuth, setIsCheckingAuth] = useState(() => {
     if (typeof window === "undefined") return false;
     return !hasSupabaseRecoveryCallback();
@@ -248,12 +320,37 @@ export default function App() {
       email: storedUser?.email || "",
       phone: storedUser?.phone || "",
       permission: formatRole(storedUser?.role || ""),
-      avatarUrl:
-        typeof window !== "undefined"
-          ? window.localStorage.getItem(PROFILE_AVATAR_STORAGE_KEY)
-          : null,
+      avatarUrl: readCachedLogo(storedUser?.companyId),
     };
   });
+
+  /*
+   * A logo vem do banco da empresa; o cache só adianta a exibição. A chave
+   * antiga sem empresa é descartada: não dá para saber de qual empresa ela era,
+   * e levá-la para a empresa atual poderia mostrar a logo de uma na outra.
+   */
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const companyId = getStoredAuthUser()?.companyId;
+    try {
+      window.localStorage.removeItem(PROFILE_AVATAR_STORAGE_KEY);
+    } catch {
+      /* storage indisponível */
+    }
+    let cancelled = false;
+    void companyService
+      .getLogo()
+      .then((remote) => {
+        // undefined = sem resposta confiável; mantém o que já está na tela.
+        if (cancelled || remote === undefined) return;
+        writeCachedLogo(companyId, remote);
+        setCurrentUser((current) => ({ ...current, avatarUrl: remote }));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
   const [publicAuthPage, setPublicAuthPage] = useState<PublicAuthPage>(() => {
     if (typeof window === "undefined") return "login";
     return hasSupabaseRecoveryCallback() ? "reset-password" : "login";
@@ -279,7 +376,7 @@ export default function App() {
     relatorios: "Relatórios",
     vendas: "Iniciar Vendas",
     fiscal: "Fiscal NFC-e / NF-e",
-    pagamentos: "Pagamentos Integrados",
+    pagamentos: "Pagamentos e Fiado",
     estoque: "Estoque e Inventário",
     caixa: "Abertura e Fechamento de Caixa",
     compras: "Compras e Reposição",
@@ -362,22 +459,23 @@ export default function App() {
     clearAuthSession();
   };
 
-  const handleUploadAvatar = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : null;
-      if (!result) return;
-      window.localStorage.setItem(PROFILE_AVATAR_STORAGE_KEY, result);
-      setCurrentUser((current) => ({ ...current, avatarUrl: result }));
-    };
-    reader.readAsDataURL(file);
+  /*
+   * Só mostra a logo nova depois que o banco aceitou: exibir algo que os outros
+   * usuários não vão ver seria mentir que foi salvo.
+   */
+  const handleUploadAvatar = async (file: File) => {
+    const companyId = getStoredAuthUser()?.companyId;
+    const logo = await shrinkLogo(file);
+    await companyService.saveLogo(logo);
+    writeCachedLogo(companyId, logo);
+    setCurrentUser((current) => ({ ...current, avatarUrl: logo }));
   };
 
-  const handleRemoveAvatar = () => {
-    setCurrentUser((current) => {
-      window.localStorage.removeItem(PROFILE_AVATAR_STORAGE_KEY);
-      return { ...current, avatarUrl: null };
-    });
+  const handleRemoveAvatar = async () => {
+    const companyId = getStoredAuthUser()?.companyId;
+    await companyService.saveLogo(null);
+    writeCachedLogo(companyId, null);
+    setCurrentUser((current) => ({ ...current, avatarUrl: null }));
   };
 
   const handleChangePassword = async (
@@ -644,6 +742,8 @@ export default function App() {
 
   useEffect(() => {
     const completeDesktopOAuth = async (callbackUrl: string) => {
+      if (processedOAuthCallbacksRef.current.has(callbackUrl)) return;
+      processedOAuthCallbacksRef.current.add(callbackUrl);
       try {
         await authService.completeOAuthCallback(callbackUrl);
         const user = await authService.me();
@@ -879,7 +979,7 @@ export default function App() {
     return (
       <>
         <DesktopWindowFrame pageTitle="Frente de caixa" hideWindowControls>
-        <div className="page-enter h-full bg-bg-primary text-text-primary font-sans">
+        <div className="system-stage system-stage--pos page-enter h-full bg-bg-primary text-text-primary font-sans">
           <Suspense
             fallback={
               <div className="flex h-full items-center justify-center text-text-secondary">
@@ -984,10 +1084,10 @@ export default function App() {
         <main
           ref={pageScrollRef}
           data-active-page={activePage}
-          className="flex-1 h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden pt-14 lg:pt-0"
+          className="app-content-scroll flex-1 h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden pt-14 lg:pt-0"
         >
           <AppErrorBoundary key={activePage} title="Não foi possível abrir esta página">
-          <div className="page-enter min-h-full">
+          <div className="system-stage page-enter min-h-full">
             {activePage === "editar-perfil" ? (
               <EditProfilePage
                 userName={currentUser.name}

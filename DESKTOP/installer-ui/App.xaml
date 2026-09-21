@@ -1,0 +1,9 @@
+<Application x:Class="CaixaUp.Instalador.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="Installer.xaml">
+  <!--
+    Os estilos e a paleta vivem em Installer.xaml, junto das telas que eles
+    vestem. Não há nada de global a declarar aqui.
+  -->
+</Application>
