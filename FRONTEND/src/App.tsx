@@ -121,7 +121,10 @@ function shrinkLogo(file: File): Promise<string> {
         return;
       }
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/png"));
+      // WebP fica muito menor que PNG e cabe no limite do corpo da API.
+      // Onde WebP não existir, o navegador devolve PNG — a API aceita os dois.
+      const webp = canvas.toDataURL("image/webp", 0.82);
+      resolve(webp.startsWith("data:image/webp") ? webp : canvas.toDataURL("image/png"));
     };
     image.onerror = () => {
       URL.revokeObjectURL(url);

@@ -4,6 +4,7 @@
  * A empresa é a do perfil do usuário logado.
  */
 import { supabase, currentCompanyId } from "@/lib/supabase";
+import { squareApi } from "@/services/api/squareApi";
 
 export type CompanyDto = {
   fantasyName: string;
@@ -52,31 +53,22 @@ function toCompanyDto(e: EmpresaRow): CompanyDto {
 
 export const companyService = {
   /**
-   * Logo da empresa, compartilhada por todos os usuários dela.
-   * `undefined` = não deu para saber (sem rede, ou a migração 0011 ainda não
-   * foi aplicada); quem chama deve manter o que já tinha.
+   * Logo da empresa, compartilhada por todos os usuários dela. Fica no banco do
+   * Square Cloud, servida pela API (não mais no Supabase nem no navegador).
+   * `undefined` = não deu para saber (sem rede); quem chama mantém o que tinha.
    */
   async getLogo(): Promise<string | null | undefined> {
-    const empresaId = await currentCompanyId();
-    if (!empresaId) return undefined;
-    const { data, error } = await supabase.from("empresas").select("logo").eq("id", empresaId).maybeSingle();
-    if (error || !data) return undefined;
-    return (data as { logo: string | null }).logo ?? null;
+    try {
+      const { logo } = await squareApi<{ logo: string | null }>("/company/logo");
+      return logo ?? null;
+    } catch {
+      return undefined;
+    }
   },
 
-  /** Grava a logo (data URL) ou remove com `null`. A RLS limita a proprietário/administrador. */
+  /** Grava a logo (data URL) ou remove com `null`. A API limita a proprietário/administrador. */
   async saveLogo(logo: string | null) {
-    const empresaId = await currentCompanyId();
-    if (!empresaId) throw new Error("Nenhuma empresa vinculada ao seu usuário.");
-
-    const { data, error } = await supabase
-      .from("empresas")
-      .update({ logo })
-      .eq("id", empresaId)
-      .select("id");
-    if (error) throw new Error("Não foi possível salvar a logo da empresa. Tente novamente.");
-    // Sem erro e sem linha atualizada: a política de update barrou este usuário.
-    if (!data?.length) throw new Error("Só o proprietário ou um administrador pode trocar a logo da empresa.");
+    await squareApi("/company/logo", { method: "PUT", body: JSON.stringify({ logo }) });
   },
 
   async get() {

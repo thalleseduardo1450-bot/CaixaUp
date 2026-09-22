@@ -28,7 +28,6 @@ caixaup-supabase/supabase/migrations/*
 !caixaup-supabase/supabase/migrations/0008_gestao_assinatura.sql
 !caixaup-supabase/supabase/migrations/0009_admin_contas_faturas.sql
 !caixaup-supabase/supabase/migrations/0010_trial_nao_libera_plano_pago.sql
-!caixaup-supabase/supabase/migrations/0011_logo_empresa.sql
 test-smtp.js
 **/appsettings*.json
 
