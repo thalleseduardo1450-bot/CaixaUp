@@ -10,7 +10,7 @@
         "start": "electron .",
         "dist": "electron-builder --win nsis --x64",
         "dist:custom": "node ../gerar-instalador.cjs",
-        "installer:custom": "powershell -NoProfile -ExecutionPolicy Bypass -File installer-ui/empacotar.ps1 -Versao %npm_package_version%",
+        "installer:custom": "powershell -NoProfile -ExecutionPolicy Bypass -File instalador/empacotar.ps1 -Versao %npm_package_version%",
         "dist:publish": "electron-builder --win nsis --x64 --publish always"
     },
     "devDependencies": {
@@ -43,7 +43,7 @@
         ],
         "extraResources": [
             {
-                "from": "../FRONTEND/dist",
+                "from": "../app/dist",
                 "to": "web"
             }
         ],

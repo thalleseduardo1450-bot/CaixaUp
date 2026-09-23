@@ -1,5 +1,5 @@
 /**
- * Arquivo: DESKTOP/main.js
+ * Arquivo: desktop/main.js
  * Objetivo: processo principal do Electron do CaixaUp (frente de caixa).
  *
  * NÃO existe mais banco local nem API .NET: o frontend compilado fala direto
@@ -33,7 +33,7 @@ if (!hasSingleInstanceLock) {
 const packaged = app.isPackaged;
 const webDir = packaged
   ? path.join(process.resourcesPath, "web")
-  : path.join(__dirname, "..", "FRONTEND", "dist");
+  : path.join(__dirname, "..", "app", "dist");
 
 let webServer = null;
 let splash = null;

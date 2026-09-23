@@ -208,10 +208,17 @@ Para visualizar em formato de slides, abra a página inicial e clique em qualque
 ## Estrutura
 
 <pre><code class="language-text">horus_pdv/
-├── API/
-│   └── NETCORE/          # API ASP.NET Core
-├── FRONTEND/             # Aplicação React + Vite
-├── LICENSE
+├── app/                  # Telas do CaixaUp (React + Vite)
+├── desktop/              # Programa para Windows (Electron)
+│   ├── instalador/       # Tela do instalador (WPF)
+│   └── release/          # Instaladores gerados
+├── servidor/             # API do Square Cloud (Node + PostgreSQL)
+│   └── pacotes/          # Zips de publicação
+├── site/                 # Site caixaup.store
+├── supabase/             # Login, perfis e empresa (Supabase)
+├── docs/                 # Guias
+├── legado/               # Código antigo (.NET), fora de uso
+├── gerar-instalador.bat  # Gera o instalador do Windows
 └── README.md
 </code></pre>
 
@@ -231,7 +238,7 @@ cd horus_pdv
 
 ### 2. Configurar o frontend
 
-<pre><code class="language-bash">cd FRONTEND
+<pre><code class="language-bash">cd app
 cp .env.example .env
 npm install
 </code></pre>
@@ -255,7 +262,7 @@ Se o container já existir e estiver parado:
 
 Em outro terminal:
 
-<pre><code class="language-bash">cd API/NETCORE
+<pre><code class="language-bash">cd legado/api-netcore
 dotnet restore
 dotnet run --urls http://localhost:5260
 </code></pre>
@@ -267,7 +274,7 @@ Swagger local:
 
 ### 4. Subir o frontend
 
-<pre><code class="language-bash">cd FRONTEND
+<pre><code class="language-bash">cd app
 npm run dev
 </code></pre>
 
@@ -294,17 +301,17 @@ VITE_RECAPTCHA_SITE_KEY=
 
 Arquivos disponíveis:
 
-- `FRONTEND/.env.example`
-- `FRONTEND/.env.development`
-- `FRONTEND/.env.prod`
+- `app/.env.example`
+- `app/.env.development`
+- `app/.env.prod`
 
-Na API, `API/NETCORE/appsettings.json` fica sem segredos reais. Para desenvolvimento local, use `API/NETCORE/appsettings.Development.json`, variáveis de ambiente ou User Secrets. Em produção, configure connection string, `Auth:JwtSecret`, `Security:EncryptionKey`, CORS, reCAPTCHA e SMTP fora do repositório.
+Na API, `legado/api-netcore/appsettings.json` fica sem segredos reais. Para desenvolvimento local, use `legado/api-netcore/appsettings.Development.json`, variáveis de ambiente ou User Secrets. Em produção, configure connection string, `Auth:JwtSecret`, `Security:EncryptionKey`, CORS, reCAPTCHA e SMTP fora do repositório.
 
 ## Scripts
 
 ### Frontend
 
-<pre><code class="language-bash">cd FRONTEND
+<pre><code class="language-bash">cd app
 npm run dev          # servidor local Vite
 npm run dev:dev      # Vite em modo development
 npm run dev:prod     # Vite em modo prod
@@ -325,7 +332,7 @@ Para ajustar o ritmo do vídeo demonstrativo:
 
 ### API .NET
 
-<pre><code class="language-bash">cd API/NETCORE
+<pre><code class="language-bash">cd legado/api-netcore
 dotnet restore
 dotnet build
 dotnet run --urls http://localhost:5260
@@ -339,20 +346,20 @@ Pré-requisito: Docker Desktop e SQL Server local precisam estar rodando antes d
 
 Primeiro uso na máquina:
 
-<pre><code class="language-bash">cd FRONTEND
+<pre><code class="language-bash">cd app
 npm run smoke:install
 npm run smoke
 </code></pre>
 
 Execução recorrente:
 
-<pre><code class="language-bash">cd FRONTEND
+<pre><code class="language-bash">cd app
 npm run smoke
 </code></pre>
 
 Execução para conferir dados no banco:
 
-<pre><code class="language-bash">cd FRONTEND
+<pre><code class="language-bash">cd app
 npm run smoke:keep
 </code></pre>
 
@@ -375,7 +382,7 @@ docker start sqlserver2025
 O script `smoke:keep` usa `SMOKE_RUN_ID=SMOKE_CONFERE` e `SMOKE_KEEP_DATA=1`.
 Se quiser outro prefixo manualmente:
 
-<pre><code class="language-bash">cd FRONTEND
+<pre><code class="language-bash">cd app
 SMOKE_RUN_ID=SMOKE_CONFERE SMOKE_KEEP_DATA=1 npm run smoke
 </code></pre>
 
@@ -385,8 +392,8 @@ Depois procure no banco por `SMOKE_CONFERE%` em `Usuarios`, `Clientes`, `Fornece
 
 Última validação local executada em **10/06/2026**:
 
-<pre><code class="language-bash">dotnet build API/NETCORE/HORUSPDV-API.sln
-cd FRONTEND
+<pre><code class="language-bash">dotnet build legado/api-netcore/HORUSPDV-API.sln
+cd app
 npm run build
 npm run smoke
 </code></pre>
@@ -418,7 +425,7 @@ Para escolhas booleanas voltadas ao usuário final, use sempre o controle segmen
 
 Componente padrão:
 
-<pre><code class="language-text">FRONTEND/src/components/Form/YesNoSegmentedControl.tsx
+<pre><code class="language-text">app/src/components/Form/YesNoSegmentedControl.tsx
 </code></pre>
 
 Uso:
@@ -465,7 +472,7 @@ Tabelas principais:
 
 Script principal:
 
-<pre><code class="language-text">API/NETCORE/DataBase/Resumo.sql
+<pre><code class="language-text">legado/api-netcore/DataBase/Resumo.sql
 </code></pre>
 
 ## Roadmap
@@ -485,9 +492,9 @@ Contribuições são bem-vindas.
 Fluxo sugerido:
 
 <pre><code class="language-bash">git checkout -b feature/minha-melhoria
-npm --prefix FRONTEND run lint
-npm --prefix FRONTEND run build:prod
-dotnet build API/NETCORE
+npm --prefix app run lint
+npm --prefix app run build:prod
+dotnet build legado/api-netcore
 </code></pre>
 
 Antes de abrir um pull request:

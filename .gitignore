@@ -15,19 +15,18 @@ node_modules/
 # Build output
 dist/
 release/
-DESKTOP/api-build/
-DESKTOP/vendor/
-/API/
-caixaup-supabase/
-!caixaup-supabase/
-caixaup-supabase/*
-!caixaup-supabase/supabase/
-caixaup-supabase/supabase/*
-!caixaup-supabase/supabase/migrations/
-caixaup-supabase/supabase/migrations/*
-!caixaup-supabase/supabase/migrations/0008_gestao_assinatura.sql
-!caixaup-supabase/supabase/migrations/0009_admin_contas_faturas.sql
-!caixaup-supabase/supabase/migrations/0010_trial_nao_libera_plano_pago.sql
+# Servidor (API do Square Cloud) e código antigo ficam fora do git, como antes.
+/servidor/
+/legado/
+# Supabase: só as migrações publicadas entram no git.
+/supabase/*
+!/supabase/supabase/
+/supabase/supabase/*
+!/supabase/supabase/migrations/
+/supabase/supabase/migrations/*
+!/supabase/supabase/migrations/0008_gestao_assinatura.sql
+!/supabase/supabase/migrations/0009_admin_contas_faturas.sql
+!/supabase/supabase/migrations/0010_trial_nao_libera_plano_pago.sql
 test-smtp.js
 **/appsettings*.json
 

@@ -117,7 +117,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_SUA_CHAVE
 
 # ETAPA 2 — Configurar React + Supabase ✅ (concluída)
 
-**O que fizemos:** criamos um app React novo (`caixaup-supabase/`) e o
+**O que fizemos:** criamos um app React novo (`supabase/`) e o
 conectamos ao seu projeto Supabase.
 
 - `npm install @supabase/supabase-js` (a ponte React ↔ Supabase)
@@ -169,7 +169,7 @@ O login por e-mail/senha já vem **ligado por padrão**. Você só precisa:
 
 ---
 
-## 3.2 — Arquivos criados (todos dentro de `caixaup-supabase/src/`)
+## 3.2 — Arquivos criados (todos dentro de `supabase/src/`)
 
 | Arquivo | Função |
 |---|---|
@@ -246,14 +246,14 @@ O login por e-mail/senha já vem **ligado por padrão**. Você só precisa:
 
 **O que faz:** cria as 12 tabelas do CaixaUp (empresas, perfis, categorias, produtos, clientes, caixas, sessoes_caixa, movimentacoes_caixa, vendas, itens_venda, pagamentos, movimentacoes_estoque) no PostgreSQL do seu projeto Supabase, com segurança RLS e dados de demonstração.
 
-**Arquivo com o SQL completo:** `caixaup-supabase/supabase/migrations/0001_caixaup_schema.sql`
+**Arquivo com o SQL completo:** `supabase/supabase/migrations/0001_caixaup_schema.sql`
 
 ## Passo a passo (2 minutos)
 
 1. Abra o painel do Supabase → **https://supabase.com/dashboard** → clique no projeto **caixaup**
 2. Menu lateral esquerdo → **SQL Editor** (ícone `>_`)
 3. Clique em **"+ New query"** (ou "Nova consulta")
-4. **Abra o arquivo** `caixaup-supabase\supabase\migrations\0001_caixaup_schema.sql` no Bloco de Notas (clique direito → Abrir com → Bloco de Notas), pressione `Ctrl+A` (selecionar tudo) e `Ctrl+C` (copiar)
+4. **Abra o arquivo** `supabase\supabase\migrations\0001_caixaup_schema.sql` no Bloco de Notas (clique direito → Abrir com → Bloco de Notas), pressione `Ctrl+A` (selecionar tudo) e `Ctrl+C` (copiar)
 5. Volte ao Supabase, clique dentro do editor e pressione `Ctrl+V` (colar)
 6. Clique no botão azul **"Run"** (ou `Ctrl+Enter`)
 7. Deve aparecer **"Success. No rows returned"** e o tempo de execução (ex.: ~0.4s)

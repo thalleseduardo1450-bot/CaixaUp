@@ -5,7 +5,7 @@ const { spawn, spawnSync } = require('node:child_process');
 const readline = require('node:readline/promises');
 
 const ROOT = __dirname;
-const OFFICIAL_ICON = path.join(ROOT, 'DESKTOP', 'build', 'icon.png');
+const OFFICIAL_ICON = path.join(ROOT, 'desktop', 'build', 'icon.png');
 
 function validateVersion(value) {
   const version = String(value).trim();
@@ -154,8 +154,8 @@ async function main() {
     say('Feche somente uma eventual compilação anterior. Não é necessário apagar dados ou desinstalar o CaixaUp.\n');
     const [major, minor] = process.versions.node.split('.').map(Number);
     if (major < 22 || (major === 22 && minor < 12)) throw new Error('Instale Node.js 22.12 ou superior.');
-    const frontend = path.join(ROOT, 'FRONTEND');
-    const desktop = path.join(ROOT, 'DESKTOP');
+    const frontend = path.join(ROOT, 'app');
+    const desktop = path.join(ROOT, 'desktop');
     const packageFile = path.join(desktop, 'package.json');
     const lockFile = path.join(desktop, 'package-lock.json');
     for (const file of [packageFile, lockFile, path.join(frontend, 'package.json'), path.join(frontend, 'package-lock.json')]) {
@@ -220,7 +220,7 @@ async function main() {
     fs.writeFileSync(lockFile, `${JSON.stringify(lock, null, 4)}\n`);
     step = '[3/6] Compilar telas do CaixaUp';
     await run(step, ['run', 'build:desktop'], frontend);
-    if (!fs.existsSync(path.join(frontend, 'dist', 'index.html'))) throw new Error('A compilação não produziu FRONTEND/dist/index.html.');
+    if (!fs.existsSync(path.join(frontend, 'dist', 'index.html'))) throw new Error('A compilação não produziu app/dist/index.html.');
     step = '[4/6] Gerar instalador Windows';
     const packagingStarted = Date.now();
     await run(step, ['run', 'dist', '--', '--publish', 'never'], desktop);
