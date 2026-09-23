@@ -1,3 +1,4 @@
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
@@ -89,6 +90,42 @@ function verifyArtifact(file, started) {
   return stat;
 }
 
+function sha512Base64(file) {
+  const hash = crypto.createHash('sha512');
+  const buffer = Buffer.allocUnsafe(4 * 1024 * 1024);
+  const descriptor = fs.openSync(file, 'r');
+  try {
+    let read = 0;
+    while ((read = fs.readSync(descriptor, buffer, 0, buffer.length)) > 0) hash.update(buffer.subarray(0, read));
+  } finally { fs.closeSync(descriptor); }
+  return hash.digest('base64');
+}
+
+/**
+ * O electron-updater baixa o arquivo, confere tamanho e sha512 e o executa em
+ * modo silencioso (/S). Por isso o feed aponta para o setup NSIS: o instalador
+ * personalizado (WPF) ignora /S e abriria o assistente inteiro no meio da
+ * atualização. O personalizado serve para a primeira instalação.
+ */
+function writeUpdateFeed(releaseDirectory, version, artifact) {
+  const stat = fs.statSync(artifact);
+  const name = path.basename(artifact);
+  const hash = sha512Base64(artifact);
+  const feed = [
+    `version: ${version}`,
+    'files:',
+    `  - url: ${name}`,
+    `    sha512: ${hash}`,
+    `    size: ${stat.size}`,
+    `path: ${name}`,
+    `sha512: ${hash}`,
+    `releaseDate: '${new Date().toISOString()}'`,
+    '',
+  ].join('\n');
+  fs.writeFileSync(path.join(releaseDirectory, 'latest.yml'), feed, 'utf8');
+  return { name, hash, size: stat.size };
+}
+
 async function main() {
   let step = 'Conferir o projeto';
   let logFile;
@@ -166,14 +203,14 @@ async function main() {
     for (const file of [installer, customInstaller, `${installer}.blockmap`, path.join(release, 'latest.yml')]) {
       if (fs.existsSync(file)) fs.copyFileSync(file, path.join(backupDir, path.basename(file)));
     }
-    step = '[1/5] Conferir ferramentas e dependências';
+    step = '[1/6] Conferir ferramentas e dependências';
     await run(step, ['--version'], ROOT);
     for (const [directory, required] of [[frontend, ['typescript', 'vite']], [desktop, ['electron-builder']]]) {
       if (required.some(name => !fs.existsSync(path.join(directory, 'node_modules', name, 'package.json')))) {
         await run('Instalando dependências das versões registradas no projeto', ['ci', '--no-audit', '--no-fund'], directory);
       }
     }
-    step = '[2/5] Aplicar versão e logo';
+    step = '[2/6] Aplicar versão e logo';
     say(`\n${step}`);
     const { pkg, lock } = updateMetadata(packageData, lockData, version);
     fs.mkdirSync(path.dirname(targetIcon), { recursive: true });
@@ -181,21 +218,30 @@ async function main() {
     createWindowsIcon(targetIcon, windowsIcon);
     fs.writeFileSync(packageFile, `${JSON.stringify(pkg, null, 4)}\n`);
     fs.writeFileSync(lockFile, `${JSON.stringify(lock, null, 4)}\n`);
-    step = '[3/5] Compilar telas do CaixaUp';
+    step = '[3/6] Compilar telas do CaixaUp';
     await run(step, ['run', 'build:desktop'], frontend);
     if (!fs.existsSync(path.join(frontend, 'dist', 'index.html'))) throw new Error('A compilação não produziu FRONTEND/dist/index.html.');
-    step = '[4/5] Gerar instalador Windows';
+    step = '[4/6] Gerar instalador Windows';
     const packagingStarted = Date.now();
     await run(step, ['run', 'dist', '--', '--publish', 'never'], desktop);
     const stat = verifyArtifact(installer, packagingStarted);
-    step = '[5/5] Gerar e validar instalador personalizado com animacao';
+    step = '[5/6] Gerar e validar instalador personalizado com animacao';
     const customStarted = Date.now();
     await run(step, ['run', 'installer:custom'], desktop);
     const customStat = verifyArtifact(customInstaller, customStarted);
-    say(`\nINSTALADOR PERSONALIZADO: ${customInstaller}\nTamanho: ${(customStat.size / 1024 / 1024).toFixed(1)} MB\nUse este arquivo para instalar com a interface animada.\nO CaixaUp-Setup continua sendo o pacote da atualizacao automatica.`);
+    say(`\nINSTALADOR PERSONALIZADO: ${customInstaller}\nTamanho: ${(customStat.size / 1024 / 1024).toFixed(1)} MB\nUse este arquivo para a primeira instalacao na loja.`);
+    step = '[6/6] Apontar a atualizacao automatica para o setup NSIS';
+    const feed = writeUpdateFeed(release, version, installer);
+    say(`\nAtualizacao automatica: ${path.join(release, 'latest.yml')}\nArquivo publicado: ${feed.name} (${feed.size} bytes)\nsha512: ${feed.hash}`);
     say(`\nCONCLUÍDO | CaixaUp ${version}\nInstalador: ${installer}\nTamanho: ${(stat.size / 1024 / 1024).toFixed(1)} MB\nTempo total: ${Math.ceil((Date.now() - started) / 1000)} segundos.`);
     say('Para instalar: feche o CaixaUp, abra o instalador e siga as instruções na tela.');
-    say('Para publicar atualização automática: envie o EXE, seu .blockmap e o latest.yml correspondentes à mesma compilação.');
+    say('Para publicar atualização automática: crie/edite a release do GitHub com a tag v' + version + ' e envie estes arquivos da mesma compilação:');
+    say(`  1) ${installer}`);
+    say(`  2) ${installer}.blockmap`);
+    say(`  3) ${path.join(release, 'latest.yml')}`);
+    say(`  4) ${customInstaller}  (opcional: para quem vai instalar pela primeira vez)`);
+    say('O electron-updater confere tamanho e sha512 do arquivo baixado; enviar o latest.yml de outra compilação faz a atualização falhar.');
+    say('Sem o setup NSIS e o blockmap na release, os clientes recebem 404 ao atualizar.');
     say(`Guarde o log caso precise de suporte: ${logFile}`);
   } catch (error) {
     for (const [file, original] of originals) {
@@ -211,5 +257,5 @@ async function main() {
   }
 }
 
-module.exports = { validateVersion, validateIcon, updateMetadata, verifyArtifact };
+module.exports = { validateVersion, validateIcon, updateMetadata, writeUpdateFeed, verifyArtifact };
 if (require.main === module) void main();
