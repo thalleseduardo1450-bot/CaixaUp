@@ -1,5 +1,10 @@
 # Novidades do CaixaUp
 
+## 3.3.51
+
+- Volta o vídeo de abertura do CaixaUp (a 3.3.50 foi publicada sem o instalador).
+- Mantém as telas da 3.3.47 (Pagamentos e Fiado, cupom, Fiscal) e o registro de falhas de rede.
+
 ## 3.3.50
 
 - Volta o vídeo de abertura do CaixaUp. Os vídeos agora vão dentro do instalador e da atualização automática.

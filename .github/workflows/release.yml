@@ -63,6 +63,23 @@ jobs:
             git push origin "refs/tags/$tag"
           fi
 
+      # Cria o release antes do electron-builder: se ele mesmo criar, o .exe e o
+      # .blockmap sobem em paralelo, cada um cria um release e os arquivos se
+      # dividem entre dois releases com a mesma tag (aconteceu na 3.3.49/3.3.50).
+      - name: Criar o release com as notas do CHANGELOG
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          versao=$(node -p "require('./DESKTOP/package.json').version")
+          if gh release view "v$versao" >/dev/null 2>&1; then
+            echo "Release v$versao já existe"
+          else
+            awk -v v="## $versao" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md > notas.md
+            [ -s notas.md ] || echo "CaixaUp $versao" > notas.md
+            gh release create "v$versao" --title "CaixaUp $versao" --notes-file notas.md --verify-tag
+          fi
+
       # Se DESKTOP/telas-do-release.txt existir (ex.: "3.3.47"), as telas vêm
       # prontas do instalador daquele release em vez de serem compiladas de app/.
       # Usado enquanto o código mais novo das telas não está no GitHub.
