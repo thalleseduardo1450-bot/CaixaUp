@@ -1,0 +1,65 @@
+name: Publicar instalador
+
+# Ao enviar uma tag vX.Y.Z, gera o CaixaUp-Setup-X.Y.Z.exe no Windows e
+# publica no release do GitHub junto com latest.yml e .blockmap, que a
+# atualização automática dos computadores instalados usa.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  instalador:
+    runs-on: windows-latest
+    env:
+      # Valores públicos: já vão dentro do app instalado.
+      VITE_SUPABASE_URL: https://tugtruobxcfulbcipbkh.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_SQdUlF0ytdANtZZRt8FkTQ_xD429GIs
+      VITE_SQUARE_API_URL: https://caixaup-api.squareweb.app
+      VITE_LOGIN_ALIAS: ${{ vars.VITE_LOGIN_ALIAS }}
+      VITE_LOGIN_EMAIL: ${{ vars.VITE_LOGIN_EMAIL }}
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Conferir versão da tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          versao=$(node -p "require('./DESKTOP/package.json').version")
+          if [ "v$versao" != "$GITHUB_REF_NAME" ]; then
+            echo "A tag $GITHUB_REF_NAME não bate com a versão $versao do DESKTOP/package.json"
+            exit 1
+          fi
+
+      - name: Compilar a tela
+        working-directory: app
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Gerar e publicar o instalador
+        working-directory: DESKTOP
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm ci --no-audit --no-fund
+          npx electron-builder --win nsis --x64 --publish always
+
+      - name: Guardar o instalador
+        uses: actions/upload-artifact@v4
+        with:
+          name: CaixaUp-instalador
+          path: |
+            DESKTOP/release/*.exe
+            DESKTOP/release/*.blockmap
+            DESKTOP/release/latest.yml
