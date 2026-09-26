@@ -128,7 +128,7 @@ function startWebServer() {
       res.setHeader("Referrer-Policy", "no-referrer");
       res.setHeader(
         "Content-Security-Policy",
-        `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://caixaup-api.squareweb.app https://viacep.com.br https://brasilapi.com.br https://opencep.com https://world.openfoodfacts.org; frame-src ${WEB_ORIGIN}/opening-motion.html; base-uri 'self'; object-src 'none'; frame-ancestors ${isOpeningMotion ? "'self'" : "'none'"}; form-action 'self'`,
+        `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://caixaup-api.squareweb.app https://viacep.com.br https://brasilapi.com.br https://opencep.com https://world.openfoodfacts.org; frame-src ${WEB_ORIGIN}/opening-motion.html; base-uri 'self'; object-src 'none'; frame-ancestors ${isOpeningMotion ? "'self'" : "'none'"}; form-action 'self'`,
       );
       res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
       res.setHeader("Cache-Control", "no-store");
@@ -340,6 +340,7 @@ function createMainWindow() {
   });
   mainWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
   mainWindow.webContents.session.setPermissionCheckHandler(() => false);
+  watchNetworkFailures(mainWindow.webContents.session);
 
   mainWindow.webContents.on("console-message", (_e, nivel, mensagem, linha, origem) => {
     if (nivel < 2) return;
@@ -411,6 +412,38 @@ function createMainWindow() {
       if (window !== mainWindow && !window.isDestroyed()) window.destroy();
     });
   });
+}
+
+// Guarda a última falha de rede de cada servidor para a tela explicar o
+// "Failed to fetch" (relógio errado, certificado, DNS, antivírus, proxy...).
+const NETWORK_FAILURE_TTL_MS = 60_000;
+const networkFailures = new Map();
+
+function getNetworkLogPath() {
+  return path.join(app.getPath("userData"), "caixaup-network.log");
+}
+
+function watchNetworkFailures(targetSession) {
+  targetSession.webRequest.onErrorOccurred({ urls: ["https://*/*", "wss://*/*"] }, (details) => {
+    if (details.error === "net::ERR_ABORTED") return;
+    let host = "";
+    try {
+      host = new URL(details.url).host;
+    } catch {
+      return;
+    }
+    networkFailures.set(host, { error: details.error, host, at: Date.now() });
+    try {
+      fs.appendFileSync(getNetworkLogPath(), `${new Date().toISOString()} ${details.method} ${host} ${details.error}\n`);
+    } catch {}
+  });
+}
+
+function lastNetworkFailure(host) {
+  if (typeof host !== "string" || !host) return null;
+  const failure = networkFailures.get(host);
+  if (!failure || Date.now() - failure.at > NETWORK_FAILURE_TTL_MS) return null;
+  return { error: failure.error, host: failure.host };
 }
 
 function sanitizarUserAgent() {
@@ -704,6 +737,7 @@ function configureDesktopIpc() {
     packaged,
   }));
   handleDesktopIpc("desktop:update-status", () => updateStatus);
+  handleDesktopIpc("desktop:network:last-failure", (host) => lastNetworkFailure(host));
   handleDesktopIpc("desktop:update-check", async () => {
     if (!packaged) {
       return { status: "development", message: "Disponível somente no aplicativo instalado" };

@@ -1,5 +1,14 @@
 # Novidades do CaixaUp
 
+## 3.3.48
+
+### Conexão em outros computadores ("Failed to fetch")
+
+- Leituras que falham por rede são repetidas automaticamente uma vez antes de mostrar erro.
+- No lugar de "Failed to fetch", o CaixaUp mostra o motivo real: data/hora do Windows errada, certificado recusado (antivírus com proteção HTTPS), DNS, proxy, firewall ou falta de internet.
+- Falhas de rede ficam registradas em `caixaup-network.log` na pasta de dados do CaixaUp, para suporte.
+- A política de segurança da tela libera a API do CaixaUp e as consultas de CEP e código de barras.
+
 ## 3.3.28
 
 ### Catálogo completo de produtos

@@ -4,6 +4,7 @@
  * As variáveis vêm de .env (VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY).
  */
 import { createClient } from "@supabase/supabase-js";
+import { resilientFetch } from "@/utils/networkFetch";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
@@ -21,6 +22,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     persistSession: true,
     autoRefreshToken: true,
   },
+  global: { fetch: resilientFetch },
 });
 
 /**

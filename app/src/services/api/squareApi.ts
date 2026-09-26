@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { getStoredAuthUser } from "@/utils/authStorage";
+import { resilientFetch } from "@/utils/networkFetch";
 
 /* ============================================================
    CONFIGURAÇÕES
@@ -47,7 +48,7 @@ async function apiFetch(
   const timeout = reading ? AbortSignal.timeout(20000) : undefined;
   const signal = timeout && init.signal ? AbortSignal.any([timeout, init.signal]) : timeout || init.signal;
   try {
-    return await fetch(`${API_URL}${path}`, {
+    return await resilientFetch(`${API_URL}${path}`, {
       ...init,
       headers,
       signal,
