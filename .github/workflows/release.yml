@@ -63,11 +63,28 @@ jobs:
             git push origin "refs/tags/$tag"
           fi
 
+      # Se DESKTOP/telas-do-release.txt existir (ex.: "3.3.47"), as telas vêm
+      # prontas do instalador daquele release em vez de serem compiladas de app/.
+      # Usado enquanto o código mais novo das telas não está no GitHub.
       - name: Compilar a tela
+        if: ${{ hashFiles('DESKTOP/telas-do-release.txt') == '' }}
         working-directory: app
         run: |
           npm ci --no-audit --no-fund
           npm run build
+
+      - name: Usar as telas de um release publicado
+        if: ${{ hashFiles('DESKTOP/telas-do-release.txt') != '' }}
+        shell: bash
+        run: |
+          base=$(tr -d '[:space:]' < DESKTOP/telas-do-release.txt)
+          curl -fsSL -o base.exe "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${base}/CaixaUp-Setup-${base}.exe"
+          7z x -y -obase base.exe > /dev/null
+          7z x -y -obase/app 'base/$PLUGINSDIR/app-64.7z' 'resources/web/*' > /dev/null
+          rm -rf app/dist
+          mv base/app/resources/web app/dist
+          test -f app/dist/index.html
+          echo "Telas da versão $base: $(ls app/dist/assets | wc -l) arquivos"
 
       - name: Gerar e publicar o instalador
         working-directory: DESKTOP

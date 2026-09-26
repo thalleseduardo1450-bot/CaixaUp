@@ -1,5 +1,13 @@
 # Novidades do CaixaUp
 
+## 3.3.49
+
+### Telas da 3.3.47 de volta
+
+- Volta a tela Pagamentos e Fiado, a pré-visualização do cupom e as telas Fiscal, Painel, PDV e Configurações como estavam na 3.3.47 (a 3.3.48 saiu com telas antigas).
+- Mantém do programa desktop da 3.3.48 o registro de falhas de rede em `caixaup-network.log`.
+- As mensagens explicando o "Failed to fetch" voltam quando o código mais novo das telas estiver no GitHub.
+
 ## 3.3.48
 
 ### Conexão em outros computadores ("Failed to fetch")
