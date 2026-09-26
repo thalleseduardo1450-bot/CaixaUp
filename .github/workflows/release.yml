@@ -101,7 +101,8 @@ jobs:
           rm -rf app/dist
           mv base/app/resources/web app/dist
           test -f app/dist/index.html
-          # Vídeos da abertura ficam em app/public/startup (não iam nos instaladores antigos).
+          # O electron-builder guarda .mp4/.webm fora do app-64.7z, então eles não vêm na
+          # extração acima; os vídeos da abertura saem de app/public/startup.
           mkdir -p app/dist/startup
           cp -f app/public/startup/* app/dist/startup/
           echo "Telas da versão $base: $(ls app/dist/assets | wc -l) arquivos"
