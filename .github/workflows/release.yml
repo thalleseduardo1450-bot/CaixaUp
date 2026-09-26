@@ -1,12 +1,20 @@
 name: Publicar instalador
 
-# Ao enviar uma tag vX.Y.Z, gera o CaixaUp-Setup-X.Y.Z.exe no Windows e
-# publica no release do GitHub junto com latest.yml e .blockmap, que a
-# atualização automática dos computadores instalados usa.
+# Quando a versão do DESKTOP/package.json muda (ou ao enviar uma tag vX.Y.Z),
+# gera o CaixaUp-Setup-X.Y.Z.exe no Windows e publica no release vX.Y.Z do
+# GitHub junto com latest.yml e .blockmap, que a atualização automática dos
+# computadores instalados usa. Um release já publicado não é sobrescrito.
 on:
   push:
     tags:
       - "v*"
+    branches:
+      - main
+      - "manutencao/**"
+      - "claude/**"
+    paths:
+      - DESKTOP/package.json
+      - .github/workflows/release.yml
   workflow_dispatch:
 
 permissions:
