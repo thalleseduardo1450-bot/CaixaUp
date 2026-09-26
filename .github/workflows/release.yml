@@ -49,6 +49,20 @@ jobs:
             exit 1
           fi
 
+      # O GitHub só publica release com tag existente. Tag criada com o
+      # GITHUB_TOKEN não dispara esta automação de novo.
+      - name: Criar tag da versão
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        shell: bash
+        run: |
+          tag="v$(node -p "require('./DESKTOP/package.json').version")"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "Tag $tag já existe"
+          else
+            git tag "$tag"
+            git push origin "refs/tags/$tag"
+          fi
+
       - name: Compilar a tela
         working-directory: app
         run: |
