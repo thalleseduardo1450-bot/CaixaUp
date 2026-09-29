@@ -66,6 +66,8 @@ jobs:
       # Cria o release antes do electron-builder: se ele mesmo criar, o .exe e o
       # .blockmap sobem em paralelo, cada um cria um release e os arquivos se
       # dividem entre dois releases com a mesma tag (aconteceu na 3.3.49/3.3.50).
+      # Nasce como rascunho: os computadores só enxergam a versão depois que
+      # todos os arquivos subiram (ver "Liberar o release" no fim).
       - name: Criar o release com as notas do CHANGELOG
         shell: bash
         env:
@@ -77,7 +79,7 @@ jobs:
           else
             awk -v v="## $versao" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md > notas.md
             [ -s notas.md ] || echo "CaixaUp $versao" > notas.md
-            gh release create "v$versao" --title "CaixaUp $versao" --notes-file notas.md --verify-tag
+            gh release create "v$versao" --title "CaixaUp $versao" --notes-file notas.md --verify-tag --draft
           fi
 
       # Se DESKTOP/telas-do-release.txt existir (ex.: "3.3.47"), as telas vêm
@@ -117,6 +119,26 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npx electron-builder --win nsis --x64 --publish always
+
+      # Só libera o release se o instalador e o latest.yml estiverem nele. Um
+      # release vazio ou pela metade quebrava a atualização automática (3.3.50).
+      - name: Liberar o release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          versao=$(node -p "require('./DESKTOP/package.json').version")
+          arquivos=$(gh release view "v$versao" --json assets --jq '.assets[].name')
+          echo "$arquivos"
+          for esperado in "CaixaUp-Setup-$versao.exe" "latest.yml" "CaixaUp-Setup-$versao.exe.blockmap"; do
+            if ! grep -qxF "$esperado" <<< "$arquivos"; then
+              echo "::error::Falta $esperado no release v$versao; o release fica como rascunho."
+              exit 1
+            fi
+          done
+          if [ "$(gh release view "v$versao" --json isDraft --jq .isDraft)" = "true" ]; then
+            gh release edit "v$versao" --draft=false --latest
+          fi
 
       - name: Guardar o instalador
         uses: actions/upload-artifact@v4

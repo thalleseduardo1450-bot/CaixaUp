@@ -1,5 +1,21 @@
 # Novidades do CaixaUp
 
+## 3.3.53
+
+### Atualização sem fechar o caixa
+
+- A atualização automática não fecha mais o CaixaUp no meio da venda. A versão nova é baixada e instalada quando o CaixaUp é fechado, ou sozinha depois de 10 minutos com o computador parado.
+- Os arquivos de registro (`caixaup-network.log` e outros) têm tamanho limitado e não crescem mais sem parar.
+- A publicação só libera a versão para os computadores quando o instalador e o arquivo de atualização estão completos no GitHub (evita versão pela metade como na 3.3.50).
+
+### Junto com a API nova (servidor_otimizado_v5)
+
+- Se a conexão cair ao finalizar e o carrinho for alterado antes de tentar de novo, o caixa avisa que a venda já tinha sido registrada, em vez de sumir com os itens novos.
+- Editar uma venda mantém a data e o caixa originais (antes a venda ia para o dia e o caixa da edição).
+- Cliente com fiado em aberto não pode ser excluído.
+- Histórico de vendas abre mais rápido com muitas vendas.
+- Servidor fora do ar mostra "serviço indisponível" em vez de pedir login de novo.
+
 ## 3.3.52
 
 ### Manutenção do caixa (finalizar venda)
