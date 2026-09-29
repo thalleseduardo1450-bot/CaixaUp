@@ -106,6 +106,9 @@ jobs:
           mkdir -p app/dist/startup
           cp -f app/public/startup/* app/dist/startup/
           echo "Telas da versão $base: $(ls app/dist/assets | wc -l) arquivos"
+          # Correções das telas prontas (catálogo do PDV, rascunho, rede). Para com
+          # erro se algum trecho não for encontrado.
+          if [ -f "DESKTOP/patches/telas-$base.mjs" ]; then node "DESKTOP/patches/telas-$base.mjs" app/dist; fi
 
       - name: Gerar e publicar o instalador
         working-directory: DESKTOP

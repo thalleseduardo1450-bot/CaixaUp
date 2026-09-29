@@ -1,5 +1,15 @@
 # Novidades do CaixaUp
 
+## 3.3.52
+
+### Manutenção do caixa (finalizar venda)
+
+- O PDV atualiza sozinho a lista de produtos (preço e estoque) a cada 30 segundos e ao voltar para a janela. Antes ela só era carregada ao abrir o caixa, e com mais de um computador a venda era recusada ao finalizar ("Os preços mudaram" ou "Estoque insuficiente").
+- Computador com o armazenamento cheio não bloqueia mais a venda ("Não foi possível salvar a recuperação local").
+- Envios ao servidor têm tempo limite: o botão não fica mais "Enviando..." para sempre.
+- Falhas de internet mostram o motivo (relógio errado, antivírus, DNS, proxy) no lugar de "Failed to fetch", inclusive no login.
+- Junto com a API nova (servidor_otimizado_v4): venda aceita com o preço mostrado na tela quando o cadastro mudou no meio da venda, edição de produto não apaga mais o estoque vendido em outros caixas, e falha momentânea do login não derruba a sessão.
+
 ## 3.3.51
 
 - Volta o vídeo de abertura do CaixaUp (a 3.3.50 foi publicada sem o instalador).
