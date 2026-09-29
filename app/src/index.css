@@ -624,10 +624,6 @@
     min-height: 2.5rem;
   }
 
-  html[data-fit-small-screens="true"] .pdv-total-block {
-    padding: 0.5rem 0.75rem;
-  }
-
   html[data-fit-small-screens="true"] .pdv-checkout-btn {
     padding-top: 0.75rem;
     padding-bottom: 0.75rem;
@@ -1348,23 +1344,6 @@ html[data-theme="dark"] .pdv-tile:focus-visible {
   /* Fundo da mesma cor do texto, forte o bastante para ler de longe no balcão. */
   background: color-mix(in srgb, currentColor 20%, transparent);
   border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
-}
-
-/* Linha selecionada do cupom: barra na lateral em vez de só
-   mudar o fundo, que somia no tema escuro. */
-.pdv-cart-row-selected {
-  box-shadow: inset 3px 0 0 var(--color-accent);
-}
-
-/* Bloco do total: o número mais lido da tela ganha moldura própria. */
-.pdv-total-block {
-  border-radius: 0.625rem;
-  border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
-  background-image: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--color-success) 12%, var(--color-bg-light)) 0%,
-    var(--color-bg-light) 100%
-  );
 }
 
 /* Finalizar: o botão que encerra a venda é o único com brilho

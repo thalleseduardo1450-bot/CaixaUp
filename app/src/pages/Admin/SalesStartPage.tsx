@@ -35,7 +35,7 @@ import {
   type SaleReceipt,
 } from "@/components/Admin/ReceiptPreviewModal";
 import SaleSuccessModal from "@/components/Admin/SaleSuccessModal";
-import PdvCart, { PdvCartItems } from "@/components/Pdv/PdvCart";
+import PdvCart from "@/components/Pdv/PdvCart";
 import PdvCheckoutModal, {
   type PdvCheckoutResult,
 } from "@/components/Pdv/PdvCheckoutModal";
@@ -771,28 +771,6 @@ export default function SalesStartPage({
               emptyTitle="Nenhum produto encontrado"
               emptyHint="Confira o nome ou o código digitado e tente novamente."
             />
-          ) : cart.items.length > 0 ? (
-            <div className="flex min-h-0 flex-1 flex-col">
-              <div className="flex items-center justify-between border-b border-border-primary bg-bg-light px-4 py-3">
-                <div>
-                  <p className="text-lg font-bold text-text-primary">Produtos da venda</p>
-                  <p className="text-sm text-text-secondary">Toque no produto para ajustar a quantidade.</p>
-                </div>
-                <span className="rounded-xl bg-accent/10 px-4 py-2 text-lg font-bold text-accent">
-                  {cart.itemCount} {cart.itemCount === 1 ? "item" : "itens"}
-                </span>
-              </div>
-              <PdvCartItems
-                items={cart.items}
-                selectedId={selectedCartId ?? cart.lastTouchedId}
-                onSelect={setSelectedCartId}
-                onIncrement={cart.increment}
-                onDecrement={cart.decrement}
-                onSetQuantity={cart.setQuantity}
-                onRemove={cart.removeItem}
-                wide
-              />
-            </div>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center">
               <div className="grid h-20 w-20 place-items-center rounded-2xl bg-accent/10 text-accent">
@@ -826,7 +804,6 @@ export default function SalesStartPage({
             suspendedCount={cart.suspended.length}
             checkoutDisabled={isSubmitting}
             isSubmitting={isSubmitting}
-            summaryOnly
           />
         </div>
       </div>
