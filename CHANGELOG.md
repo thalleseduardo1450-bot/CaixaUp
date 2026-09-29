@@ -1,5 +1,20 @@
 # Novidades do CaixaUp
 
+## 3.3.54
+
+### Telas abrem na hora
+
+- Produtos, Clientes, Estoque, Histórico e as demais telas aparecem na hora com os dados já carregados, e são conferidas com o servidor em segundo plano. Se algo mudou em outro computador, a tela se atualiza sozinha. Nos testes, abrir uma tela caiu de ~860 ms para ~70 ms, inclusive na primeira vez.
+- Depois de uma venda ou cadastro, os dados afetados são recarregados logo em seguida: o histórico já mostra a venda nova.
+- Ao entrar, os dados e as telas principais são pré-carregados.
+- Sem animações de espera: telas, cartões e janelas aparecem e fecham na hora. O vídeo de abertura continua igual.
+- Depois de "Venda finalizada", o caixa libera a próxima venda na hora (antes o teclado ficava travado por 1,15 s).
+
+### Junto com a API nova (servidor_otimizado_v6)
+
+- Cada clique respondia depois de conferir o login no Supabase (3 consultas seguidas). Agora o login fica guardado e é reconferido em segundo plano: nos testes, a resposta do servidor caiu de ~470 ms para ~3 ms. Sessão encerrada ou empresa desativada continuam perdendo o acesso na conferência seguinte.
+- Se o Supabase cair, quem já está logado continua vendendo.
+
 ## 3.3.53
 
 ### Atualização sem fechar o caixa
