@@ -31,6 +31,7 @@ import {
 const MAX_QUANTITY_PER_ITEM = 9999;
 /** Espera antes de gravar o rascunho, para não escrever no disco a cada tecla. */
 const DRAFT_DEBOUNCE_MS = 400;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export type PdvAddOutcome =
   | { ok: true; item: PdvCartItem; merged: boolean }
@@ -75,7 +76,7 @@ export function usePdvCart({
 
   useEffect(() => {
     const draft = loadDraft();
-    if (draft?.requestId) requestIdRef.current = draft.requestId;
+    if (UUID.test(String(draft?.requestId || ""))) requestIdRef.current = draft!.requestId!;
     claimTokenRef.current = draft?.claimToken;
     editingSaleNumberRef.current = draft?.editingSaleNumber;
     customerRef.current = draft?.customerId ?? "";

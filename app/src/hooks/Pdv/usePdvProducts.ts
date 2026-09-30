@@ -9,6 +9,7 @@
  * operador conclui que o produto não está cadastrado.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { withFreshReads } from "@/services/api/squareApi";
 
 import { productService } from "@/services/api/productService";
 import { productImagePath } from "@/utils/productImage";
@@ -74,6 +75,21 @@ export type PdvProductsFilter = {
   viewMode: PdvProductViewMode;
 };
 
+type CatalogItem = Awaited<ReturnType<typeof productService.list>>[number];
+
+function toPdvProducts(items: CatalogItem[]): PdvProduct[] {
+  return items.map((item) => ({
+    id: item.id,
+    name: item.productName,
+    code: item.productCode,
+    alternateCodes: item.productAlternateCode ? [item.productAlternateCode] : [],
+    stock: Number(item.productQnt || 0),
+    unitPriceCents: centsFromApi(item.productSalePrice),
+    imageUrl: item.productImageUrl || productImagePath(item.productName, item.productCode),
+    supplier: item.productSupplier,
+  }));
+}
+
 export function usePdvProducts() {
   const [products, setProducts] = useState<PdvProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,20 +103,7 @@ export function usePdvProducts() {
       productService
         .list()
         .then((items) => {
-          setProducts(
-            items.map((item) => ({
-              id: item.id,
-              name: item.productName,
-              code: item.productCode,
-              alternateCodes: item.productAlternateCode
-                ? [item.productAlternateCode]
-                : [],
-              stock: Number(item.productQnt || 0),
-              unitPriceCents: centsFromApi(item.productSalePrice),
-              imageUrl: item.productImageUrl || productImagePath(item.productName, item.productCode),
-              supplier: item.productSupplier,
-            })),
-          );
+          setProducts(toPdvProducts(items));
         })
         .catch((error: unknown) => {
           setLoadError(
@@ -124,6 +127,33 @@ export function usePdvProducts() {
   useEffect(() => {
     void fetchProducts();
   }, [fetchProducts]);
+
+  /*
+   * Catálogo atualizado sozinho: com mais de um computador, preço e estoque
+   * ficavam velhos e a venda era recusada ao finalizar. Recarrega em silêncio a
+   * cada 30 s e ao voltar para a janela, sem mostrar erro passageiro.
+   */
+  useEffect(() => {
+    let busy = false;
+    const refresh = () => {
+      if (busy || document.visibilityState === "hidden") return;
+      busy = true;
+      withFreshReads(() => productService.list())
+        .then((items) => setProducts(toPdvProducts(items)))
+        .catch(() => undefined)
+        .finally(() => {
+          busy = false;
+        });
+    };
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+    };
+  }, []);
 
   /** Fornecedor virou "categoria": é o único agrupamento que o cadastro tem hoje. */
   const categories = useMemo(() => {

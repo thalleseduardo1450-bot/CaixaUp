@@ -1,18 +1,22 @@
-/**
- * Arquivo: src/services/api/sessionService.ts
- * Objetivo: sessões ativas no Supabase. O schema atual não tem tabela de
- * sessões de dispositivo; mantemos o contrato retornando lista vazia.
- */
 import type { ActiveSession } from "@/components/SettingsPage";
+import { supabase } from "@/lib/supabase";
 
 export const sessionService = {
   async list() {
-    return [] as ActiveSession[];
-  },
-  async terminate(_sessionId: string) {
-    return [] as ActiveSession[];
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    if (!data.user) throw new Error("Entre novamente para consultar sua sessão.");
+    const mobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+    return [{
+      id: data.user.id,
+      device: window.caixaUpDesktop ? "CaixaUp neste computador" : mobile ? "Este celular ou tablet" : "Este navegador",
+      lastActive: "Agora",
+      current: true,
+      platform: mobile ? "mobile" : "desktop",
+    }] as ActiveSession[];
   },
   async terminateOthers() {
-    return [] as ActiveSession[];
+    const { error } = await supabase.auth.signOut({ scope: "others" });
+    if (error) throw error;
   },
 };

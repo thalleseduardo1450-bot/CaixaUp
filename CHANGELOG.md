@@ -1,5 +1,21 @@
 # Novidades do CaixaUp
 
+## 3.3.57
+
+### Novo painel de venda e tela de venda concluída
+
+- O cupom ao lado do caixa mostra cada item em cartão, com quantidade × preço, o último lançado em destaque e Subtotal, Desconto e TOTAL grandes.
+- A tela de venda concluída mostra total, forma de pagamento, recebido e o troco em destaque. Enter ou Esc começam a próxima venda.
+
+### Assinaturas pela API
+
+- O plano pago liberado pela administração fica na API do CaixaUp. A tela de Assinatura ganhou, só para a administração, um formulário para liberar ou trocar o plano de uma conta pelo e-mail, com registro na auditoria.
+- Contas sem plano pago na API continuam com o plano de antes (teste grátis e pagamentos antigos).
+
+### Por dentro
+
+- O instalador volta a ser montado a partir do código das telas, com as correções da 3.3.48 a 3.3.54 aplicadas no próprio código.
+
 ## 3.3.54
 
 ### Telas abrem na hora

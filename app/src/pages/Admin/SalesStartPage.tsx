@@ -410,7 +410,9 @@ export default function SalesStartPage({
       setIsSubmitting(true);
 
       try {
-        if (!cart.persist(payment.customerId || "")) throw new Error("Não foi possível salvar a recuperação local. Libere espaço antes de finalizar.");
+        // A venda tem identificador próprio no servidor: rascunho local que não coube
+        // (armazenamento cheio) não impede a venda.
+        if (!cart.persist(payment.customerId || "")) console.warn("[CaixaUp] Rascunho local não foi salvo (armazenamento cheio); a venda segue.");
 
         const documentOnReceipt =
           payment.customerDocument || cpfOnReceipt.trim() || "-";

@@ -1,123 +1,51 @@
-/**
- * Arquivo: src/services/api/homeService.ts
- * Objetivo: indicadores da página inicial calculados direto no Supabase.
- * KPIs: vendas hoje, faturamento de hoje, produtos cadastrados, estoque baixo.
- */
-import { supabase, currentCompanyId } from "@/lib/supabase";
+import { squareApi } from "@/services/api/squareApi";
+import { getStoredAuthUser } from "@/utils/authStorage";
 
-export type HomeKpiDto = {
-  label: string;
-  value: string;
-  helper: string;
-  color: string;
-  trend: number[];
-};
+export type HomeKpiDto = { label: string; value: string; helper: string; color: string; trend: number[] };
+type DashboardSnapshot = { cards: HomeKpiDto[]; savedAt: number };
+const pending = new Map<string, Promise<DashboardSnapshot>>();
 
-function inicioDoDia(): string {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+function storageKey() {
+  const user = getStoredAuthUser();
+  return user?.id && user.companyId
+    ? `caixaup.dashboard.v1:${user.companyId}:${user.id}`
+    : null;
 }
 
-function inicioDosUltimosSeteDias(): string {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() - 6);
-  return date.toISOString();
-}
-
-function fmtBRL(centavosOuReais: number): string {
-  return Number(centavosOuReais ?? 0).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
+function validSnapshot(value: unknown): value is DashboardSnapshot {
+  if (!value || typeof value !== "object") return false;
+  const snapshot = value as DashboardSnapshot;
+  return Number.isFinite(snapshot.savedAt) && snapshot.savedAt <= Date.now()
+    && new Date(snapshot.savedAt).toDateString() === new Date().toDateString()
+    && Array.isArray(snapshot.cards) && snapshot.cards.length <= 10
+    && snapshot.cards.every((card) => card && typeof card.label === "string"
+      && typeof card.value === "string" && typeof card.helper === "string"
+      && typeof card.color === "string" && card.color.length <= 64
+      && Array.isArray(card.trend) && card.trend.length <= 366 && card.trend.every(Number.isFinite));
 }
 
 export const homeService = {
-  async get() {
-    const empresaId = await currentCompanyId();
-    if (!empresaId) {
-      return { cards: [] as HomeKpiDto[] };
-    }
-
-    const hoje = inicioDoDia();
-
-    const { data: vendasSemana, error: vendasError } = await supabase
-      .from("vendas")
-      .select("total, created_at")
-      .eq("empresa_id", empresaId)
-      .eq("status", "concluida")
-      .gte("created_at", inicioDosUltimosSeteDias())
-      .order("created_at", { ascending: true });
-    if (vendasError) throw vendasError;
-
-    const vendasHoje = (vendasSemana ?? []).filter(
-      (sale) => String(sale.created_at ?? "") >= hoje,
-    );
-
-    const faturamento = (vendasHoje ?? []).reduce((s, v: any) => s + Number(v.total ?? 0), 0);
-
-    const { count: produtos, error: produtosError } = await supabase
-      .from("produtos")
-      .select("id", { count: "exact", head: true })
-      .eq("empresa_id", empresaId)
-      .eq("ativo", true);
-    if (produtosError) throw produtosError;
-
-    const { data: prods, error: estoqueError } = await supabase
-      .from("produtos")
-      .select("estoque_atual, estoque_minimo")
-      .eq("empresa_id", empresaId)
-      .eq("ativo", true);
-    if (estoqueError) throw estoqueError;
-    const estoqueBaixo = (prods ?? []).filter(
-      (p: any) => Number(p.estoque_atual) <= Number(p.estoque_minimo),
-    ).length;
-    const trend = Array.from({ length: 7 }, (_, index) => {
-      const day = new Date();
-      day.setHours(0, 0, 0, 0);
-      day.setDate(day.getDate() - (6 - index));
-      const nextDay = new Date(day);
-      nextDay.setDate(nextDay.getDate() + 1);
-      return (vendasSemana ?? [])
-        .filter((sale) => {
-          const saleDate = new Date(String(sale.created_at ?? ""));
-          return saleDate >= day && saleDate < nextDay;
-        })
-        .reduce((sum, sale) => sum + Number(sale.total ?? 0), 0);
-    });
-
-    return {
-      cards: [
-        {
-          label: "Vendas hoje",
-          value: String((vendasHoje ?? []).length),
-          helper: "vendas concluídas",
-          color: "#2563EB",
-          trend,
-        },
-        {
-          label: "Faturamento hoje",
-          value: fmtBRL(faturamento),
-          helper: "total do dia",
-          color: "#16A34A",
-          trend,
-        },
-        {
-          label: "Produtos cadastrados",
-          value: String(produtos ?? 0),
-          helper: "ativos",
-          color: "#F59E0B",
-          trend: [],
-        },
-        {
-          label: "Estoque baixo",
-          value: String(estoqueBaixo),
-          helper: "produtos no mínimo",
-          color: "#DC2626",
-          trend: [],
-        },
-      ] as HomeKpiDto[],
-    };
+  snapshot(): DashboardSnapshot | null {
+    try {
+      const key = storageKey();
+      const value: unknown = key ? JSON.parse(window.localStorage.getItem(key) || "null") : null;
+      return validSnapshot(value) ? value : null;
+    } catch { return null; }
+  },
+  get(): Promise<DashboardSnapshot> {
+    const key = storageKey();
+    if (!key) return Promise.reject(new Error("Entre novamente para carregar os indicadores."));
+    const existing = pending.get(key);
+    if (existing) return existing;
+    const request = squareApi<{ cards: HomeKpiDto[] }>("/dashboard").then((result) => {
+      const snapshot = { cards: result.cards, savedAt: Date.now() };
+      if (!validSnapshot(snapshot)) throw new Error("O servidor retornou indicadores inválidos.");
+      if (key === storageKey()) {
+        try { window.localStorage.setItem(key, JSON.stringify(snapshot)); } catch {}
+      }
+      return snapshot;
+    }).finally(() => pending.delete(key));
+    pending.set(key, request);
+    return request;
   },
 };

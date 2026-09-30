@@ -1,21 +1,11 @@
+import { squareApi } from "@/services/api/squareApi";
 import type { PdvCartItem, PdvSuspendedSale } from "@/types/pdv";
-import { listSuspendedSales, removeSuspendedSale, suspendSale } from "@/utils/pdvDrafts";
 
 export const suspendedSalesService = {
-  async list(): Promise<PdvSuspendedSale[]> {
-    return listSuspendedSales();
-  },
+  list: () => squareApi<PdvSuspendedSale[]>("/suspended-sales"),
   async suspend(items: PdvCartItem[], sale: Omit<PdvSuspendedSale, "id" | "suspendedAt" | "items" | "totalCents">) {
-    const totalCents = items.reduce((sum, item) => sum + item.unitPriceCents * item.quantity, 0);
-    if (!suspendSale({ ...sale, items, totalCents })) throw new Error("Não foi possível guardar a venda neste computador.");
+    await squareApi("/suspended-sales", { method: "POST", body: JSON.stringify({ ...sale, items }) });
   },
-  async resume(id: string): Promise<PdvSuspendedSale> {
-    const sale = listSuspendedSales().find((entry) => entry.id === id);
-    if (!sale) throw new Error("Venda suspensa não encontrada neste computador.");
-    removeSuspendedSale(id);
-    return sale;
-  },
-  async discard(id: string) {
-    removeSuspendedSale(id);
-  },
+  resume: (id: string) => squareApi<PdvSuspendedSale>(`/suspended-sales/${encodeURIComponent(id)}/resume`, { method: "POST" }),
+  discard: (id: string) => squareApi<void>(`/suspended-sales/${encodeURIComponent(id)}`, { method: "DELETE" }),
 };

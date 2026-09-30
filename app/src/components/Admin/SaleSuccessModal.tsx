@@ -27,7 +27,8 @@ export default function SaleSuccessModal({
   useEffect(() => {
     if (!starting) return;
     transition.current?.focus();
-    const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 80 : 1150;
+    // Próximo cliente sem espera: a animação não segura mais o teclado.
+    const duration = 0;
     const timer = window.setTimeout(() => finish(), duration);
     return () => window.clearTimeout(timer);
   }, [starting]);

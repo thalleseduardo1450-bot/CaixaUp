@@ -45,8 +45,9 @@ async function apiFetch(
   headers.set("Content-Type", "application/json");
   headers.set("Authorization", `Bearer ${token}`);
   const reading = (init.method || "GET").toUpperCase() === "GET";
-  const timeout = reading ? AbortSignal.timeout(20000) : undefined;
-  const signal = timeout && init.signal ? AbortSignal.any([timeout, init.signal]) : timeout || init.signal;
+  // Gravação também tem limite (60 s): sem ele, rede caída deixava a venda "enviando" para sempre.
+  const timeout = AbortSignal.timeout(reading ? 20000 : 60000);
+  const signal = init.signal ? AbortSignal.any([timeout, init.signal]) : timeout;
   try {
     return await resilientFetch(`${API_URL}${path}`, {
       ...init,
@@ -54,8 +55,10 @@ async function apiFetch(
       signal,
     });
   } catch (error) {
-    if (timeout?.aborted && !init.signal?.aborted) {
-      throw new Error("O servidor demorou para responder. Tente atualizar a tela.");
+    if (timeout.aborted && !init.signal?.aborted) {
+      throw new Error(reading
+        ? "O servidor demorou para responder. Tente atualizar a tela."
+        : "O servidor não respondeu a tempo. Confira o histórico antes de repetir a operação.");
     }
     throw error;
   }
@@ -706,6 +709,109 @@ function scheduleLegacyMigration(
    SQUARE API
 ============================================================ */
 
+/* ============================================================
+   TELAS ABREM NA HORA
+   Toda tela esperava o servidor antes de aparecer. A leitura (GET) já feita
+   é mostrada na hora e conferida em segundo plano; se veio diferente e
+   ninguém mexeu na tela ainda, a tela é remontada com o dado novo. Qualquer
+   gravação marca o guardado como velho: ele é recarregado em segundo plano e,
+   até lá, a tela espera o servidor, para nunca mostrar dado anterior ao que o
+   próprio operador acabou de fazer. O status do caixa sempre vai ao servidor.
+============================================================ */
+
+type CachedRead = { path: string; data: unknown; json: string; at: number; used: number; servedAt: number; dirty: boolean; busy: boolean };
+
+const readCache = new Map<string, CachedRead>();
+const pageSubscribers = new Set<() => void>();
+const WARM_PATHS = ["/products?includeInactive=false", "/products?includeInactive=true", "/dashboard", "/customers", "/credit-debts", "/suspended-sales", "/sales"];
+let bypassCache = 0;
+let writeGeneration = 0;
+let pageVersion = 0;
+let lastInputAt = 0;
+let warmedFor = "";
+let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+
+if (typeof window !== "undefined") {
+  for (const type of ["keydown", "pointerdown", "input", "wheel"]) {
+    window.addEventListener(type, () => { lastInputAt = Date.now(); }, { capture: true, passive: true });
+  }
+}
+
+/** Para a tela remontar quando o dado conferido em segundo plano mudou. */
+export function subscribePageData(listener: () => void) {
+  pageSubscribers.add(listener);
+  return () => { pageSubscribers.delete(listener); };
+}
+export const pageDataVersion = () => pageVersion;
+
+/** Leitura que ignora o guardado (ex.: atualização periódica do catálogo). */
+export function withFreshReads<T>(read: () => T): T {
+  bypassCache++;
+  try { return read(); } finally { bypassCache--; }
+}
+
+function cacheKey(path: string) {
+  if (/^\/cash\/status/.test(path)) return null;
+  const user = getStoredAuthUser();
+  return user?.companyId && user.id ? `${user.companyId}:${user.id}:${path}` : null;
+}
+
+function markAllStale() {
+  writeGeneration++;
+  readCache.forEach((entry) => { entry.dirty = true; });
+}
+
+function revalidate(entry: CachedRead) {
+  if (entry.busy) return;
+  entry.busy = true;
+  const servedAt = entry.servedAt;
+  withFreshReads(() => squareApi(entry.path))
+    .then((fresh) => {
+      if (JSON.stringify(fresh) !== entry.json && Date.now() - servedAt < 15_000 && lastInputAt < servedAt) {
+        pageVersion++;
+        pageSubscribers.forEach((listener) => listener());
+      }
+    })
+    .catch(() => undefined)
+    .finally(() => { entry.busy = false; });
+}
+
+function refreshStaleSoon() {
+  markAllStale();
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => {
+    if (document.visibilityState === "hidden") return;
+    for (const entry of readCache.values()) {
+      if (entry.dirty && entry.json.length <= 200_000 && (entry.used === 0 || Date.now() - entry.used < 600_000)) {
+        withFreshReads(() => squareApi(entry.path)).catch(() => undefined);
+      }
+    }
+  }, 250);
+}
+
+function warmUp() {
+  const user = getStoredAuthUser();
+  if (!user?.companyId || !user.id) return;
+  const owner = `${user.companyId}:${user.id}`;
+  if (warmedFor === owner) return;
+  warmedFor = owner;
+  setTimeout(async () => {
+    for (const path of WARM_PATHS) {
+      if (!readCache.has(`${owner}:${path}`)) await squareApi(path).catch(() => undefined);
+    }
+  }, 1500);
+}
+
+function storeRead(key: string, path: string, data: unknown, generation: number) {
+  const previous = readCache.get(key);
+  readCache.set(key, {
+    path, data, json: JSON.stringify(data), at: Date.now(),
+    used: previous?.used ?? 0, servedAt: previous?.servedAt ?? 0,
+    dirty: generation !== writeGeneration, busy: false,
+  });
+  warmUp();
+}
+
 export async function squareApi<T>(
   path: string,
   init: RequestInit = {},
@@ -735,6 +841,17 @@ export async function squareApi<T>(
   const method = (init.method || "GET").toUpperCase();
   if (method !== "GET") pendingReads.clear();
   const shareable = Object.keys(init).length === 0;
+  const cached = shareable ? cacheKey(path) : null;
+  const generation = writeGeneration;
+  if (cached && bypassCache === 0) {
+    const hit = readCache.get(cached);
+    if (hit && !hit.dirty) {
+      hit.used = hit.servedAt = Date.now();
+      if (Date.now() - hit.at > 2000) revalidate(hit);
+      return structuredClone(hit.data) as T;
+    }
+  }
+  if (method !== "GET") markAllStale();
   const key = `${token}:${path}`;
   const existing = shareable ? pendingReads.get(key) : undefined;
   if (existing) return structuredClone(await existing) as T;
@@ -743,19 +860,21 @@ export async function squareApi<T>(
     const response = await apiFetch(path, token, init);
     const body = await readResponseBody(response);
     if (!response.ok) {
-      throw new Error(body?.message || "Não foi possível concluir a operação.");
+      throw Object.assign(new Error(body?.message || "Não foi possível concluir a operação."), { status: response.status });
     }
     scheduleLegacyMigration(token);
     return body as T;
   };
   if (!shareable) {
     try { return await execute(); }
-    finally { if (method !== "GET") pendingReads.clear(); }
+    finally { if (method !== "GET") { pendingReads.clear(); refreshStaleSoon(); } }
   }
   const request = execute();
   pendingReads.set(key, request);
   try {
-    return structuredClone(await request);
+    const data = await request;
+    if (cached) storeRead(cached, path, data, generation);
+    return structuredClone(data);
   } finally {
     if (pendingReads.get(key) === request) pendingReads.delete(key);
   }

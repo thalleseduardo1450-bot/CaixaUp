@@ -229,8 +229,8 @@ export default function CustomerRegisterPage() {
     customerService
       .list()
       .then(setCustomers)
-      .catch(() => {
-        Toast.error("Não foi possível carregar clientes da API.");
+      .catch((error: unknown) => {
+        Toast.error(error instanceof Error ? error.message : "Não foi possível carregar clientes da API.");
       });
   }, []);
 
