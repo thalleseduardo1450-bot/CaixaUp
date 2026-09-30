@@ -92,25 +92,14 @@ function EditableQuantity({
   );
 }
 
-export default function PdvCart({
-  items,
-  totalCents,
-  selectedId,
-  onSelect,
-  onIncrement,
-  onDecrement,
-  onSetQuantity,
-  onRemove,
-  onCheckout,
-  onCancelSale,
-  onSuspendSale,
-  onOpenSuspended,
-  suspendedCount,
-  checkoutDisabled,
-  isSubmitting,
-}: PdvCartProps) {
+type PdvCartItemsProps = Pick<
+  PdvCartProps,
+  "items" | "selectedId" | "onSelect" | "onIncrement" | "onDecrement" | "onSetQuantity" | "onRemove"
+>;
+
+/** Itens da venda em cartões, na área grande do caixa. */
+export function PdvCartItems({ items, selectedId, onSelect, onIncrement, onDecrement, onSetQuantity, onRemove }: PdvCartItemsProps) {
   const listRef = useRef<HTMLUListElement>(null);
-  const isEmpty = items.length === 0;
   const unitCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const lastId = items.at(-1)?.id;
 
@@ -123,33 +112,6 @@ export default function PdvCart({
   }, [selectedId, items.length]);
 
   return (
-    <aside className="flex h-full w-full flex-col border-l border-border-primary bg-bg-light">
-      {isEmpty ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-          <div
-            className="grid h-16 w-16 place-items-center rounded-full bg-accent/10 text-accent"
-            aria-hidden="true"
-          >
-            <ReceiptText size={28} />
-          </div>
-          <p className="mt-1 text-base font-bold text-text-primary">Nenhum produto na venda</p>
-          <p className="text-sm text-text-secondary">
-            Leia o código de barras ou busque o produto para começar.
-          </p>
-          <p className="mt-3 text-xs text-text-tertiary">
-            Dica: <kbd className={keyHint}>F4</kbd> muda a quantidade antes de bipar
-          </p>
-        </div>
-      ) : (
-        <>
-          <header className="flex shrink-0 items-center justify-between border-b border-border-primary px-5 py-3">
-            <h2 className="text-xl font-bold text-text-primary">Venda</h2>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
-              Em andamento
-            </span>
-          </header>
-
           <div className="flex min-h-0 flex-1 flex-col px-5 pt-4">
             <div className="mb-2 flex items-baseline justify-between text-xs">
               <span className="font-bold uppercase tracking-wider text-text-secondary">Itens</span>
@@ -246,6 +208,58 @@ export default function PdvCart({
             <p className="py-2 text-xs text-text-tertiary">
               Setas selecionam · <kbd className={keyHint}>+</kbd>/<kbd className={keyHint}>−</kbd> qtd. ·{" "}
               <kbd className={keyHint}>Ctrl+Del</kbd> remove
+            </p>
+          </div>
+  );
+}
+
+export default function PdvCart({
+  items,
+  totalCents,
+  onCheckout,
+  onCancelSale,
+  onSuspendSale,
+  onOpenSuspended,
+  suspendedCount,
+  checkoutDisabled,
+  isSubmitting,
+}: Omit<PdvCartProps, keyof PdvCartItemsProps | "items"> & Pick<PdvCartProps, "items">) {
+  const isEmpty = items.length === 0;
+  const unitCount = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  return (
+    <aside className="flex h-full w-full flex-col border-l border-border-primary bg-bg-light">
+      {isEmpty ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
+          <div
+            className="grid h-16 w-16 place-items-center rounded-full bg-accent/10 text-accent"
+            aria-hidden="true"
+          >
+            <ReceiptText size={28} />
+          </div>
+          <p className="mt-1 text-base font-bold text-text-primary">Nenhum produto na venda</p>
+          <p className="text-sm text-text-secondary">
+            Leia o código de barras ou busque o produto para começar.
+          </p>
+          <p className="mt-3 text-xs text-text-tertiary">
+            Dica: <kbd className={keyHint}>F4</kbd> muda a quantidade antes de bipar
+          </p>
+        </div>
+      ) : (
+        <>
+          <header className="flex shrink-0 items-center justify-between border-b border-border-primary px-5 py-3">
+            <h2 className="text-xl font-bold text-text-primary">Venda</h2>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold text-accent">
+              <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
+              Em andamento
+            </span>
+          </header>
+
+          {/* A lista de itens fica na área grande do caixa; aqui só o resumo. */}
+          <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
+            <p className="font-mono text-4xl font-bold text-text-primary">{unitCount}</p>
+            <p className="text-sm text-text-secondary">
+              {unitCount === 1 ? "unidade" : "unidades"} · {items.length} {items.length === 1 ? "produto" : "produtos"}
             </p>
           </div>
         </>

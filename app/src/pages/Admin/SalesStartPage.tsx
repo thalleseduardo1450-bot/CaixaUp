@@ -35,7 +35,7 @@ import {
   type SaleReceipt,
 } from "@/components/Admin/ReceiptPreviewModal";
 import SaleSuccessModal from "@/components/Admin/SaleSuccessModal";
-import PdvCart from "@/components/Pdv/PdvCart";
+import PdvCart, { PdvCartItems } from "@/components/Pdv/PdvCart";
 import PdvCheckoutModal, {
   type PdvCheckoutResult,
 } from "@/components/Pdv/PdvCheckoutModal";
@@ -241,7 +241,7 @@ export default function SalesStartPage({
   const idsInCart = useMemo(() => cart.items.map((item) => item.id), [cart.items]);
 
   const cashCanSell = true;
-  const cashStatusLabel = "Vendas salvas neste computador";
+  const cashStatusLabel = "Vendas enviadas ao servidor";
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId);
 
@@ -773,6 +773,16 @@ export default function SalesStartPage({
               emptyTitle="Nenhum produto encontrado"
               emptyHint="Confira o nome ou o código digitado e tente novamente."
             />
+          ) : cart.items.length > 0 ? (
+            <PdvCartItems
+              items={cart.items}
+              selectedId={selectedCartId ?? cart.lastTouchedId}
+              onSelect={setSelectedCartId}
+              onIncrement={cart.increment}
+              onDecrement={cart.decrement}
+              onSetQuantity={cart.setQuantity}
+              onRemove={cart.removeItem}
+            />
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center">
               <div className="grid h-20 w-20 place-items-center rounded-2xl bg-accent/10 text-accent">
@@ -793,12 +803,6 @@ export default function SalesStartPage({
           <PdvCart
             items={cart.items}
             totalCents={cart.totalCents}
-            selectedId={selectedCartId ?? cart.lastTouchedId}
-            onSelect={setSelectedCartId}
-            onIncrement={cart.increment}
-            onDecrement={cart.decrement}
-            onSetQuantity={cart.setQuantity}
-            onRemove={cart.removeItem}
             onCheckout={() => void openCheckout()}
             onCancelSale={() => void cancelSale()}
             onSuspendSale={suspendSale}
