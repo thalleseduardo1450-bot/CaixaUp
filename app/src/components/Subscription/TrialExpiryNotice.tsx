@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { subscriptionService } from "@/services/api/subscriptionService";
 
 type Subscription = { companyId: string; status: "trial" | "active" | "free"; expiresAt: string | null; serverNow: string; plan?: string };
 
@@ -10,8 +10,8 @@ export default function TrialExpiryNotice() {
 
   useEffect(() => {
     let active = true;
-    void supabase.rpc("minha_assinatura").then(({ data, error }) => {
-      if (!active || error || !data || typeof data !== "object") return;
+    void subscriptionService.mine().then((data) => {
+      if (!active || !data || typeof data !== "object") return;
       const value = data as Subscription;
       const expires = Date.parse(value.expiresAt || "");
       const now = Date.parse(value.serverNow || "");
@@ -23,7 +23,7 @@ export default function TrialExpiryNotice() {
       if ((endingTrial || expiredTrial) && !localStorage.getItem(key)) {
         setSubscription(value); setDismissed(false);
       }
-    });
+    }).catch(() => undefined);
     return () => { active = false; };
   }, []);
 

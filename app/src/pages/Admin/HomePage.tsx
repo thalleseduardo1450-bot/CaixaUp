@@ -13,7 +13,7 @@ import {
   ShoppingCart,
   UserRoundPlus,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -133,26 +133,43 @@ function buildChartSeries(cards: HomeKpiDto[]) {
 }
 
 export default function HomePage({ onNavigate, onOpenSalesInNewTab }: HomePageProps) {
-  const [cards, setCards] = useState<HomeKpiDto[]>([]);
+  const [initialSnapshot] = useState(() => homeService.snapshot());
+  const [cards, setCards] = useState<HomeKpiDto[]>(() => initialSnapshot?.cards ?? []);
+  const [savedAt, setSavedAt] = useState<number | null>(() => initialSnapshot?.savedAt ?? null);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [rankingPeriod, setRankingPeriod] = useState<RankingPeriod>("30");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [rankingLoading, setRankingLoading] = useState(true);
+  const [rankingError, setRankingError] = useState("");
+  const rankingRequest = useRef(0);
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     setLoadError("");
     try {
-      const [home, ranking] = await Promise.all([
-        homeService.get(),
-        reportService.generate("produtos-mais-vendidos", {
+      const home = await homeService.get();
+      setCards(home?.cards ?? []);
+      setSavedAt(home.savedAt);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Não foi possível carregar o dashboard.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadRanking = useCallback(async () => {
+    const request = ++rankingRequest.current;
+    setRankingLoading(true);
+    setRankingError("");
+    try {
+      const ranking = await reportService.generate("produtos-mais-vendidos", {
         startDate: rankingStartDate(rankingPeriod),
         endDate: getDaysAgoIso(0),
         category: "all",
         groupBy: "daily",
-        }),
-      ]);
-      setCards(home?.cards ?? []);
+        });
+      if (request !== rankingRequest.current) return;
       setTopProducts(
         (ranking.rows ?? []).slice(0, 5).map((row) => {
           const quantity = Number(row.quantidade ?? 0);
@@ -164,17 +181,21 @@ export default function HomePage({ onNavigate, onOpenSalesInNewTab }: HomePagePr
         }),
       );
     } catch (error) {
-      setCards([]);
-      setTopProducts([]);
-      setLoadError(error instanceof Error ? error.message : "Não foi possível carregar o dashboard.");
+      if (request !== rankingRequest.current) return;
+      setRankingError(error instanceof Error ? error.message : "Não foi possível carregar o ranking.");
     } finally {
-      setLoading(false);
+      if (request === rankingRequest.current) setRankingLoading(false);
     }
   }, [rankingPeriod]);
 
   useEffect(() => {
     void loadDashboard();
   }, [loadDashboard]);
+
+  useEffect(() => {
+    void loadRanking();
+    return () => { rankingRequest.current++; };
+  }, [loadRanking]);
 
   const chartSeries = useMemo(() => buildChartSeries(cards), [cards]);
   const maxQuantity = Math.max(1, ...topProducts.map((product) => product.quantity));
@@ -186,6 +207,8 @@ export default function HomePage({ onNavigate, onOpenSalesInNewTab }: HomePagePr
         title="Dashboard"
         description="Acompanhe vendas, faturamento e desempenho do seu negócio em tempo real."
       />
+
+      {savedAt !== null ? <p role="status" className="text-xs text-text-secondary">{loading ? "Atualizando… Últimos dados recebidos às " : "Dados recebidos às "}{new Date(savedAt).toLocaleTimeString("pt-BR")}{loadError ? " — atualização indisponível; exibindo dados salvos." : ""}</p> : null}
 
       {loadError ? (
         <div className="rounded-xl border border-primary/25 bg-primary/10 p-4 text-sm text-primary" role="alert">
@@ -312,7 +335,7 @@ export default function HomePage({ onNavigate, onOpenSalesInNewTab }: HomePagePr
           </div>
 
           <div className="divide-y divide-border-primary">
-            {hasProducts ? (
+            {rankingLoading ? <p role="status" className="p-6 text-sm text-text-secondary">Atualizando ranking…</p> : rankingError ? <div role="alert" className="p-6 text-sm"><p>{rankingError}</p><button type="button" className="btn-outline-secondary mt-3" onClick={() => void loadRanking()}>Tentar novamente</button></div> : hasProducts ? (
               topProducts.map((product, index) => (
                 <div key={product.name} className="grid gap-2 p-4 md:grid-cols-[32px_minmax(0,1fr)_auto] md:items-center">
                   <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-secondary/10 text-sm font-bold text-secondary">

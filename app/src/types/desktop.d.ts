@@ -43,6 +43,7 @@ declare global {
       openExternal: (url: string) => Promise<boolean>;
       getPendingAuthCallback: () => Promise<string | null>;
       onAuthCallback: (callback: (url: string) => void) => () => void;
+      getNetworkFailure?: (host: string) => Promise<{ error: string; host: string } | null>;
     };
   }
 }

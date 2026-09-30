@@ -10,7 +10,7 @@ import type { User } from "@supabase/supabase-js";
 
 const AUTH_CALLBACK_URL = String(
   import.meta.env.VITE_AUTH_CALLBACK_URL ||
-    "https://caixaup-site.vercel.app/",
+    "https://caixaup.store/",
 ).trim();
 
 export type LoginPayload = {

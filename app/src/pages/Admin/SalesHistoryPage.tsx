@@ -50,12 +50,21 @@ function splitSaleDate(value: string) {
   const parsed = new Date(value);
   if (!Number.isNaN(parsed.getTime())) {
     return {
-      date: parsed.toLocaleDateString("pt-BR"),
-      time: parsed.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      date: new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(parsed),
+      time: new Intl.DateTimeFormat("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).format(parsed),
     };
   }
-  const [date = value, time = ""] = value.split(" ");
-  return { date, time };
+
+  const match = value.match(/^(\d{2}\/\d{2}\/\d{4})(?:[ T](\d{2}:\d{2}))?/);
+  return match ? { date: match[1], time: match[2] ?? "" } : { date: value || "—", time: "" };
 }
 
 type Props = { onNavigate?: (page: PageKey) => void };
@@ -227,60 +236,62 @@ export default function SalesHistoryPage({ onNavigate }: Props) {
 
       <Reveal delay={80}>
         <section className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] table-fixed text-sm 2xl:min-w-[1180px]">
+        <div className="w-full overflow-hidden">
+          <table className="w-full table-fixed text-sm">
             <thead className="bg-bg-primary text-left text-text-secondary">
               <tr>
-                <th className="w-[12%] px-3 py-3">Cliente</th>
-                <th className="hidden w-[9%] px-3 py-3 2xl:table-cell">CPF</th>
-                <th className="hidden w-[14%] px-3 py-3 2xl:table-cell">Cód. Produto</th>
-                <th className="w-[14%] px-3 py-3">Produto</th>
-                <th className="w-[5%] px-3 py-3 text-center">QNT</th>
-                <th className="w-[9%] px-3 py-3 text-right">Vl. Unit.</th>
-                <th className="w-[9%] px-3 py-3 text-right">Vl. Total</th>
-                <th className="w-[11%] px-3 py-3">Data</th>
-                <th className="sticky right-0 z-10 w-[18%] bg-bg-light px-3 py-3 text-center shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.7)]">Ações</th>
+                <th className="w-[20%] px-4 py-3">Cliente</th>
+                <th className="w-[23%] px-4 py-3">Produto</th>
+                <th className="w-[6%] px-2 py-3 text-center">QNT</th>
+                <th className="w-[10%] px-2 py-3 text-right">Vl. Unit.</th>
+                <th className="w-[10%] px-2 py-3 text-right">Vl. Total</th>
+                <th className="w-[12%] px-3 py-3">Data</th>
+                <th className="w-[19%] px-2 py-3 text-center">Ações</th>
               </tr>
             </thead>
             <tbody>
               {paginatedSales.map((sale) => (
                 <tr key={`${sale.saleNumber}-${sale.productCode}`} className="border-t border-border-primary">
-                  <td className="whitespace-nowrap px-3 py-3">
-                    <span className="block break-words leading-snug" title={sale.customerName}>
+                  <td className="px-4 py-3 align-middle">
+                    <span className="block min-w-0 break-words leading-snug" title={sale.customerName}>
                       {sale.customerName}
                     </span>
-                  </td>
-                  <td className="hidden px-3 py-3 break-words 2xl:table-cell">{sale.customerCpf}</td>
-                  <td className="hidden px-3 py-3 2xl:table-cell">
-                    <span className="block break-all font-medium leading-snug text-text-primary" title={sale.productCode}>
-                      {sale.productCode}
+                    <span className="mt-1 block break-all text-xs text-text-secondary">
+                      {sale.customerCpf || "Sem CPF"}
                     </span>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-4 py-3 align-middle">
                     <span className="block break-words leading-snug" title={sale.productName}>
                       {sale.productName}
                     </span>
-                  </td>
-                  <td className="px-3 py-3 text-center tabular-nums">{sale.quantity}</td>
-                  <td className="px-3 py-3 text-right font-medium text-text-primary">
-                    R$ {formatMoneyBr(getUnitPrice(sale))}
-                  </td>
-                  <td className="px-3 py-3 text-right font-semibold text-text-primary">
-                    R$ {formatMoneyBr(getItemTotal(sale))}
-                  </td>
-                  <td className="px-3 py-3">
-                    <span className="block whitespace-nowrap">{splitSaleDate(sale.saleDate).date}</span>
-                    <span className="block whitespace-nowrap text-xs text-text-secondary">
-                      {splitSaleDate(sale.saleDate).time}
+                    <span className="mt-1 block break-all text-xs text-text-secondary" title={sale.productCode}>
+                      Cód. {sale.productCode || "—"}
                     </span>
                   </td>
-                  <td className="sticky right-0 whitespace-nowrap bg-bg-light px-3 py-3 shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.7)]">
-                    <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                  <td className="px-2 py-3 text-center tabular-nums">{sale.quantity}</td>
+                  <td className="whitespace-nowrap px-2 py-3 text-right font-medium text-text-primary">
+                    R$ {formatMoneyBr(getUnitPrice(sale))}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-3 text-right font-semibold text-text-primary">
+                    R$ {formatMoneyBr(getItemTotal(sale))}
+                  </td>
+                  <td className="px-3 py-3 align-middle tabular-nums">
+                    <span className="block whitespace-nowrap font-medium text-text-primary">
+                      {splitSaleDate(sale.saleDate).date}
+                    </span>
+                    {splitSaleDate(sale.saleDate).time && (
+                      <span className="mt-0.5 block whitespace-nowrap text-xs text-text-secondary">
+                        {splitSaleDate(sale.saleDate).time}
+                      </span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap bg-bg-light px-2 py-3">
+                    <div className="flex items-center justify-center gap-1 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => void openSale(sale, "view")}
                         disabled={openingSaleNumbers.has(sale.saleNumber)}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/5 px-2.5 text-xs font-semibold text-accent transition hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-accent/40 bg-accent/5 px-2 text-xs font-semibold text-accent transition hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-60"
                         title="Abrir venda finalizada"
                       >
                         <Eye size={13} />
@@ -289,7 +300,7 @@ export default function SalesHistoryPage({ onNavigate }: Props) {
                       <button
                         type="button"
                         onClick={() => editSale(sale)}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-success/40 bg-success/5 px-2.5 text-xs font-semibold text-success transition hover:bg-success/10"
+                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-success/40 bg-success/5 px-2 text-xs font-semibold text-success transition hover:bg-success/10"
                         title="Editar no PDV"
                       >
                         <Pencil size={13} />

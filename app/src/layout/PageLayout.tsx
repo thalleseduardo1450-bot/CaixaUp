@@ -42,20 +42,26 @@ export default function PageLayout({
       if (motion.matches) animations.forEach((animation) => animation.cancel());
     };
     const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry, index) => {
+      entries.forEach((entry) => {
         if (!entry.isIntersecting) return;
         observer.unobserve(entry.target);
         if (motion.matches || entry.target.contains(document.activeElement)) return;
         const animation = entry.target.animate([
-          { opacity: 0.35, translate: "0 12px" },
-          { opacity: 1, translate: "0 0" },
-        ], { duration: 320, delay: Math.min(index * 45, 135), easing: "cubic-bezier(0.2, 0.85, 0.25, 1)" });
+          { opacity: 1, transform: "translate3d(0, 3px, 0)" },
+          { opacity: 1, transform: "translate3d(0, 0, 0)" },
+        ], {
+          duration: 100,
+          delay: 0,
+          easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+        });
         animations.add(animation);
         animation.onfinish = () => animations.delete(animation);
         animation.oncancel = () => animations.delete(animation);
       });
     }, { threshold: 0 });
-    Array.from(page.children).forEach((child) => observer.observe(child));
+    Array.from(page.children).forEach((child) => {
+      observer.observe(child);
+    });
     motion.addEventListener("change", stopAnimations);
     return () => {
       observer.disconnect();

@@ -4,7 +4,7 @@
  * Entradas esperadas: estado do tema e callback para alternância.
  */
 import { Download, Package, Upload } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { YesNoSegmentedControl } from "@/components/Form";
 import {
   DesktopBehaviorCard,
@@ -33,39 +33,32 @@ export default function SettingsPage({
   onToggleTheme,
 }: SettingsPageProps) {
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
-  const [isLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [sessionsError, setSessionsError] = useState("");
   const [sellWithoutStockEnabled, setSellWithoutStockEnabledState] = useState(() =>
     getSellWithoutStockEnabled(),
   );
   const [backupMessage, setBackupMessage] = useState("");
 
   useEffect(() => {
-    sessionService.list().then(setSessions).catch(() => setSessions([]));
+    let active = true;
+    sessionService.list()
+      .then((items) => { if (active) setSessions(items); })
+      .catch(() => { if (active) setSessionsError("Não foi possível consultar sua sessão. Reabra esta tela para tentar novamente."); })
+      .finally(() => { if (active) setIsLoading(false); });
+    return () => { active = false; };
   }, []);
 
-  const hasOtherSessions = useMemo(
-    () => sessions.some((session) => !session.current),
-    [sessions],
-  );
-
-  const handleTerminateSession = async (sessionId: string) => {
-    try {
-      const updated = await sessionService.terminate(sessionId);
-      setSessions(updated);
-      Toast.success("Sessão encerrada com sucesso.");
-    } catch (error) {
-      Toast.error(error instanceof Error ? error.message : "Erro ao encerrar sessão.");
-    }
-  };
-
   const handleTerminateOtherSessions = async () => {
-    if (!hasOtherSessions) return;
+    if (isLoading) return;
+    setIsLoading(true);
     try {
-      const updated = await sessionService.terminateOthers();
-      setSessions(updated);
-      Toast.success("Outras sessões encerradas com sucesso.");
+      await sessionService.terminateOthers();
+      Toast.success("Renovação das outras sessões bloqueada. Elas sairão quando o acesso atual expirar.");
     } catch (error) {
       Toast.error(error instanceof Error ? error.message : "Erro ao encerrar sessões.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -129,7 +122,7 @@ export default function SettingsPage({
             <SecuritySessionsCard
               sessions={sessions}
               isLoading={isLoading}
-              onTerminateSession={handleTerminateSession}
+              error={sessionsError}
               onTerminateOtherSessions={handleTerminateOtherSessions}
             />
           </div>

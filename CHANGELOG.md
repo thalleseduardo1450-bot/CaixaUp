@@ -1,5 +1,88 @@
 # Novidades do CaixaUp
 
+## 3.3.57
+
+### Novo painel de venda e tela de venda concluída
+
+- O cupom ao lado do caixa mostra cada item em cartão, com quantidade × preço, o último lançado em destaque e Subtotal, Desconto e TOTAL grandes.
+- A tela de venda concluída mostra total, forma de pagamento, recebido e o troco em destaque. Enter ou Esc começam a próxima venda.
+
+### Assinaturas pela API
+
+- O plano pago liberado pela administração fica na API do CaixaUp. A tela de Assinatura ganhou, só para a administração, um formulário para liberar ou trocar o plano de uma conta pelo e-mail, com registro na auditoria.
+- Contas sem plano pago na API continuam com o plano de antes (teste grátis e pagamentos antigos).
+
+### Por dentro
+
+- O instalador volta a ser montado a partir do código das telas, com as correções da 3.3.48 a 3.3.54 aplicadas no próprio código.
+
+## 3.3.54
+
+### Telas abrem na hora
+
+- Produtos, Clientes, Estoque, Histórico e as demais telas aparecem na hora com os dados já carregados, e são conferidas com o servidor em segundo plano. Se algo mudou em outro computador, a tela se atualiza sozinha. Nos testes, abrir uma tela caiu de ~860 ms para ~70 ms, inclusive na primeira vez.
+- Depois de uma venda ou cadastro, os dados afetados são recarregados logo em seguida: o histórico já mostra a venda nova.
+- Ao entrar, os dados e as telas principais são pré-carregados.
+- Sem animações de espera: telas, cartões e janelas aparecem e fecham na hora. O vídeo de abertura continua igual.
+- Depois de "Venda finalizada", o caixa libera a próxima venda na hora (antes o teclado ficava travado por 1,15 s).
+
+### Junto com a API nova (servidor_otimizado_v6)
+
+- Cada clique respondia depois de conferir o login no Supabase (3 consultas seguidas). Agora o login fica guardado e é reconferido em segundo plano: nos testes, a resposta do servidor caiu de ~470 ms para ~3 ms. Sessão encerrada ou empresa desativada continuam perdendo o acesso na conferência seguinte.
+- Se o Supabase cair, quem já está logado continua vendendo.
+
+## 3.3.53
+
+### Atualização sem fechar o caixa
+
+- A atualização automática não fecha mais o CaixaUp no meio da venda. A versão nova é baixada e instalada quando o CaixaUp é fechado, ou sozinha depois de 10 minutos com o computador parado.
+- Os arquivos de registro (`caixaup-network.log` e outros) têm tamanho limitado e não crescem mais sem parar.
+- A publicação só libera a versão para os computadores quando o instalador e o arquivo de atualização estão completos no GitHub (evita versão pela metade como na 3.3.50).
+
+### Junto com a API nova (servidor_otimizado_v5)
+
+- Se a conexão cair ao finalizar e o carrinho for alterado antes de tentar de novo, o caixa avisa que a venda já tinha sido registrada, em vez de sumir com os itens novos.
+- Editar uma venda mantém a data e o caixa originais (antes a venda ia para o dia e o caixa da edição).
+- Cliente com fiado em aberto não pode ser excluído.
+- Histórico de vendas abre mais rápido com muitas vendas.
+- Servidor fora do ar mostra "serviço indisponível" em vez de pedir login de novo.
+
+## 3.3.52
+
+### Manutenção do caixa (finalizar venda)
+
+- O PDV atualiza sozinho a lista de produtos (preço e estoque) a cada 30 segundos e ao voltar para a janela. Antes ela só era carregada ao abrir o caixa, e com mais de um computador a venda era recusada ao finalizar ("Os preços mudaram" ou "Estoque insuficiente").
+- Computador com o armazenamento cheio não bloqueia mais a venda ("Não foi possível salvar a recuperação local").
+- Envios ao servidor têm tempo limite: o botão não fica mais "Enviando..." para sempre.
+- Falhas de internet mostram o motivo (relógio errado, antivírus, DNS, proxy) no lugar de "Failed to fetch", inclusive no login.
+- Junto com a API nova (servidor_otimizado_v4): venda aceita com o preço mostrado na tela quando o cadastro mudou no meio da venda, edição de produto não apaga mais o estoque vendido em outros caixas, e falha momentânea do login não derruba a sessão.
+
+## 3.3.51
+
+- Volta o vídeo de abertura do CaixaUp (a 3.3.50 foi publicada sem o instalador).
+- Mantém as telas da 3.3.47 (Pagamentos e Fiado, cupom, Fiscal) e o registro de falhas de rede.
+
+## 3.3.50
+
+- Volta o vídeo de abertura do CaixaUp. Os vídeos agora vão dentro do instalador e da atualização automática.
+
+## 3.3.49
+
+### Telas da 3.3.47 de volta
+
+- Volta a tela Pagamentos e Fiado, a pré-visualização do cupom e as telas Fiscal, Painel, PDV e Configurações como estavam na 3.3.47 (a 3.3.48 saiu com telas antigas).
+- Mantém do programa desktop da 3.3.48 o registro de falhas de rede em `caixaup-network.log`.
+- As mensagens explicando o "Failed to fetch" voltam quando o código mais novo das telas estiver no GitHub.
+
+## 3.3.48
+
+### Conexão em outros computadores ("Failed to fetch")
+
+- Leituras que falham por rede são repetidas automaticamente uma vez antes de mostrar erro.
+- No lugar de "Failed to fetch", o CaixaUp mostra o motivo real: data/hora do Windows errada, certificado recusado (antivírus com proteção HTTPS), DNS, proxy, firewall ou falta de internet.
+- Falhas de rede ficam registradas em `caixaup-network.log` na pasta de dados do CaixaUp, para suporte.
+- A política de segurança da tela libera a API do CaixaUp e as consultas de CEP e código de barras.
+
 ## 3.3.28
 
 ### Catálogo completo de produtos

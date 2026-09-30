@@ -241,7 +241,7 @@ export default function SalesStartPage({
   const idsInCart = useMemo(() => cart.items.map((item) => item.id), [cart.items]);
 
   const cashCanSell = true;
-  const cashStatusLabel = "Vendas salvas neste computador";
+  const cashStatusLabel = "Vendas enviadas ao servidor";
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId);
 
@@ -410,7 +410,9 @@ export default function SalesStartPage({
       setIsSubmitting(true);
 
       try {
-        if (!cart.persist(payment.customerId || "")) throw new Error("Não foi possível salvar a recuperação local. Libere espaço antes de finalizar.");
+        // A venda tem identificador próprio no servidor: rascunho local que não coube
+        // (armazenamento cheio) não impede a venda.
+        if (!cart.persist(payment.customerId || "")) console.warn("[CaixaUp] Rascunho local não foi salvo (armazenamento cheio); a venda segue.");
 
         const documentOnReceipt =
           payment.customerDocument || cpfOnReceipt.trim() || "-";
@@ -772,27 +774,15 @@ export default function SalesStartPage({
               emptyHint="Confira o nome ou o código digitado e tente novamente."
             />
           ) : cart.items.length > 0 ? (
-            <div className="flex min-h-0 flex-1 flex-col">
-              <div className="flex items-center justify-between border-b border-border-primary bg-bg-light px-4 py-3">
-                <div>
-                  <p className="text-lg font-bold text-text-primary">Produtos da venda</p>
-                  <p className="text-sm text-text-secondary">Toque no produto para ajustar a quantidade.</p>
-                </div>
-                <span className="rounded-xl bg-accent/10 px-4 py-2 text-lg font-bold text-accent">
-                  {cart.itemCount} {cart.itemCount === 1 ? "item" : "itens"}
-                </span>
-              </div>
-              <PdvCartItems
-                items={cart.items}
-                selectedId={selectedCartId ?? cart.lastTouchedId}
-                onSelect={setSelectedCartId}
-                onIncrement={cart.increment}
-                onDecrement={cart.decrement}
-                onSetQuantity={cart.setQuantity}
-                onRemove={cart.removeItem}
-                wide
-              />
-            </div>
+            <PdvCartItems
+              items={cart.items}
+              selectedId={selectedCartId ?? cart.lastTouchedId}
+              onSelect={setSelectedCartId}
+              onIncrement={cart.increment}
+              onDecrement={cart.decrement}
+              onSetQuantity={cart.setQuantity}
+              onRemove={cart.removeItem}
+            />
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center">
               <div className="grid h-20 w-20 place-items-center rounded-2xl bg-accent/10 text-accent">
@@ -813,12 +803,6 @@ export default function SalesStartPage({
           <PdvCart
             items={cart.items}
             totalCents={cart.totalCents}
-            selectedId={selectedCartId ?? cart.lastTouchedId}
-            onSelect={setSelectedCartId}
-            onIncrement={cart.increment}
-            onDecrement={cart.decrement}
-            onSetQuantity={cart.setQuantity}
-            onRemove={cart.removeItem}
             onCheckout={() => void openCheckout()}
             onCancelSale={() => void cancelSale()}
             onSuspendSale={suspendSale}
@@ -826,7 +810,6 @@ export default function SalesStartPage({
             suspendedCount={cart.suspended.length}
             checkoutDisabled={isSubmitting}
             isSubmitting={isSubmitting}
-            summaryOnly
           />
         </div>
       </div>

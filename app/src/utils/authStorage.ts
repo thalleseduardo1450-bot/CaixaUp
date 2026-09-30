@@ -47,7 +47,11 @@ export function setAuthSession(user: AuthenticatedUser, remember = true) {
 }
 
 export function clearAuthSession() {
-  const hadSession = Boolean(getStoredAuthUser());
+  const previousUser = getStoredAuthUser();
+  const hadSession = Boolean(previousUser);
+  if (previousUser?.id && previousUser.companyId) {
+    window.localStorage.removeItem(`caixaup.dashboard.v1:${previousUser.companyId}:${previousUser.id}`);
+  }
   window.localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
   window.localStorage.removeItem(AUTH_USER_STORAGE_KEY);
   window.localStorage.removeItem(AUTH_REMEMBER_STORAGE_KEY);

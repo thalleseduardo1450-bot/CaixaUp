@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export function useModalExit(onClose: () => void, durationMs = 220) {
+export function useModalExit(onClose: () => void, durationMs = 0) {
   const [closing, setClosing] = useState(false);
   const timer = useRef<number | undefined>(undefined);
   const onCloseRef = useRef(onClose);

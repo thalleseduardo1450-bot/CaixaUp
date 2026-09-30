@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld("caixaUpDesktop", {
     return () => ipcRenderer.removeListener("desktop:update-installed", listener);
   },
   openExternal: (url) => ipcRenderer.invoke("desktop:open-external", url),
+  getNetworkFailure: (host) => ipcRenderer.invoke("desktop:network:last-failure", host),
   getPendingAuthCallback: () => ipcRenderer.invoke("desktop:auth:pending"),
   onAuthCallback: (callback) => {
     if (typeof callback !== "function") throw new TypeError("Callback inválido.");

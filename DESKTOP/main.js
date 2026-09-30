@@ -12,6 +12,7 @@ const {
   dialog,
   globalShortcut,
   ipcMain,
+  powerMonitor,
   screen,
   shell,
 } = require("electron");
@@ -21,6 +22,21 @@ const fs = require("fs");
 const path = require("path");
 
 const WEB_PORT = 4173;
+// Atualização baixada é instalada sozinha depois deste tempo sem teclado/mouse.
+const UPDATE_IDLE_SECONDS = 10 * 60;
+const LOG_MAX_BYTES = 512 * 1024;
+
+/** Acrescenta uma linha ao log e recomeça o arquivo quando passa do limite. */
+function appendLog(file, line) {
+  try {
+    if (fs.existsSync(file) && fs.statSync(file).size > LOG_MAX_BYTES) {
+      fs.renameSync(file, `${file}.old`);
+    }
+    fs.appendFileSync(file, line.endsWith("\n") ? line : `${line}\n`, "utf8");
+  } catch {
+    // O log é auxiliar e não pode interromper o aplicativo.
+  }
+}
 const WEB_ORIGIN = `http://127.0.0.1:${WEB_PORT}`;
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 
@@ -128,7 +144,7 @@ function startWebServer() {
       res.setHeader("Referrer-Policy", "no-referrer");
       res.setHeader(
         "Content-Security-Policy",
-        `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://caixaup-api.squareweb.app https://viacep.com.br https://brasilapi.com.br https://opencep.com https://world.openfoodfacts.org; frame-src ${WEB_ORIGIN}/opening-motion.html; base-uri 'self'; object-src 'none'; frame-ancestors ${isOpeningMotion ? "'self'" : "'none'"}; form-action 'self'`,
+        `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://caixaup-api.squareweb.app https://viacep.com.br https://brasilapi.com.br https://opencep.com https://world.openfoodfacts.org; frame-src ${WEB_ORIGIN}/opening-motion.html; base-uri 'self'; object-src 'none'; frame-ancestors ${isOpeningMotion ? "'self'" : "'none'"}; form-action 'self'`,
       );
       res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
       res.setHeader("Cache-Control", "no-store");
@@ -340,6 +356,7 @@ function createMainWindow() {
   });
   mainWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
   mainWindow.webContents.session.setPermissionCheckHandler(() => false);
+  watchNetworkFailures(mainWindow.webContents.session);
 
   mainWindow.webContents.on("console-message", (_e, nivel, mensagem, linha, origem) => {
     if (nivel < 2) return;
@@ -350,14 +367,10 @@ function createMainWindow() {
   });
 
   mainWindow.webContents.on("render-process-gone", (_event, details) => {
-    try {
-      fs.appendFileSync(path.join(app.getPath("userData"), "caixaup-stability.log"), `${new Date().toISOString()} renderer=${details.reason} exit=${details.exitCode}\n`);
-    } catch {}
+    appendLog(path.join(app.getPath("userData"), "caixaup-stability.log"), `${new Date().toISOString()} renderer=${details.reason} exit=${details.exitCode}`);
   });
   mainWindow.on("unresponsive", () => {
-    try {
-      fs.appendFileSync(path.join(app.getPath("userData"), "caixaup-stability.log"), `${new Date().toISOString()} unresponsive\n`);
-    } catch {}
+    appendLog(path.join(app.getPath("userData"), "caixaup-stability.log"), `${new Date().toISOString()} unresponsive`);
   });
 
   mainWindow.loadURL(WEB_ORIGIN);
@@ -413,6 +426,36 @@ function createMainWindow() {
   });
 }
 
+// Guarda a última falha de rede de cada servidor para a tela explicar o
+// "Failed to fetch" (relógio errado, certificado, DNS, antivírus, proxy...).
+const NETWORK_FAILURE_TTL_MS = 60_000;
+const networkFailures = new Map();
+
+function getNetworkLogPath() {
+  return path.join(app.getPath("userData"), "caixaup-network.log");
+}
+
+function watchNetworkFailures(targetSession) {
+  targetSession.webRequest.onErrorOccurred({ urls: ["https://*/*", "wss://*/*"] }, (details) => {
+    if (details.error === "net::ERR_ABORTED") return;
+    let host = "";
+    try {
+      host = new URL(details.url).host;
+    } catch {
+      return;
+    }
+    networkFailures.set(host, { error: details.error, host, at: Date.now() });
+    appendLog(getNetworkLogPath(), `${new Date().toISOString()} ${details.method} ${host} ${details.error}`);
+  });
+}
+
+function lastNetworkFailure(host) {
+  if (typeof host !== "string" || !host) return null;
+  const failure = networkFailures.get(host);
+  if (!failure || Date.now() - failure.at > NETWORK_FAILURE_TTL_MS) return null;
+  return { error: failure.error, host: failure.host };
+}
+
 function sanitizarUserAgent() {
   const original = app.userAgentFallback || "";
   const limpo = original.replace(/[^\x20-\x7E]/g, "");
@@ -434,11 +477,7 @@ function logUpdate(message, error) {
   const detail = error ? `: ${error.message || error}` : "";
   const line = `[${new Date().toISOString()}] ${message}${detail}`;
   console.log(`[atualizacao] ${message}${detail}`);
-  try {
-    fs.appendFileSync(getUpdateLogPath(), `${line}\n`, "utf8");
-  } catch {
-    // O log é auxiliar e não pode interromper o aplicativo.
-  }
+  appendLog(getUpdateLogPath(), line);
 }
 
 function getDesktopPreferencesPath() {
@@ -555,7 +594,7 @@ function configureAutoUpdater() {
   if (!packaged) return;
 
   autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = false;
+  autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
   autoUpdater.fullChangelog = true;
 
@@ -594,6 +633,9 @@ function configureAutoUpdater() {
     });
   });
 
+  // Antes o CaixaUp fechava sozinho 0,7 s depois de baixar a atualização,
+  // mesmo no meio de uma venda. Agora instala ao fechar o programa ou quando
+  // o computador fica parado (sem teclado/mouse) por um tempo.
   autoUpdater.on("update-downloaded", async (info) => {
     if (updatePromptShown) return;
     updatePromptShown = true;
@@ -603,14 +645,16 @@ function configureAutoUpdater() {
       status: "installing",
       version: info.version,
       percent: 100,
-      message: `Instalando a versão ${info.version}`,
+      message: `Versão ${info.version} pronta. Será instalada ao fechar o CaixaUp.`,
     });
-    logUpdate(`Versão ${info.version} baixada; encerrando para instalar`);
-    appIsQuitting = true;
-    setTimeout(() => {
-      logUpdate(`Executando instalador da versão ${info.version}`);
+    logUpdate(`Versão ${info.version} baixada; instala ao fechar ou com o computador parado`);
+    const idleCheck = setInterval(() => {
+      if (powerMonitor.getSystemIdleTime() < UPDATE_IDLE_SECONDS) return;
+      clearInterval(idleCheck);
+      logUpdate(`Computador parado; executando instalador da versão ${info.version}`);
+      appIsQuitting = true;
       autoUpdater.quitAndInstall(true, true);
-    }, 700);
+    }, 60_000);
   });
 
   const checkForUpdates = () => {
@@ -704,6 +748,7 @@ function configureDesktopIpc() {
     packaged,
   }));
   handleDesktopIpc("desktop:update-status", () => updateStatus);
+  handleDesktopIpc("desktop:network:last-failure", (host) => lastNetworkFailure(host));
   handleDesktopIpc("desktop:update-check", async () => {
     if (!packaged) {
       return { status: "development", message: "Disponível somente no aplicativo instalado" };

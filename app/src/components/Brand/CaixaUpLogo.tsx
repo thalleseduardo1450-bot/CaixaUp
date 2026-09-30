@@ -21,7 +21,7 @@ export function CaixaUpMark({
 }) {
   return (
     <img
-      src="./logo-caixaup.png"
+      src={`${import.meta.env.BASE_URL}logo-caixaup.png`}
       alt="CaixaUp"
       className={`shrink-0 object-contain ${className}`}
       style={{ height, width: height }}

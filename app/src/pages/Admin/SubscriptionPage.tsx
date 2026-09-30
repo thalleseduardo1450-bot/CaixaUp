@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/Admin/PageHeader";
 import PageLayout from "@/layout/PageLayout";
 import { supabase } from "@/lib/supabase";
+import { subscriptionService } from "@/services/api/subscriptionService";
+import SubscriptionAdminPanel from "@/components/Subscription/SubscriptionAdminPanel";
 
 type PlanCode = "gratis" | "pro" | "premium";
 type Subscription = {
@@ -82,7 +84,7 @@ export default function SubscriptionPage() {
     async function load() {
       try {
         const [subscriptionResult, plansResult] = await Promise.all([
-          supabase.rpc("minha_assinatura").abortSignal(controller.signal),
+          subscriptionService.mine(controller.signal).then((data) => ({ data, error: null }), (error: unknown) => ({ data: null, error })),
           supabase.from("planos").select("codigo,nome,preco_centavos,recursos").abortSignal(controller.signal),
         ]);
         if (!active) return;
@@ -195,6 +197,7 @@ export default function SubscriptionPage() {
         })}
       </div>
       <p className="text-sm text-text-secondary">Revise valor, periodicidade e condições no checkout antes de confirmar. Preços e recursos podem ser atualizados no catálogo da plataforma.</p>
+      <SubscriptionAdminPanel />
     </PageLayout>
   );
 }

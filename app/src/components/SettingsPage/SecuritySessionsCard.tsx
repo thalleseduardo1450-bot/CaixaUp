@@ -3,14 +3,12 @@
  * Objetivo: exibe sessões ativas e permite encerramento seletivo para segurança.
  * Entradas esperadas: lista de sessões e callbacks para encerrar sessão/outras.
  */
-import { Laptop, ShieldCheck, Smartphone, X } from "lucide-react";
+import { Laptop, ShieldCheck, Smartphone } from "lucide-react";
 import Skeleton from "@/components/Loading/Skeleton";
 
 export type ActiveSession = {
   id: string;
   device: string;
-  location: string;
-  ip: string;
   lastActive: string;
   current: boolean;
   platform: "desktop" | "mobile";
@@ -19,14 +17,14 @@ export type ActiveSession = {
 type SecuritySessionsCardProps = {
   sessions: ActiveSession[];
   isLoading?: boolean;
-  onTerminateSession: (sessionId: string) => void;
+  error?: string;
   onTerminateOtherSessions: () => void;
 };
 
 export default function SecuritySessionsCard({
   sessions,
   isLoading = false,
-  onTerminateSession,
+  error,
   onTerminateOtherSessions,
 }: SecuritySessionsCardProps) {
   return (
@@ -35,22 +33,25 @@ export default function SecuritySessionsCard({
         <div>
           <p className="text-base font-semibold text-text-primary">Segurança</p>
           <p className="mt-1 text-sm text-text-secondary">
-            Monitore os acessos da sua conta e encerre sessões suspeitas.
+            Confira sua sessão atual e desconecte sua conta dos outros dispositivos.
           </p>
         </div>
 
         <button
           type="button"
           onClick={onTerminateOtherSessions}
+          disabled={isLoading || Boolean(error) || sessions.length === 0}
           className="inline-flex items-center gap-1.5 rounded-lg border border-border-secondary bg-bg-light px-3 py-1.5 text-xs font-semibold text-text-primary transition hover:bg-hover-light"
         >
           <ShieldCheck size={14} />
-          Encerrar outras sessões
+          {isLoading ? "Aguarde…" : "Encerrar outras sessões"}
         </button>
       </div>
 
       <div className="mt-4 max-h-[360px] space-y-2 overflow-y-auto pr-1">
-        {isLoading ? (
+        {error ? (
+          <p role="alert" className="text-sm text-red-600">{error}</p>
+        ) : isLoading ? (
           Array.from({ length: 4 }).map((_, index) => (
             <div
               key={`session-skeleton-${index + 1}`}
@@ -72,7 +73,7 @@ export default function SecuritySessionsCard({
               Nenhuma sessão ativa encontrada
             </p>
             <p className="mt-1 text-xs text-text-secondary">
-              Novos acessos aparecerão nesta lista automaticamente.
+              Entre novamente para consultar sua sessão.
             </p>
           </div>
         ) : (
@@ -101,28 +102,18 @@ export default function SecuritySessionsCard({
                     )}
                   </div>
                   <p className="mt-0.5 text-xs text-text-secondary">
-                    {session.location} • IP {session.ip}
-                  </p>
-                  <p className="mt-0.5 text-xs text-text-secondary">
                     Última atividade: {session.lastActive}
                   </p>
                 </div>
               </div>
 
-              {!session.current && (
-                <button
-                  type="button"
-                  onClick={() => onTerminateSession(session.id)}
-                  className="inline-flex items-center gap-1 rounded-lg border border-border-secondary px-2.5 py-1.5 text-xs font-semibold text-primary transition hover:bg-red-50"
-                >
-                  <X size={14} />
-                  Encerrar
-                </button>
-              )}
             </div>
           ))
         )}
       </div>
+      <p className="mt-3 text-xs text-text-secondary">
+        Só a sessão deste dispositivo é exibida. Ao encerrar as demais, elas sairão quando o acesso atual expirar. Você continua conectado aqui.
+      </p>
     </div>
   );
 }

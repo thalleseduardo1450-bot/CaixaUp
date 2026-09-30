@@ -1,0 +1,150 @@
+name: Publicar instalador
+
+# Quando a versão do DESKTOP/package.json muda (ou ao enviar uma tag vX.Y.Z),
+# gera o CaixaUp-Setup-X.Y.Z.exe no Windows e publica no release vX.Y.Z do
+# GitHub junto com latest.yml e .blockmap, que a atualização automática dos
+# computadores instalados usa. Um release já publicado não é sobrescrito.
+on:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - main
+      - "manutencao/**"
+      - "claude/**"
+    paths:
+      - DESKTOP/package.json
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  instalador:
+    runs-on: windows-latest
+    env:
+      # Valores públicos: já vão dentro do app instalado.
+      VITE_SUPABASE_URL: https://tugtruobxcfulbcipbkh.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_SQdUlF0ytdANtZZRt8FkTQ_xD429GIs
+      VITE_SQUARE_API_URL: https://caixaup-api.squareweb.app
+      VITE_LOGIN_ALIAS: ${{ vars.VITE_LOGIN_ALIAS }}
+      VITE_LOGIN_EMAIL: ${{ vars.VITE_LOGIN_EMAIL }}
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Conferir versão da tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          versao=$(node -p "require('./DESKTOP/package.json').version")
+          if [ "v$versao" != "$GITHUB_REF_NAME" ]; then
+            echo "A tag $GITHUB_REF_NAME não bate com a versão $versao do DESKTOP/package.json"
+            exit 1
+          fi
+
+      # O GitHub só publica release com tag existente. Tag criada com o
+      # GITHUB_TOKEN não dispara esta automação de novo.
+      - name: Criar tag da versão
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        shell: bash
+        run: |
+          tag="v$(node -p "require('./DESKTOP/package.json').version")"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "Tag $tag já existe"
+          else
+            git tag "$tag"
+            git push origin "refs/tags/$tag"
+          fi
+
+      # Cria o release antes do electron-builder: se ele mesmo criar, o .exe e o
+      # .blockmap sobem em paralelo, cada um cria um release e os arquivos se
+      # dividem entre dois releases com a mesma tag (aconteceu na 3.3.49/3.3.50).
+      # Nasce como rascunho: os computadores só enxergam a versão depois que
+      # todos os arquivos subiram (ver "Liberar o release" no fim).
+      - name: Criar o release com as notas do CHANGELOG
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          versao=$(node -p "require('./DESKTOP/package.json').version")
+          if gh release view "v$versao" >/dev/null 2>&1; then
+            echo "Release v$versao já existe"
+          else
+            awk -v v="## $versao" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md > notas.md
+            [ -s notas.md ] || echo "CaixaUp $versao" > notas.md
+            gh release create "v$versao" --title "CaixaUp $versao" --notes-file notas.md --verify-tag --draft
+          fi
+
+      # Se DESKTOP/telas-do-release.txt existir (ex.: "3.3.47"), as telas vêm
+      # prontas do instalador daquele release em vez de serem compiladas de app/.
+      # Usado enquanto o código mais novo das telas não está no GitHub.
+      - name: Compilar a tela
+        if: ${{ hashFiles('DESKTOP/telas-do-release.txt') == '' }}
+        working-directory: app
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Usar as telas de um release publicado
+        if: ${{ hashFiles('DESKTOP/telas-do-release.txt') != '' }}
+        shell: bash
+        run: |
+          base=$(tr -d '[:space:]' < DESKTOP/telas-do-release.txt)
+          curl -fsSL -o base.exe "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${base}/CaixaUp-Setup-${base}.exe"
+          7z x -y -obase base.exe > /dev/null
+          7z x -y -obase/app 'base/$PLUGINSDIR/app-64.7z' 'resources/web/*' > /dev/null
+          rm -rf app/dist
+          mv base/app/resources/web app/dist
+          test -f app/dist/index.html
+          # O electron-builder guarda .mp4/.webm fora do app-64.7z, então eles não vêm na
+          # extração acima; os vídeos da abertura saem de app/public/startup.
+          mkdir -p app/dist/startup
+          cp -f app/public/startup/* app/dist/startup/
+          echo "Telas da versão $base: $(ls app/dist/assets | wc -l) arquivos"
+          # Correções das telas prontas (catálogo do PDV, rascunho, rede). Para com
+          # erro se algum trecho não for encontrado.
+          if [ -f "DESKTOP/patches/telas-$base.mjs" ]; then node "DESKTOP/patches/telas-$base.mjs" app/dist; fi
+
+      - name: Gerar e publicar o instalador
+        working-directory: DESKTOP
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm ci --no-audit --no-fund
+          npx electron-builder --win nsis --x64 --publish always
+
+      # Só libera o release se o instalador e o latest.yml estiverem nele. Um
+      # release vazio ou pela metade quebrava a atualização automática (3.3.50).
+      - name: Liberar o release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          versao=$(node -p "require('./DESKTOP/package.json').version")
+          arquivos=$(gh release view "v$versao" --json assets --jq '.assets[].name')
+          echo "$arquivos"
+          for esperado in "CaixaUp-Setup-$versao.exe" "latest.yml" "CaixaUp-Setup-$versao.exe.blockmap"; do
+            if ! grep -qxF "$esperado" <<< "$arquivos"; then
+              echo "::error::Falta $esperado no release v$versao; o release fica como rascunho."
+              exit 1
+            fi
+          done
+          if [ "$(gh release view "v$versao" --json isDraft --jq .isDraft)" = "true" ]; then
+            gh release edit "v$versao" --draft=false --latest
+          fi
+
+      - name: Guardar o instalador
+        uses: actions/upload-artifact@v4
+        with:
+          name: CaixaUp-instalador
+          path: |
+            DESKTOP/release/*.exe
+            DESKTOP/release/*.blockmap
+            DESKTOP/release/latest.yml

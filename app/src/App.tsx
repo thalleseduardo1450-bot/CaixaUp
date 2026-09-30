@@ -3,7 +3,8 @@
  * Objetivo: orquestra o shell administrativo com sidebar, cabeçalho mobile e lazy loading das páginas.
  * Entradas esperadas: não recebe props; controla estado global de navegação local.
  */
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { pageDataVersion, subscribePageData } from "@/services/api/squareApi";
 import { CircleHelp, Maximize2, Menu, Minimize2, Minus, X } from "lucide-react";
 import AppSidebar, { type PageKey } from "@/components/AppSidebar/AppSidebar";
 import LoadingBar from "@/components/Loading/LoadingBar";
@@ -277,6 +278,8 @@ export default function App() {
     window.addEventListener("resize", keepCompactOnSmallViewport);
     return () => window.removeEventListener("resize", keepCompactOnSmallViewport);
   }, []);
+  // Dado conferido em segundo plano mudou: a tela é remontada com o novo.
+  const pageVersion = useSyncExternalStore(subscribePageData, pageDataVersion);
   const [activePage, setActivePage] = useState<PageKey>(() => {
     return "home";
   });
@@ -1090,7 +1093,7 @@ export default function App() {
           className="app-content-scroll flex-1 h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden pt-14 lg:pt-0"
         >
           <AppErrorBoundary key={activePage} title="Não foi possível abrir esta página">
-          <div className="system-stage page-enter min-h-full">
+          <div key={`${activePage}:${pageVersion}`} className="system-stage page-enter min-h-full">
             {activePage === "editar-perfil" ? (
               <EditProfilePage
                 userName={currentUser.name}
