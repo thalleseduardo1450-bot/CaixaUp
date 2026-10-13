@@ -16,10 +16,12 @@ import { Toast, useStatusDialog } from "@/hooks/Dialog";
 import useInputMasks from "@/hooks/InputMasks/useInputMasks";
 import PageLayout from "@/layout/PageLayout";
 import { productService, type ProductDto } from "@/services/api/productService";
+import { withFreshReads } from "@/services/api/squareApi";
 import { supplierService, type SupplierPayload } from "@/services/api/supplierService";
 import { normalizeSearchText, prefixRank } from "@/hooks/Pdv/usePdvProducts";
 import { lookupAddressByCep } from "@/utils/cepLookup";
 import { onlyDigits } from "@/utils/inputMasks";
+import { productCodesMatch } from "@/utils/productCode";
 import { isValidCnpj, isValidEmail } from "@/utils/validators";
 import {
   formatImportMoney,
@@ -33,6 +35,7 @@ type Product = {
   productImageName: string;
   productName: string;
   productCode: string;
+  productAlternateCode?: string;
   productSupplier: string;
   productDescription: string;
   productQnt: string;
@@ -851,22 +854,77 @@ export default function ProductRegisterPage() {
     return true;
   };
 
+  /**
+   * Confere no servidor, sem cópia guardada, se o produto salvo está na mesma
+   * lista que o caixa usa e com o código que foi digitado. Se não estiver, o
+   * operador fica sabendo agora, e não na hora de bipar com o cliente esperando.
+   */
+  const confirmProductReachesPdv = async (savedId: string, code: string) => {
+    try {
+      const pdvProducts = await withFreshReads(() => productService.list());
+      const saved = pdvProducts.find((product) => product.id === savedId);
+      if (!saved) {
+        statusDialog.error(
+          "O servidor respondeu que salvou, mas o produto não aparece na lista do caixa. Confira o cadastro e tente salvar de novo.",
+        );
+        return;
+      }
+      const savedCodes = [saved.productCode, saved.productAlternateCode ?? ""];
+      if (!savedCodes.some((savedCode) => savedCode && productCodesMatch(savedCode, code))) {
+        statusDialog.error(
+          `O produto foi salvo, mas o código ficou "${saved.productCode || "vazio"}" em vez de "${code}". Edite o produto e salve de novo.`,
+        );
+      }
+    } catch {
+      // Sem rede agora: o salvamento já foi confirmado pelo servidor.
+    }
+  };
+
   const handleSave = async () => {
     if (saving) return;
     if (!validateForm()) return;
 
+    // Leitor de código de barras às vezes manda espaço junto; o caixa compara o código limpo.
+    const payload: ProductFormData = {
+      ...form,
+      productName: form.productName.trim(),
+      productCode: form.productCode.trim(),
+    };
+
+    const duplicate = products.find(
+      (product) =>
+        product.id !== editingId &&
+        product.productActive !== false &&
+        [product.productCode, product.productAlternateCode ?? ""].some(
+          (code) => code.trim() && productCodesMatch(code, payload.productCode),
+        ),
+    );
+    if (duplicate) {
+      const confirmed = await statusDialog.confirm(
+        `O código ${payload.productCode} já é do produto "${duplicate.productName}". Com dois produtos no mesmo código, o caixa só consegue vender um deles. Salvar mesmo assim?`,
+        { confirmIntent: "warning", confirmLabel: "Salvar mesmo assim", cancelLabel: "Voltar" },
+      );
+      if (!confirmed) return;
+    }
+
     setSaving(true);
+    let savedId = "";
     try {
       if (editingId) {
-        const updated = await productService.update(editingId, form);
+        const updated = await productService.update(editingId, payload);
         if (!updated) return;
+        savedId = updated.id || editingId;
         setProducts((current) =>
           current.map((product) => (product.id === editingId ? updated : product)),
         );
         Toast.success("Produto atualizado com sucesso.");
       } else {
-        const created = await productService.create(form);
-        if (!created) return;
+        const created = await productService.create(payload);
+        if (!created?.id) {
+          Toast.error("O servidor não confirmou o cadastro. Atualize a lista antes de tentar de novo.");
+          return;
+        }
+        savedId = created.id;
         setProducts((current) => [created, ...current]);
         Toast.success("Produto cadastrado com sucesso.");
       }
@@ -877,9 +935,11 @@ export default function ProductRegisterPage() {
       setSaving(false);
     }
 
+    const wasActive = form.productActive !== false;
     setDrawerOpen(false);
     setEditingId(null);
     setForm(EMPTY_FORM);
+    if (wasActive) void confirmProductReachesPdv(savedId, payload.productCode);
   };
 
   return (

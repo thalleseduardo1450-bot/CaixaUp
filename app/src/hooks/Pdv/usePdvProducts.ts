@@ -90,12 +90,67 @@ function toPdvProducts(items: CatalogItem[]): PdvProduct[] {
   }));
 }
 
+/**
+ * Acha o produto dono de um código. Quando mais de um casa (cadastro duplicado,
+ * ou um código curto que coincide com outro sem os zeros), fica com quem tem o
+ * código igualzinho ao bipado e, depois, com quem tem estoque — antes era o
+ * primeiro da lista, que podia ser o cadastro antigo zerado.
+ */
+export function findProductByCode(list: PdvProduct[], code: string): PdvProduct | null {
+  const targets = new Set(productCodeKeys(code));
+  if (targets.size === 0) return null;
+  const compact = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  const typed = compact(code);
+  let best: PdvProduct | null = null;
+  let bestRank = -1;
+  for (const product of list) {
+    const codes = [product.code, ...(product.alternateCodes ?? [])];
+    if (!codes.some((candidate) => productCodeKeys(candidate).some((key) => targets.has(key)))) continue;
+    const rank =
+      (codes.some((candidate) => compact(candidate) === typed) ? 2 : 0) + (product.stock > 0 ? 1 : 0);
+    if (rank > bestRank) {
+      best = product;
+      bestRank = rank;
+    }
+  }
+  return best;
+}
+
+/** O nome do produto e o do catálogo têm pelo menos uma palavra (não só número) em comum. */
+function sharesNameWord(productName: string, info: { name: string; brand: string }): boolean {
+  const words = (value: string) =>
+    new Set(
+      normalizeSearchText(value)
+        .split(/[^a-z0-9]+/)
+        .filter((word) => word.length >= 3 && !/^\d+$/.test(word)),
+    );
+  const catalogWords = words(`${info.name} ${info.brand}`);
+  return [...words(productName)].some((word) => catalogWords.has(word));
+}
+
 export function usePdvProducts() {
   const [products, setProducts] = useState<PdvProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => getFavoriteIds());
   const [usageCounts, setUsageCounts] = useState<PdvUsageMap>(() => getUsageCounts());
+
+  /**
+   * Troca o catálogo só se algo mudou. Trocar por uma cópia igual fazia a tela
+   * refazer a busca do código bipado a cada atualização, repetindo o erro.
+   */
+  const replaceProducts = useCallback((next: PdvProduct[]) => {
+    setProducts((current) =>
+      JSON.stringify(current) === JSON.stringify(next) ? current : next,
+    );
+    return next;
+  }, []);
+
+  /** Catálogo direto do servidor, sem a cópia guardada na memória. */
+  const fetchFreshProducts = useCallback(
+    () => withFreshReads(() => productService.list()).then((items) => replaceProducts(toPdvProducts(items))),
+    [replaceProducts],
+  );
 
   /** Só a parte assíncrona: todo setState roda nos callbacks da promise. */
   const fetchProducts = useCallback(
@@ -138,8 +193,7 @@ export function usePdvProducts() {
     const refresh = () => {
       if (busy || document.visibilityState === "hidden") return;
       busy = true;
-      withFreshReads(() => productService.list())
-        .then((items) => setProducts(toPdvProducts(items)))
+      fetchFreshProducts()
         .catch(() => undefined)
         .finally(() => {
           busy = false;
@@ -153,7 +207,7 @@ export function usePdvProducts() {
       window.removeEventListener("focus", refresh);
       window.removeEventListener("online", refresh);
     };
-  }, []);
+  }, [fetchFreshProducts]);
 
   /** Fornecedor virou "categoria": é o único agrupamento que o cadastro tem hoje. */
   const categories = useMemo(() => {
@@ -221,33 +275,38 @@ export function usePdvProducts() {
 
   /** Busca o produto pelo código exato — o caminho do leitor de código de barras. */
   const findByExactCode = useCallback(
-    (code: string): PdvProduct | null => {
-      const targets = new Set(productCodeKeys(code));
-      if (targets.size === 0) return null;
-      return (
-        products.find((product) =>
-          [product.code, ...(product.alternateCodes ?? [])].some((candidate) =>
-            productCodeKeys(candidate).some((key) => targets.has(key)),
-          ),
-        ) ?? null
-      );
-    },
+    (code: string): PdvProduct | null => findProductByCode(products, code),
     [products],
   );
 
   const resolveByScannedCode = useCallback(
     async (rawCode: string): Promise<PdvProduct | null> => {
-      const exact = findByExactCode(rawCode);
+      const exact = findProductByCode(products, rawCode);
       if (exact) return exact;
+
+      /*
+       * Não achou na lista que está na memória do caixa. Ela pode ser de até 30 s
+       * atrás (ou de antes do cadastro, se o produto foi criado em outro
+       * computador), então pergunta ao servidor antes de dizer que o código não
+       * existe — e antes de tentar adivinhar por apelido ou pelo nome.
+       */
+      let catalog = products;
+      try {
+        catalog = await fetchFreshProducts();
+      } catch {
+        // Sem rede: segue com o que já tem.
+      }
+      const fresh = findProductByCode(catalog, rawCode);
+      if (fresh) return fresh;
 
       const lookupCode = barcodeLookupValue(rawCode);
       if (!lookupCode) return null;
 
       const aliasedId = readBarcodeAliases()[lookupCode];
-      const aliased = products.find((product) => product.id === aliasedId);
+      const aliased = catalog.find((product) => product.id === aliasedId);
       if (aliased) return aliased;
 
-      const roundedCandidates = products.filter((product) =>
+      const roundedCandidates = catalog.filter((product) =>
         [product.code, ...(product.alternateCodes ?? [])].some((candidate) => {
           const prefix = roundedBarcodePrefix(candidate);
           return prefix ? lookupCode.startsWith(prefix) : false;
@@ -261,7 +320,7 @@ export function usePdvProducts() {
 
       const catalogInfo = await lookupBarcodeCatalog(lookupCode);
       if (!catalogInfo) return null;
-      const pool = roundedCandidates.length > 0 ? roundedCandidates : products;
+      const pool = roundedCandidates.length > 0 ? roundedCandidates : catalog;
       const ranked = pool
         .map((product) => ({
           product,
@@ -271,11 +330,14 @@ export function usePdvProducts() {
       const best = ranked[0];
       const second = ranked[1];
       if (!best || best.score < 8 || (second && best.score - second.score < 4)) return null;
+      // Só o tamanho igual ("400 g") não basta: um código novo de Leite Ninho
+      // virava Nescau 400 g para sempre. Tem de bater ao menos uma palavra.
+      if (!sharesNameWord(best.product.name, catalogInfo)) return null;
 
       saveBarcodeAlias(lookupCode, best.product.id);
       return best.product;
     },
-    [findByExactCode, products],
+    [fetchFreshProducts, products],
   );
 
   const toggleFavorite = useCallback((productId: string) => {
