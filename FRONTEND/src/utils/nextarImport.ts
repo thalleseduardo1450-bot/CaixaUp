@@ -114,6 +114,14 @@ function parseTextRows(content: string) {
     .split(/\r?\n/)
     .filter((line) => line.trim().length > 0);
   if (lines.length === 0) return [];
+  // Nex's text export uses fixed-width columns, not a CSV delimiter.
+  if (/Produto\s{2,}Estoque Atual/.test(lines[0]) && /EAN\s*\/\s*GTIN/.test(lines[0])) {
+    const spans = [...lines[0].matchAll(/\S(?:.*?\S)?(?=\s{2,}|$)/g)];
+    const starts = spans.map((match) => match.index ?? 0);
+    return lines.map((line) => starts.map((start, index) =>
+      line.slice(start, starts[index + 1] ?? undefined).trim(),
+    ));
+  }
   const headerCandidate = lines
     .slice(0, 20)
     .sort((left, right) =>
@@ -259,12 +267,12 @@ export function parseNextarProducts(rows: string[][]): NextarImportResult<Nextar
       preferredCodes.find((candidate) => !usedPrimaryCodes.has(normalize(candidate))) ??
       (internalCode || barcode);
     const salePrice = parseNumber(cells[columns.salePrice] ?? "");
-    if (name.length < 2 || !code || salePrice <= 0) {
+    if (!name || !code || salePrice < 0) {
       skipped += 1;
       continue;
     }
 
-    const quantity = Math.max(0, Math.floor(parseNumber(cells[columns.quantity] ?? "0")));
+    const quantity = parseNumber(cells[columns.quantity] ?? "0");
     const parsedUnitPrice = parseNumber(cells[columns.unitPrice] ?? "");
     const supplier = cells[columns.supplier]?.trim() || "Importado do Nex";
     usedPrimaryCodes.add(normalize(code));
@@ -273,7 +281,7 @@ export function parseNextarProducts(rows: string[][]): NextarImportResult<Nextar
       code,
       internalCode: internalCode || code,
       quantity,
-      unitPrice: parsedUnitPrice > 0 ? parsedUnitPrice : salePrice,
+      unitPrice: parsedUnitPrice >= 0 ? parsedUnitPrice : 0,
       salePrice,
       supplier,
     });

@@ -12,6 +12,7 @@ type CaixaUpLogoProps = {
 };
 
 export function CaixaUpMark({
+  variant = "default",
   height = 44,
   className = "",
 }: {
@@ -21,9 +22,9 @@ export function CaixaUpMark({
 }) {
   return (
     <img
-      src="./logo-caixaup.png"
+      src={`${import.meta.env.BASE_URL}logo-caixaup.png`}
       alt="CaixaUp"
-      className={`shrink-0 object-contain ${className}`}
+      className={`shrink-0 object-contain ${variant === "light" ? "rounded-full bg-white" : ""} ${className}`}
       style={{ height, width: height }}
     />
   );
@@ -59,7 +60,7 @@ export default memo(function CaixaUpLogo({
 
   return (
     <div className={`inline-flex items-center gap-3 ${className}`}>
-      <CaixaUpMark height={markHeight} />
+      <CaixaUpMark height={markHeight} variant={variant} />
       <div className="min-w-0 leading-none">
         <LogoType variant={variant} size={size} />
         {showTagline ? (

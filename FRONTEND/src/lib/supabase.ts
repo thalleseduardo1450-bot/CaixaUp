@@ -14,11 +14,35 @@ if (!supabaseUrl || !supabaseKey) {
   );
 }
 
+const SESSION_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+const sessionStorage = {
+  getItem(key: string) {
+    const created = Number(window.localStorage.getItem(`${key}.created`));
+    if (!created || Date.now() - created >= SESSION_AGE_MS || created > Date.now()) {
+      window.localStorage.removeItem(key);
+      window.localStorage.removeItem(`${key}.created`);
+      return null;
+    }
+    return window.localStorage.getItem(key);
+  },
+  setItem(key: string, value: string) {
+    if (!window.localStorage.getItem(key) || !window.localStorage.getItem(`${key}.created`)) {
+      window.localStorage.setItem(`${key}.created`, String(Date.now()));
+    }
+    window.localStorage.setItem(key, value);
+  },
+  removeItem(key: string) {
+    window.localStorage.removeItem(key);
+    window.localStorage.removeItem(`${key}.created`);
+  },
+};
+
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     detectSessionInUrl: true,
     flowType: "implicit",
-    persistSession: false,
+    persistSession: true,
+    storage: sessionStorage,
     autoRefreshToken: true,
   },
 });
