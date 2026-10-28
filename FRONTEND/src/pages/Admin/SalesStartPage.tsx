@@ -1,3 +1,4 @@
+import { cloudStorage } from "@/lib/cloudStorage";
 /**
  * Arquivo: src/pages/Admin/SalesStartPage.tsx
  * Objetivo: frente de caixa — lançar itens, fechar a venda, receber e dar troco.
@@ -93,10 +94,10 @@ const LAST_RECEIPT_STORAGE_KEY = "horus-pdv-last-receipt";
  */
 function readLastReceipt(): SaleReceipt | null {
   try {
-    const stored = window.localStorage.getItem(LAST_RECEIPT_STORAGE_KEY);
+    const stored = cloudStorage.getItem(LAST_RECEIPT_STORAGE_KEY);
     return stored ? (JSON.parse(stored) as SaleReceipt) : null;
   } catch {
-    window.localStorage.removeItem(LAST_RECEIPT_STORAGE_KEY);
+    cloudStorage.removeItem(LAST_RECEIPT_STORAGE_KEY);
     return null;
   }
 }
@@ -525,7 +526,7 @@ export default function SalesStartPage({
 
         setLastReceipt(receipt);
         try {
-          window.localStorage.setItem(
+          cloudStorage.setItem(
             LAST_RECEIPT_STORAGE_KEY,
             JSON.stringify(receipt),
           );

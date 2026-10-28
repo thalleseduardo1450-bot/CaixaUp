@@ -2,6 +2,7 @@ import type {
   MarketModuleConfig,
   MarketModuleRecordPayload,
 } from "@/components/Admin/MarketModulePage";
+import { supabase, currentCompanyId } from '@/lib/supabase';
 
 const moduleNames: Record<string, { title: string; description: string; records: string }> = {
   compras: {
@@ -59,15 +60,29 @@ function emptyConfig(id: string): MarketModuleConfig {
 
 export const marketModuleService = {
   async get(id: string) {
-    return emptyConfig(id);
+    const { data, error } = await supabase.from('registros_operacionais').select('id, dados').eq('modulo', id).order('created_at', { ascending: false });
+    if (error) throw error;
+    const config = emptyConfig(id);
+    config.records = (data ?? []).map(row => ({ ...row.dados, id: row.id }));
+    config.kpis[0].value = String(config.records.length);
+    config.statusValue = config.records.length ? 'Em operação' : 'Nenhum registro';
+    return config;
   },
-  async createRecord(id: string, _payload: MarketModuleRecordPayload) {
-    return emptyConfig(id);
+  async createRecord(id: string, payload: MarketModuleRecordPayload) {
+    const empresaId = await currentCompanyId();
+    if (!empresaId) throw new Error('Nenhuma empresa vinculada.');
+    const { error } = await supabase.from('registros_operacionais').insert({ empresa_id: empresaId, modulo: id, dados: payload });
+    if (error) throw error;
+    return this.get(id);
   },
-  async updateRecord(id: string, _recordId: string, _payload: MarketModuleRecordPayload) {
-    return emptyConfig(id);
+  async updateRecord(id: string, recordId: string, payload: MarketModuleRecordPayload) {
+    const { error } = await supabase.from('registros_operacionais').update({ dados: payload }).eq('id', recordId).eq('modulo', id).select('id').single();
+    if (error) throw error;
+    return this.get(id);
   },
-  async removeRecord(id: string, _recordId: string) {
-    return emptyConfig(id);
+  async removeRecord(id: string, recordId: string) {
+    const { error } = await supabase.from('registros_operacionais').delete().eq('id', recordId).eq('modulo', id);
+    if (error) throw error;
+    return this.get(id);
   },
 };

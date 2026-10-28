@@ -1,3 +1,4 @@
+import { hydrateCloudStorage, flushCloudStorage, resetCloudStorage } from "@/lib/cloudStorage";
 /**
  * Arquivo: src/services/api/authService.ts
  * Objetivo: autenticação via Supabase Auth (login, cadastro, recuperação).
@@ -8,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 import type { AuthenticatedUser } from "@/utils/authStorage";
 import type { User } from "@supabase/supabase-js";
 
-const AUTH_CALLBACK_URL = "https://thalleseduardo1450-bot.github.io/CaixaUp/auth/";
+const AUTH_CALLBACK_URL = new URL(import.meta.env.BASE_URL, window.location.origin).href;
 
 export type LoginPayload = {
   email: string;
@@ -61,7 +62,7 @@ function throwSchemaError(error: { code?: string; message?: string } | null) {
   if (error?.code === "PGRST205" || error?.message?.includes("public.perfis")) {
     throw new Error("O banco do Supabase ainda não foi configurado. Aplique a migração do CaixaUp.");
   }
-  if (error) throw error;
+  if (error) throw new Error(error.message || "Falha de comunicação com o Supabase.");
 }
 
 function throwAuthError(error: { code?: string; message?: string } | null) {
@@ -82,7 +83,7 @@ function throwAuthError(error: { code?: string; message?: string } | null) {
   if (message.includes("password should be")) {
     throw new Error("A senha deve ter pelo menos 8 caracteres.");
   }
-  throw error;
+  throw new Error(error.message || "Falha de autenticação.");
 }
 
 async function readProfile(userId: string) {
@@ -134,6 +135,8 @@ async function buildAuthenticatedUser(user: User | null | undefined): Promise<Au
   if (!user) return null;
   const perfil = await ensureUserProvisioned(user);
 
+  if (!perfil.ativo) { await supabase.auth.signOut(); throw new Error("Usuário desativado."); }
+  await hydrateCloudStorage(user.id);
   return {
     id: perfil.id,
     companyId: perfil.empresa_id ?? "",
@@ -142,7 +145,7 @@ async function buildAuthenticatedUser(user: User | null | undefined): Promise<Au
     email: perfil.email ?? "",
     phone: perfil.telefone ?? "",
     role: perfil.cargo ?? "operador",
-    status: perfil.ativo === false ? "inativo" : "ativo",
+    status: "ativo",
     createdAt: perfil.created_at ?? "",
     lastLoginAt: "",
     mustChangePassword: false,
@@ -192,7 +195,10 @@ export const authService = {
   },
 
   async logout() {
-    await supabase.auth.signOut();
+    await flushCloudStorage();
+    const { error } = await supabase.auth.signOut();
+    if (error) throw new Error(error.message || "Falha de comunicação com o Supabase.");
+    resetCloudStorage();
   },
 
   async changePassword(currentPassword: string, nextPassword: string) {

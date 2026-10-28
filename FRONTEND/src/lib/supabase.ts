@@ -18,7 +18,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     detectSessionInUrl: true,
     flowType: "implicit",
-    persistSession: true,
+    persistSession: false,
     autoRefreshToken: true,
   },
 });
@@ -33,10 +33,11 @@ export async function currentCompanyId(): Promise<string | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: perfil } = await supabase
+  const { data: perfil, error } = await supabase
     .from("perfis")
     .select("empresa_id")
     .eq("id", user.id)
     .maybeSingle();
+  if (error) throw error;
   return (perfil as { empresa_id?: string | null } | null)?.empresa_id ?? null;
 }

@@ -1,3 +1,4 @@
+import { cloudStorage } from "@/lib/cloudStorage";
 /**
  * Arquivo: src/App.tsx
  * Objetivo: orquestra o shell administrativo com sidebar, cabeçalho mobile e lazy loading das páginas.
@@ -112,13 +113,19 @@ function toCurrentUser(user: AuthenticatedUser): CurrentUser {
     permission: formatRole(user.role),
     avatarUrl:
       typeof window !== "undefined"
-        ? window.localStorage.getItem(PROFILE_AVATAR_STORAGE_KEY)
+        ? cloudStorage.getItem(PROFILE_AVATAR_STORAGE_KEY)
         : null,
   };
 }
 
 export default function App() {
   const statusDialog = useStatusDialog();
+  useEffect(() => {
+    const report = (event: Event) => { window.alert("Não foi possível salvar no banco: " + (event as CustomEvent<string>).detail); };
+    window.addEventListener("caixaup-persistence-error", report);
+    return () => window.removeEventListener("caixaup-persistence-error", report);
+  }, []);
+
   const [isRecoveryFlow] = useState(hasSupabaseRecoveryCallback);
   const isStandalonePos =
     typeof window !== "undefined" &&
@@ -132,7 +139,7 @@ export default function App() {
   });
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     if (typeof window === "undefined") return "light";
-    const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    const storedTheme = cloudStorage.getItem(THEME_STORAGE_KEY);
     return storedTheme === "dark" ? "dark" : "light";
   });
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -155,7 +162,7 @@ export default function App() {
       permission: formatRole(storedUser?.role || ""),
       avatarUrl:
         typeof window !== "undefined"
-          ? window.localStorage.getItem(PROFILE_AVATAR_STORAGE_KEY)
+          ? cloudStorage.getItem(PROFILE_AVATAR_STORAGE_KEY)
           : null,
     };
   });
@@ -249,7 +256,7 @@ export default function App() {
     const destino: PageKey = "home";
     setMobileSidebarOpen(false);
     setActivePage(destino);
-    window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, destino);
+    cloudStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, destino);
     setIsAuthenticated(false);
     authService.logout().catch(() => undefined);
     clearAuthSession();
@@ -260,7 +267,7 @@ export default function App() {
     reader.onload = () => {
       const result = typeof reader.result === "string" ? reader.result : null;
       if (!result) return;
-      window.localStorage.setItem(PROFILE_AVATAR_STORAGE_KEY, result);
+      cloudStorage.setItem(PROFILE_AVATAR_STORAGE_KEY, result);
       setCurrentUser((current) => ({ ...current, avatarUrl: result }));
     };
     reader.readAsDataURL(file);
@@ -268,7 +275,7 @@ export default function App() {
 
   const handleRemoveAvatar = () => {
     setCurrentUser((current) => {
-      window.localStorage.removeItem(PROFILE_AVATAR_STORAGE_KEY);
+      cloudStorage.removeItem(PROFILE_AVATAR_STORAGE_KEY);
       return { ...current, avatarUrl: null };
     });
   };
@@ -344,7 +351,7 @@ export default function App() {
     }
 
     setActivePage("vendas");
-    window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "vendas");
+    cloudStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "vendas");
     setMobileSidebarOpen(false);
   };
 
@@ -382,7 +389,7 @@ export default function App() {
       setCurrentUser(toCurrentUser(result.user));
       setIsAuthenticated(true);
       setActivePage("home");
-      window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "home");
+      cloudStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "home");
       return { success: true, message: "Login realizado com sucesso." };
     } catch (error) {
       return {
@@ -494,7 +501,7 @@ export default function App() {
         setCurrentUser(toCurrentUser(user));
         setIsAuthenticated(true);
         setActivePage("home");
-        window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "home");
+        cloudStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "home");
         return true;
       }
       return false;
@@ -534,7 +541,7 @@ export default function App() {
       setCurrentUser(toCurrentUser(user));
       setIsAuthenticated(true);
       setActivePage("home");
-      window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "home");
+      cloudStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "home");
     });
 
     return () => {
@@ -565,7 +572,7 @@ export default function App() {
 
   useEffect(() => {
     if (isStandalonePos) return;
-    window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, activePage);
+    cloudStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, activePage);
   }, [activePage, isStandalonePos]);
 
   useEffect(() => {
@@ -579,7 +586,7 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", themeMode);
-    window.localStorage.setItem(THEME_STORAGE_KEY, themeMode);
+    cloudStorage.setItem(THEME_STORAGE_KEY, themeMode);
   }, [themeMode]);
 
   useEffect(() => {
@@ -712,7 +719,7 @@ export default function App() {
                   return;
                 }
                 setActivePage("home");
-                window.localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "home");
+                cloudStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, "home");
               }}
             />
           </Suspense>

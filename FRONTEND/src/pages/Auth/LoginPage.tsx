@@ -11,7 +11,7 @@ import { EmailField, FeedbackMessage, PasswordField } from "./AuthFields";
 import LoadingButton from "@/components/Loading/LoadingButton";
 import type { AuthActionResult } from "./types";
 
-const DEFAULT_LOGIN = String(import.meta.env.VITE_LOGIN_ALIAS || "").trim();
+const DEFAULT_LOGIN = "";
 
 type LoginPageProps = {
   onLogin: (
@@ -37,7 +37,7 @@ export default function LoginPage({
   const [email, setEmail] = useState(initialEmail || DEFAULT_LOGIN);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(true);
+  const remember = false;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<AuthActionResult | null>(() =>
     notice ? { success: true, message: notice } : null,
@@ -80,9 +80,9 @@ export default function LoginPage({
         value={email}
         onChange={setEmail}
         onEnter={handleLogin}
-        label="Usuário ou e-mail"
-        placeholder="Empório ou seu e-mail"
-        inputType="text"
+        label="E-mail"
+        placeholder="seu@email.com"
+        inputType="email"
       />
       <PasswordField
         label="Senha"
@@ -94,14 +94,6 @@ export default function LoginPage({
       />
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <label className="flex items-center gap-2 text-sm text-text-secondary">
-          <input
-            type="checkbox"
-            checked={remember}
-            onChange={(event) => setRemember(event.target.checked)}
-          />
-          Manter sessão conectada
-        </label>
         <button
           type="button"
           onClick={onOpenForgotPassword}

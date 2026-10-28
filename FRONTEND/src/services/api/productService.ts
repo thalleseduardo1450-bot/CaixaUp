@@ -43,7 +43,7 @@ export const productService = {
 
     const { data, error } = await supabase
       .from("produtos")
-      .select("id, nome, descricao, codigo_barras, sku, preco_venda, preco_custo, estoque_atual, estoque_minimo, unidade, ativo, categorias(nome)")
+      .select("id, nome, descricao, codigo_barras, sku, preco_venda, preco_custo, estoque_atual, estoque_minimo, unidade, ativo, imagem_url, imagem_nome, fornecedor, categorias(nome)")
       .eq("empresa_id", empresaId)
       .eq("ativo", true)
       .order("nome");
@@ -51,12 +51,12 @@ export const productService = {
 
     return (data ?? []).map((p: any) => ({
       id: p.id,
-      productImageUrl: "",
-      productImageName: "",
+      productImageUrl: p.imagem_url ?? "",
+      productImageName: p.imagem_nome ?? "",
       productName: p.nome ?? "",
       productCode: p.codigo_barras || p.sku || "",
       productAlternateCode: p.sku || "",
-      productSupplier: p.categorias?.nome ?? "",
+      productSupplier: p.fornecedor || p.categorias?.nome || "",
       productDescription: p.descricao ?? "",
       productQnt: String(p.estoque_atual ?? 0),
       productUnitPrice: reaisToText(p.preco_custo),
@@ -85,6 +85,9 @@ export const productService = {
       .from("produtos")
       .insert({
         empresa_id: empresaId,
+        imagem_url: payload.productImageUrl ?? "",
+        imagem_nome: payload.productImageName ?? "",
+        fornecedor: payload.productSupplier ?? "",
         nome: payload.productName,
         descricao: payload.productDescription ?? "",
         codigo_barras: payload.productCode ?? "",
@@ -103,8 +106,8 @@ export const productService = {
     const p = data as any;
     return {
       id: p.id,
-      productImageUrl: "",
-      productImageName: "",
+      productImageUrl: p.imagem_url ?? "",
+      productImageName: p.imagem_nome ?? "",
       productName: p.nome,
       productCode: p.codigo_barras || p.sku || "",
       productAlternateCode: p.sku || "",
@@ -121,6 +124,9 @@ export const productService = {
     const { data, error } = await supabase
       .from("produtos")
       .update({
+        imagem_url: payload.productImageUrl ?? "",
+        imagem_nome: payload.productImageName ?? "",
+        fornecedor: payload.productSupplier ?? "",
         nome: payload.productName,
         descricao: payload.productDescription ?? "",
         codigo_barras: payload.productCode ?? "",
@@ -137,8 +143,8 @@ export const productService = {
     const p = data as any;
     return {
       id: p.id,
-      productImageUrl: "",
-      productImageName: "",
+      productImageUrl: p.imagem_url ?? "",
+      productImageName: p.imagem_nome ?? "",
       productName: p.nome,
       productCode: p.codigo_barras || p.sku || "",
       productAlternateCode: p.sku || "",

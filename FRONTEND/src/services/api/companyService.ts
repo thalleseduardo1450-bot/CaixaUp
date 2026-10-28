@@ -29,19 +29,19 @@ function toCompanyDto(e: any): CompanyDto {
     fantasyName: e.nome_fantasia || e.nome || "",
     corporateName: e.nome || "",
     cnpj: e.documento || "",
-    stateRegistration: "",
-    website: "",
+    stateRegistration: e.dados_extras?.stateRegistration ?? "",
+    website: e.dados_extras?.website ?? "",
     email: e.email || "",
-    sacPhone: e.telefone || "",
+    sacPhone: e.dados_extras?.sacPhone ?? e.telefone ?? "",
     phone: e.telefone || "",
-    mobile: e.telefone || "",
+    mobile: e.dados_extras?.mobile ?? e.telefone ?? "",
     cep: e.cep || "",
     address: e.endereco || "",
     number: e.numero || "",
     neighborhood: e.bairro || "",
     city: e.cidade || "",
     uf: e.uf || "",
-    complement: "",
+    complement: e.dados_extras?.complement ?? "",
   };
 }
 
@@ -62,6 +62,7 @@ export const companyService = {
     const { data, error } = await supabase
       .from("empresas")
       .update({
+        dados_extras: { stateRegistration: payload.stateRegistration, website: payload.website, sacPhone: payload.sacPhone, mobile: payload.mobile, complement: payload.complement },
         nome: payload.corporateName || payload.fantasyName,
         nome_fantasia: payload.fantasyName,
         documento: payload.cnpj || "",

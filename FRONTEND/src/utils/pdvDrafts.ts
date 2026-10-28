@@ -1,3 +1,4 @@
+import { cloudStorage } from "@/lib/cloudStorage";
 /**
  * Arquivo: src/utils/pdvDrafts.ts
  * Objetivo: guardar o carrinho em andamento e as vendas suspensas no navegador.
@@ -26,13 +27,13 @@ const MAX_SUSPENDED_SALES = 20;
 
 function readJson<T>(key: string): T | null {
   try {
-    const raw = window.localStorage.getItem(key);
+    const raw = cloudStorage.getItem(key);
     if (!raw) return null;
     return JSON.parse(raw) as T;
   } catch {
     // JSON corrompido ou storage bloqueado: limpa e segue sem quebrar a tela.
     try {
-      window.localStorage.removeItem(key);
+      cloudStorage.removeItem(key);
     } catch {
       /* storage indisponível — nada a fazer */
     }
@@ -42,7 +43,7 @@ function readJson<T>(key: string): T | null {
 
 function writeJson(key: string, value: unknown): boolean {
   try {
-    window.localStorage.setItem(key, JSON.stringify(value));
+    cloudStorage.setItem(key, JSON.stringify(value));
     return true;
   } catch {
     // Modo privado ou cota cheia. O PDV continua funcionando em memória.
@@ -78,7 +79,7 @@ export function loadDraft(): PdvDraft | null {
 
 export function clearDraft(): void {
   try {
-    window.localStorage.removeItem(PDV_DRAFT_STORAGE_KEY);
+    cloudStorage.removeItem(PDV_DRAFT_STORAGE_KEY);
   } catch {
     /* storage indisponível */
   }
@@ -125,7 +126,7 @@ export function removeSuspendedSale(id: string): PdvSuspendedSale[] {
 
 export function clearSuspendedSales(): void {
   try {
-    window.localStorage.removeItem(PDV_SUSPENDED_STORAGE_KEY);
+    cloudStorage.removeItem(PDV_SUSPENDED_STORAGE_KEY);
   } catch {
     /* storage indisponível */
   }

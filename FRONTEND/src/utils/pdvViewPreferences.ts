@@ -1,3 +1,4 @@
+import { cloudStorage } from "@/lib/cloudStorage";
 /**
  * Arquivo: src/utils/pdvViewPreferences.ts
  * Objetivo: preferências visuais e de conforto da frente de caixa.
@@ -25,7 +26,7 @@ const VALID_VIEW_MODES: PdvProductViewMode[] = [
 
 function readString(key: string): string | null {
   try {
-    return window.localStorage.getItem(key);
+    return cloudStorage.getItem(key);
   } catch {
     return null;
   }
@@ -33,7 +34,7 @@ function readString(key: string): string | null {
 
 function writeString(key: string, value: string): void {
   try {
-    window.localStorage.setItem(key, value);
+    cloudStorage.setItem(key, value);
   } catch {
     /* storage indisponível: a preferência vale só para esta sessão */
   }

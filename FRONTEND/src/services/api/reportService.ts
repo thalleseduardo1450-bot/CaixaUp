@@ -129,7 +129,7 @@ async function topProducts(empresaId: string, filters: ReportFilterValues): Prom
 async function salesHistory(empresaId: string, filters: ReportFilterValues): Promise<ReportResult> {
   let query = supabase
     .from("vendas")
-    .select("numero, total, status, created_at, perfis(nome), itens_venda(quantidade), pagamentos(forma)")
+    .select("numero, total, status, created_at, perfis!vendas_usuario_id_fkey(nome), itens_venda(quantidade), pagamentos(forma)")
     .eq("empresa_id", empresaId)
     .order("created_at", { ascending: false })
     .limit(500);
