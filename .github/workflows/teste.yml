@@ -1,0 +1,50 @@
+name: Instalador de teste
+
+# Gera um instalador só para testar, a partir de um ramo teste/**.
+# NÃO cria release: os computadores da loja não recebem esta versão pela
+# atualização automática. O .exe fica para baixar em "Artifacts" da execução.
+on:
+  push:
+    branches:
+      - "teste/**"
+
+permissions:
+  contents: read
+
+jobs:
+  instalador-teste:
+    runs-on: windows-latest
+    env:
+      VITE_SUPABASE_URL: https://dlbbmdtqewiggufnewif.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable__vfmtElQ1Hor13voGk1s8w_TQivq94_
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Compilar as telas
+        working-directory: FRONTEND
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build:desktop
+
+      # Versão de teste (ex.: 4.0.5-teste.7): a 4.0.5 oficial, quando sair,
+      # substitui esta pela atualização automática.
+      - name: Gerar o instalador (sem publicar)
+        working-directory: DESKTOP
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+          base=$(node -p "require('./package.json').version")
+          IFS=. read -r ma mi pa <<< "$base"
+          versao="$ma.$mi.$((pa + 1))-teste.${{ github.run_number }}"
+          echo "Versão de teste: $versao"
+          npx electron-builder --win nsis --x64 --publish never -c.extraMetadata.version="$versao"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CaixaUp-instalador-teste
+          path: DESKTOP/release/*.exe
+          retention-days: 14
