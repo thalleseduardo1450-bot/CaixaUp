@@ -536,6 +536,12 @@ function configureDesktopIpc() {
     else if (acao === "tela-cheia") win.setFullScreen(!win.isFullScreen());
     else if (acao === "fechar") win.close();
   });
+  ipcMain.handle("desktop:tela-cheia", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return false;
+    win.setFullScreen(!win.isFullScreen());
+    return win.isFullScreen();
+  });
   ipcMain.on("desktop:janela-ja-exibida", (event) => {
     event.returnValue = janelaDoCaixaExibida;
   });

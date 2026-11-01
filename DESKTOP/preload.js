@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld("caixaUpDesktop", {
     aoExibirJanela.add(callback);
     return () => aoExibirJanela.delete(callback);
   },
+  fecharJanela: () => ipcRenderer.send("desktop:janela", "fechar"),
+  alternarTelaCheia: () => ipcRenderer.invoke("desktop:tela-cheia"),
   getPreferences: () => ipcRenderer.invoke("desktop:preferences:get"),
   setPreference: (key, value) =>
     ipcRenderer.invoke("desktop:preferences:set", { key, value }),
@@ -43,35 +45,22 @@ contextBridge.exposeInMainWorld("caixaUpDesktop", {
   },
 });
 
-// Sem a barra do Windows: botões próprios no canto (minimizar, tela cheia, sair),
-// uma alça para arrastar a janela e texto sem seleção (só campos de digitar).
+// Sem a barra do Windows: texto sem seleção (só campos de digitar) e um X vermelho
+// para sair. Na frente de caixa o X fica dentro do cabeçalho (html[data-janela-integrada]),
+// então o X flutuante some ali e nada fica por cima dos botões.
 window.addEventListener("DOMContentLoaded", () => {
   const css = document.createElement("style");
   css.textContent = `
     body, body * { -webkit-user-select: none; user-select: none; }
     input, textarea, [contenteditable="true"], [contenteditable="true"] * { -webkit-user-select: text; user-select: text; }
-    #cx-janela { position: fixed; top: 6px; right: 6px; z-index: 2147483647; display: flex; gap: 6px; }
-    #cx-janela button, #cx-janela .cx-arrastar { width: 44px; height: 36px; border: 0; border-radius: 10px;
-      font: 700 20px "Segoe UI", sans-serif; color: #1e3a5f; background: #fff; cursor: pointer;
-      box-shadow: 0 1px 4px rgba(0,0,0,.25); display: flex; align-items: center; justify-content: center; -webkit-app-region: no-drag; }
-    #cx-janela .cx-arrastar { -webkit-app-region: drag; cursor: move; color: #94a3b8; }
-    #cx-janela button:hover { background: #e2e8f0; }
-    #cx-janela .cx-sair { background: #dc2626; color: #fff; font-size: 22px; }
-    #cx-janela .cx-sair:hover { background: #b91c1c; }`;
+    #cx-sair { position: fixed; top: 6px; right: 6px; z-index: 2147483647; width: 40px; height: 40px; border: 0;
+      border-radius: 10px; background: #dc2626; color: #fff; font: 700 20px "Segoe UI", sans-serif; cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,.25); -webkit-app-region: no-drag; }
+    #cx-sair:hover { background: #b91c1c; }
+    html[data-janela-integrada] #cx-sair { display: none; }`;
   document.head.appendChild(css);
-  const barra = document.createElement("div");
-  barra.id = "cx-janela";
-  const itens = [
-    ["cx-arrastar", "⠿", "Segure e arraste para mover a janela", null],
-    ["", "—", "Minimizar", "minimizar"],
-    ["", "⛶", "Tela cheia", "tela-cheia"],
-    ["cx-sair", "✕", "Sair", "fechar"],
-  ];
-  for (const [classe, texto, dica, acao] of itens) {
-    const el = document.createElement(acao ? "button" : "div");
-    el.className = classe; el.textContent = texto; el.title = dica;
-    if (acao) el.addEventListener("click", () => ipcRenderer.send("desktop:janela", acao));
-    barra.appendChild(el);
-  }
-  document.body.appendChild(barra);
+  const sair = document.createElement("button");
+  sair.id = "cx-sair"; sair.textContent = "✕"; sair.title = "Sair";
+  sair.addEventListener("click", () => ipcRenderer.send("desktop:janela", "fechar"));
+  document.body.appendChild(sair);
 });

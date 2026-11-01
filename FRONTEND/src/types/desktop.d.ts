@@ -28,6 +28,10 @@ declare global {
       aberturaPendente?: boolean;
       /** Chama quando a janela do caixa aparece (na hora, se já apareceu). */
       onJanelaExibida?: (callback: () => void) => () => void;
+      /** Fecha o aplicativo (X vermelho da frente de caixa). */
+      fecharJanela?: () => void;
+      /** Alterna a tela cheia da janela e devolve o estado novo. */
+      alternarTelaCheia?: () => Promise<boolean>;
       getPreferences: () => Promise<DesktopPreferences>;
       setPreference: (
         key: DesktopPreferenceKey,

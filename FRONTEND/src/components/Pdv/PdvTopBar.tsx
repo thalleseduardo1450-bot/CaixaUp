@@ -8,6 +8,7 @@
  * conferir de relance (caixa aberto? quem sou eu? que hora é?) e os interruptores
  * que ele mexe uma vez por turno.
  */
+import { useEffect } from "react";
 import {
   Boxes,
   HelpCircle,
@@ -18,6 +19,7 @@ import {
   Moon,
   Rows3,
   Sun,
+  X,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -93,8 +95,19 @@ export default function PdvTopBar({
   onOpenManagement,
   onExit,
 }: PdvTopBarProps) {
+  const desktop = typeof window !== "undefined" ? window.caixaUpDesktop : undefined;
+  const hasDesktopClose = Boolean(desktop?.fecharJanela);
+
+  // No aplicativo, o X vermelho passa a fazer parte do cabeçalho: o X flutuante
+  // do Electron some enquanto esta barra existe, e nada fica por cima dos botões.
+  useEffect(() => {
+    if (!hasDesktopClose) return;
+    document.documentElement.setAttribute("data-janela-integrada", "");
+    return () => document.documentElement.removeAttribute("data-janela-integrada");
+  }, [hasDesktopClose]);
+
   return (
-    <header className="pdv-panel-header flex shrink-0 flex-wrap items-center gap-3 border-b border-border-primary px-4 py-2.5">
+    <header className="pdv-panel-header pdv-topbar-drag flex shrink-0 flex-wrap items-center gap-3 border-b border-border-primary px-4 py-2.5">
       {/* Identificação da tela */}
       <div className="flex items-center gap-3">
         <CaixaUpMark height={44} />
@@ -201,6 +214,18 @@ export default function PdvTopBar({
           <LogOut size={18} />
           Sair
         </button>
+
+        {hasDesktopClose ? (
+          <button
+            type="button"
+            onClick={() => desktop?.fecharJanela?.()}
+            title="Fechar o CaixaUp"
+            aria-label="Fechar o CaixaUp"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-red-600 text-white transition hover:bg-red-700"
+          >
+            <X size={22} strokeWidth={3} />
+          </button>
+        ) : null}
       </div>
     </header>
   );
