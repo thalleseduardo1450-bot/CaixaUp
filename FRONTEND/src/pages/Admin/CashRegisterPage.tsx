@@ -1,227 +1,295 @@
 /**
  * Arquivo: src/pages/Admin/CashRegisterPage.tsx
- * Objetivo: gerencia abertura, fechamento, histórico e bloqueios operacionais do caixa.
- * Entradas esperadas: não recebe props; carrega status via API e executa ações do operador autenticado.
+ * Objetivo: abrir o caixa, acompanhar o turno, registrar sangria/suprimento e
+ * fechar com a conferência da gaveta (esperado × contado), com histórico.
+ * Entradas esperadas: não recebe props; lê e grava tudo no Supabase pelo cashRegisterService.
+ *
+ * A conta do turno usa as vendas ligadas ao caixa aberto (sessao_caixa_id), não
+ * "as vendas de hoje": um turno que passa da meia-noite continua certo, e cada
+ * venda entra uma vez só, pelo valor que foi pago em cada forma.
  */
-import { Banknote, Clock3, CreditCard, LockKeyhole, QrCode, RefreshCw, ShieldCheck, UnlockKeyhole } from "lucide-react";
-import { type ClipboardEvent, type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { CircleCheck, Printer, RefreshCw, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/Admin/PageHeader";
-import LoadingBar from "@/components/Loading/LoadingBar";
-import LoadingButton from "@/components/Loading/LoadingButton";
-import TablePagination from "@/components/Pagination/TablePagination";
-import { Toast, useStatusDialog } from "@/hooks/Dialog";
-import useInputMasks from "@/hooks/InputMasks/useInputMasks";
-import PageLayout from "@/layout/PageLayout";
+import CashClosePanel from "@/components/CashRegister/CashClosePanel";
+import CashHistoryCard from "@/components/CashRegister/CashHistoryCard";
+import CashMovementDialog from "@/components/CashRegister/CashMovementDialog";
+import CashOpenPanel from "@/components/CashRegister/CashOpenPanel";
+import CashStatusBanner from "@/components/CashRegister/CashStatusBanner";
+import CashTurnSummary from "@/components/CashRegister/CashTurnSummary";
 import {
+  brl,
+  describeDifference,
+  formatShortDateTime,
+  minutesBetween,
+} from "@/components/CashRegister/cashFormat";
+import LoadingBar from "@/components/Loading/LoadingBar";
+import { Toast, useStatusDialog } from "@/hooks/Dialog";
+import PageLayout from "@/layout/PageLayout";
+import { companyService } from "@/services/api/companyService";
+import {
+  CASH_REGISTER_MAX_OPEN_MINUTES,
   cashRegisterService,
+  type CashClosingResult,
+  type CashMovementType,
   type CashRegisterSessionDto,
   type CashRegisterStatusDto,
+  type CashSessionSummary,
 } from "@/services/api/cashRegisterService";
-import { salesHistoryService, type SaleHistoryDto } from "@/services/api/salesHistoryService";
+import { printCashClosingReport } from "@/utils/cashClosingReport";
+import { parseCentsBr } from "@/utils/pdvMoney";
 
-function formatDateTime(value?: string | null) {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function errorText(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  return fallback;
 }
 
-function formatElapsed(minutes: number) {
-  if (minutes < 1) return "menos de 1 min";
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  if (hours === 0) return `${remainingMinutes} min`;
-  return `${hours}h ${String(remainingMinutes).padStart(2, "0")}min`;
-}
-
-function preventInvalidMoneyBeforeInput(event: FormEvent<HTMLInputElement>) {
-  const data = (event.nativeEvent as InputEvent).data ?? "";
-  if (data && /[^0-9,.]/.test(data)) {
-    event.preventDefault();
+async function companyName() {
+  try {
+    const company = await companyService.get();
+    return company?.fantasyName || company?.corporateName || "CaixaUp";
+  } catch {
+    return "CaixaUp";
   }
 }
 
-function parseMoney(value: string) {
-  const normalized = value.replace(/\./g, "").replace(",", ".");
-  return Number(normalized) || 0;
-}
-
-function formatMoney(value: number) {
-  return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function SessionRow({ session }: { session: CashRegisterSessionDto }) {
-  const isOpen = session.status.toLowerCase() === "aberto";
-  return (
-    <tr className="border-b border-border-primary">
-      <td className="px-3 py-3">
-        <span
-          className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${
-            isOpen
-              ? "border-success/30 bg-success/15 text-success"
-              : "border-secondary/30 bg-secondary/10 text-secondary"
-          }`}
-        >
-          {session.status}
-        </span>
-      </td>
-      <td className="px-3 py-3 text-text-primary">{formatDateTime(session.openedAt)}</td>
-      <td className="px-3 py-3 text-text-secondary">{formatDateTime(session.closedAt)}</td>
-      <td className="px-3 py-3 text-text-secondary">{session.operatorName || "-"}</td>
-      <td className="px-3 py-3 text-right font-semibold text-text-primary">
-        R$ {session.openingAmount || "0,00"}
-      </td>
-      <td className="px-3 py-3 text-right text-text-secondary">
-        R$ {session.closingAmount || "0,00"}
-      </td>
-    </tr>
-  );
-}
-
 export default function CashRegisterPage() {
-  const { maskMoneyBr } = useInputMasks();
   const statusDialog = useStatusDialog();
   const [cashStatus, setCashStatus] = useState<CashRegisterStatusDto | null>(null);
+  const [statusError, setStatusError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [openingAmount, setOpeningAmount] = useState("0,00");
-  const [closingAmount, setClosingAmount] = useState("0,00");
+
+  const [summary, setSummary] = useState<CashSessionSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState("");
+
+  const [history, setHistory] = useState<CashRegisterSessionDto[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
+
+  const [openingInput, setOpeningInput] = useState("");
+  const [countedInput, setCountedInput] = useState("");
   const [closingNote, setClosingNote] = useState("");
-  const [sales, setSales] = useState<SaleHistoryDto[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const [movementType, setMovementType] = useState<CashMovementType | null>(null);
+  const [movementSaving, setMovementSaving] = useState(false);
+  const [closingResult, setClosingResult] = useState<CashClosingResult | null>(null);
+  const [printingId, setPrintingId] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  const requestId = useRef(0);
 
   const currentSession = cashStatus?.currentSession ?? null;
-  const canSell = cashStatus?.canSell === true;
-  const hasOpenSession = currentSession !== null;
+  const lastSession = cashStatus?.lastSession ?? null;
+  const elapsedMinutes = currentSession ? minutesBetween(currentSession.openedAt, now) : 0;
+  const expired =
+    currentSession !== null &&
+    (cashStatus?.state === "expirado" || elapsedMinutes >= CASH_REGISTER_MAX_OPEN_MINUTES);
+  const bannerState = currentSession ? (expired ? "expirado" : "aberto") : "fechado";
+  /** O resumo mostra o turno aberto ou, com o caixa fechado, o último turno. */
+  const summarySession = currentSession ?? lastSession;
+  const lastClosed = history.find((session) => session.status === "fechado") ?? lastSession;
 
-  const stateTone = useMemo(() => {
-    if (canSell) return "border-success/30 bg-success/10 text-success";
-    if (cashStatus?.state === "expirado") return "border-primary/30 bg-primary/10 text-primary";
-    return "border-accent/30 bg-accent/10 text-accent";
-  }, [canSell, cashStatus?.state]);
-  const historyRows = useMemo(() => cashStatus?.history ?? [], [cashStatus?.history]);
-  const totalPages = Math.max(1, Math.ceil(historyRows.length / itemsPerPage));
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const paginatedHistoryRows = useMemo(() => {
-    const start = (safeCurrentPage - 1) * itemsPerPage;
-    return historyRows.slice(start, start + itemsPerPage);
-  }, [historyRows, itemsPerPage, safeCurrentPage]);
-  const today = new Date().toLocaleDateString("pt-BR");
-  const todaySales = useMemo(
-    () => sales.filter((sale) => sale.saleDate.startsWith(today)),
-    [sales, today],
-  );
-  const totalReceived = useMemo(
-    () => todaySales.reduce((total, sale) => total + parseMoney(sale.totalAmount), 0),
-    [todaySales],
-  );
-  const paymentTotals = useMemo(
-    () => [
-      { label: "Dinheiro", value: "dinheiro", icon: Banknote },
-      { label: "PIX", value: "pix", icon: QrCode },
-      { label: "Cartão de débito", value: "debito", icon: CreditCard },
-      { label: "Cartão de crédito", value: "credito", icon: CreditCard },
-      { label: "Fiado", value: "fiado", icon: CreditCard },
-    ].map((payment) => ({
-      ...payment,
-      total: todaySales
-        .filter((sale) => sale.paymentType.toLowerCase() === payment.value)
-        .reduce((total, sale) => total + parseMoney(sale.totalAmount), 0),
-    })),
-    [todaySales],
-  );
-
-  const loadStatus = useCallback(async () => {
-    const status = await cashRegisterService.status();
-    setCashStatus(status ?? null);
-    setClosingAmount(status?.currentSession?.closingAmount || "0,00");
+  const loadSummary = useCallback(async (session: CashRegisterSessionDto | null, ticket: number) => {
+    if (!session) {
+      setSummary(null);
+      setSummaryError("");
+      return;
+    }
+    setSummaryLoading(true);
+    try {
+      const result = await cashRegisterService.summary(session);
+      if (ticket !== requestId.current) return;
+      setSummary(result);
+      setSummaryError("");
+    } catch (error) {
+      if (ticket !== requestId.current) return;
+      setSummaryError(errorText(error, "Não foi possível somar as vendas do caixa."));
+    } finally {
+      if (ticket === requestId.current) setSummaryLoading(false);
+    }
   }, []);
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      setHistory(await cashRegisterService.history());
+      setHistoryError("");
+    } catch (error) {
+      setHistoryError(errorText(error, "Não foi possível carregar o histórico."));
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  /** Recarrega tudo. Devolve false se nem a situação do caixa veio. */
+  const refresh = useCallback(async () => {
+    const ticket = ++requestId.current;
+    setNow(Date.now());
+    try {
+      const status = await cashRegisterService.status();
+      if (ticket !== requestId.current) return true;
+      setCashStatus(status);
+      setStatusError("");
+      await Promise.all([
+        loadSummary(status.currentSession ?? status.lastSession ?? null, ticket),
+        loadHistory(),
+      ]);
+      return true;
+    } catch (error) {
+      if (ticket === requestId.current) {
+        setStatusError(errorText(error, "Não foi possível ver a situação do caixa."));
+      }
+      return false;
+    } finally {
+      if (ticket === requestId.current) setLoading(false);
+    }
+  }, [loadHistory, loadSummary]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadStatus()
-      .catch(() => {
-        Toast.error("Não foi possível carregar o status do caixa.");
-      })
-      .finally(() => setLoading(false));
-  }, [loadStatus]);
+    void refresh();
+  }, [refresh]);
 
-  const loadSales = async () => {
-    try {
-      setSales(await salesHistoryService.list());
-    } catch {
-      setSales([]);
-    }
-  };
-
+  // Relógio do "aberto há" e da regra das 24 horas.
   useEffect(() => {
-    void loadSales();
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
   }, []);
 
-  const updateOpeningAmount = (value: string) => setOpeningAmount(maskMoneyBr(value));
-  const updateClosingAmount = (value: string) => setClosingAmount(maskMoneyBr(value));
+  // Com o caixa aberto, a conta acompanha as vendas feitas em outro computador.
+  const currentSessionId = currentSession?.id ?? null;
+  useEffect(() => {
+    if (!currentSessionId || !currentSession) return;
+    const update = () => {
+      if (document.visibilityState !== "visible") return;
+      void loadSummary(currentSession, requestId.current);
+    };
+    const timer = window.setInterval(update, 60_000);
+    window.addEventListener("focus", update);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", update);
+    };
+    // currentSession muda de objeto a cada leitura; o id é o que importa.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSessionId, loadSummary]);
 
-  const pasteOpeningAmount = (event: ClipboardEvent<HTMLInputElement>) => {
-    event.preventDefault();
-    updateOpeningAmount(event.clipboardData.getData("text"));
+  const handleRefresh = async () => {
+    setLoading(true);
+    if (await refresh()) Toast.success("Caixa atualizado.");
   };
 
-  const pasteClosingAmount = (event: ClipboardEvent<HTMLInputElement>) => {
-    event.preventDefault();
-    updateClosingAmount(event.clipboardData.getData("text"));
-  };
-
-  const openCashRegister = async () => {
+  const handleOpen = async () => {
+    if (saving) return;
+    const openingCents = parseCentsBr(openingInput);
     setSaving(true);
     try {
-      const status = await cashRegisterService.open(openingAmount);
-      setCashStatus(status ?? null);
-      Toast.success("Caixa aberto. Frente de caixa liberada para venda.");
+      await cashRegisterService.open(openingCents);
+      setOpeningInput("");
+      setClosingResult(null);
+      Toast.success(`Caixa aberto com ${brl(openingCents)} de troco. Vendas liberadas.`);
     } catch (error) {
-      Toast.error(error instanceof Error ? error.message : "Não foi possível abrir o caixa.");
+      Toast.error(errorText(error, "Não foi possível abrir o caixa."));
     } finally {
+      await refresh();
       setSaving(false);
     }
   };
 
-  const closeCashRegister = async () => {
-    const confirmed = await statusDialog.confirm("Fechar o caixa atual?");
+  const handleClose = async () => {
+    if (!currentSession || saving) return;
+    if (countedInput.trim() === "") {
+      Toast.error("Digite quanto dinheiro tem na gaveta. Se não tiver nada, digite 0.");
+      document.getElementById("cash-counted-amount")?.focus();
+      return;
+    }
+
+    const countedCents = parseCentsBr(countedInput);
+    const expected = summary?.sessionId === currentSession.id ? summary.expectedCashCents : null;
+    const difference = expected !== null ? describeDifference(countedCents - expected) : null;
+    const message = [
+      `Fechar o caixa com ${brl(countedCents)} contados na gaveta?`,
+      difference
+        ? difference.tone === "ok"
+          ? "Confere com o esperado."
+          : `${difference.label} de ${difference.value} em relação ao esperado (${brl(expected ?? 0)}).`
+        : "",
+      "As vendas ficam bloqueadas até abrir de novo.",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    const confirmed = await statusDialog.confirm(message, {
+      confirmLabel: "Fechar caixa",
+      cancelLabel: "Voltar",
+    });
     if (!confirmed) return;
 
     setSaving(true);
     try {
-      const status = await cashRegisterService.close(closingAmount, closingNote);
-      setCashStatus(status ?? null);
+      const result = await cashRegisterService.close(currentSession.id, countedCents, closingNote);
+      setClosingResult(result);
+      setCountedInput("");
       setClosingNote("");
-      Toast.success("Caixa fechado. Vendas bloqueadas até nova abertura.");
+      const diff = describeDifference(result.differenceCents);
+      Toast.success(
+        diff.tone === "ok"
+          ? "Caixa fechado. A gaveta confere."
+          : `Caixa fechado. ${diff.label} de ${diff.value} na gaveta.`,
+      );
     } catch (error) {
-      Toast.error(error instanceof Error ? error.message : "Não foi possível fechar o caixa.");
+      Toast.error(errorText(error, "Não foi possível fechar o caixa."));
     } finally {
+      await refresh();
       setSaving(false);
     }
   };
 
-  const refreshStatus = async () => {
-    setLoading(true);
+  const handleMovement = async (type: CashMovementType, cents: number, reason: string) => {
+    if (!currentSession) return;
+    setMovementSaving(true);
     try {
-      await loadStatus();
-      await loadSales();
-      Toast.success("Status do caixa atualizado.");
+      await cashRegisterService.addMovement(currentSession.id, type, cents, reason);
+      setMovementType(null);
+      Toast.success(type === "sangria" ? `Sangria de ${brl(cents)} registrada.` : `Suprimento de ${brl(cents)} registrado.`);
+      await loadSummary(currentSession, requestId.current);
     } catch (error) {
-      Toast.error(error instanceof Error ? error.message : "Não foi possível atualizar o caixa.");
+      Toast.error(errorText(error, "Não foi possível registrar."));
     } finally {
-      setLoading(false);
+      setMovementSaving(false);
     }
   };
 
-  if (loading && !cashStatus) {
+  const printResult = async (result: CashClosingResult) => {
+    const printed = printCashClosingReport(result, await companyName());
+    if (!printed) Toast.error("Não foi possível abrir a impressão.");
+  };
+
+  const handlePrintHistory = async (session: CashRegisterSessionDto) => {
+    setPrintingId(session.id);
+    try {
+      const sessionSummary = await cashRegisterService.summary(session);
+      const counted = session.countedCents ?? 0;
+      const expected = session.expectedCents ?? sessionSummary.expectedCashCents;
+      await printResult({
+        session,
+        summary: { ...sessionSummary, expectedCashCents: expected },
+        countedCents: counted,
+        differenceCents: counted - expected,
+      });
+    } catch (error) {
+      Toast.error(errorText(error, "Não foi possível montar o resumo para imprimir."));
+    } finally {
+      setPrintingId(null);
+    }
+  };
+
+  if (loading && !cashStatus && !statusError) {
     return (
       <div className="flex min-h-[360px] items-center justify-center text-text-secondary">
         <LoadingBar />
@@ -229,16 +297,24 @@ export default function CashRegisterPage() {
     );
   }
 
+  const summaryTitle = currentSession ? "Resumo do turno" : "Último turno";
+  const summarySubtitle = summarySession
+    ? currentSession
+      ? `Tudo que entrou desde a abertura, ${formatShortDateTime(summarySession.openedAt)}.`
+      : `De ${formatShortDateTime(summarySession.openedAt)} a ${formatShortDateTime(summarySession.closedAt)}.`
+    : "";
+  const closingDiff = closingResult ? describeDifference(closingResult.differenceCents) : null;
+
   return (
-    <PageLayout size="wide" className="space-y-4 py-4 md:space-y-6 md:py-6 lg:py-8">
+    <PageLayout size="wide" className="space-y-4">
       <PageHeader
-        title="Abertura e Fechamento de Caixa"
-        description="Controle operacional do caixa obrigatório para iniciar vendas no PDV."
+        title="Caixa"
+        description="Abra o caixa para vender, registre sangrias e feche conferindo o dinheiro da gaveta."
         action={
           <button
             type="button"
-            onClick={refreshStatus}
-            className="inline-flex items-center gap-2 rounded-xl border border-border-secondary px-4 py-2 text-sm font-semibold text-text-secondary transition hover:bg-hover-light hover:text-text-primary"
+            onClick={handleRefresh}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-border-secondary px-4 text-sm font-semibold text-text-secondary transition hover:bg-hover-light hover:text-text-primary"
             disabled={loading || saving}
           >
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
@@ -247,222 +323,144 @@ export default function CashRegisterPage() {
         }
       />
 
-      <section className={`rounded-2xl border p-4 ${stateTone}`}>
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-bg-light/80">
-              {canSell ? <UnlockKeyhole size={20} /> : <LockKeyhole size={20} />}
-            </span>
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide">
-                {canSell ? "Caixa aberto para venda" : "Venda bloqueada"}
-              </p>
-              <h2 className="text-xl font-bold text-text-primary">
-                {canSell
-                  ? `Aberto por ${formatElapsed(currentSession?.elapsedMinutes ?? 0)}`
-                  : cashStatus?.blockReason || "Abra o caixa para liberar o PDV."}
-              </h2>
-              {currentSession ? (
-                <p className="mt-1 text-sm text-text-secondary">
-                  Operador: {currentSession.operatorName || "-"} • Abertura:{" "}
-                  {formatDateTime(currentSession.openedAt)}
-                </p>
-              ) : null}
-            </div>
-          </div>
+      {statusError ? (
+        <div className="card flex flex-wrap items-center justify-between gap-3 border-primary/40 bg-primary/5 p-4" role="alert">
+          <p className="text-sm text-primary">
+            <strong>Sem conexão com o caixa.</strong> {statusError} Nada foi alterado.
+          </p>
+          <button type="button" onClick={handleRefresh} className="btn-back !min-h-10 !py-2">
+            Tentar de novo
+          </button>
         </div>
-      </section>
+      ) : null}
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <article className="card rounded-2xl p-5">
-          <h2 className="text-xl font-bold text-text-primary">Resumo do caixa</h2>
-          <p className="mt-1 text-sm text-text-secondary">Movimentação de hoje.</p>
-          <div className="mt-5 space-y-2 text-sm text-text-secondary">
-            <p className="flex justify-between gap-4"><span>Total de vendas</span><strong className="text-text-primary">R$ {formatMoney(totalReceived)}</strong></p>
-            <p className="flex justify-between gap-4"><span>Total recebido</span><strong className="text-text-primary">R$ {formatMoney(totalReceived)}</strong></p>
-            <div className="border-t border-border-primary pt-3">
-              <p className="flex justify-between gap-4"><span>Saldo inicial</span><strong className="text-text-primary">R$ {currentSession?.openingAmount || "0,00"}</strong></p>
-              <p className="mt-2 flex justify-between gap-4 text-base"><span className="font-semibold text-text-primary">Saldo parcial</span><strong className="text-text-primary">R$ {formatMoney(parseMoney(currentSession?.openingAmount || "0") + totalReceived)}</strong></p>
-            </div>
-          </div>
-        </article>
-        <article className="card rounded-2xl p-5">
-          <h2 className="text-xl font-bold text-text-primary">Total por pagamento</h2>
-          <p className="mt-1 text-sm text-text-secondary">Vendas finalizadas hoje.</p>
-          <div className="mt-4 space-y-3">
-            {paymentTotals.map((payment) => {
-              const Icon = payment.icon;
-              return (
-                <div key={payment.value} className="flex items-center justify-between gap-4 text-sm">
-                  <span className="flex items-center gap-2 text-text-secondary"><Icon size={17} className="text-accent" />{payment.label}</span>
-                  <strong className="text-text-primary">R$ {formatMoney(payment.total)}</strong>
-                </div>
-              );
-            })}
-          </div>
-        </article>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="card rounded-2xl p-4">
-          <div className="mb-4 flex items-center gap-2 text-text-primary">
-            <Banknote size={18} />
-            <h2 className="text-lg font-semibold">
-              {hasOpenSession ? "Fechar caixa atual" : "Abrir caixa do dia"}
-            </h2>
-          </div>
-
-          {hasOpenSession ? (
-            <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-border-primary bg-bg-primary p-3">
-                  <p className="text-xs text-text-secondary">Valor inicial</p>
-                  <p className="mt-1 text-lg font-bold text-text-primary">
-                    R$ {currentSession.openingAmount}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border-primary bg-bg-primary p-3">
-                  <p className="text-xs text-text-secondary">Tempo aberto</p>
-                  <p className="mt-1 text-lg font-bold text-text-primary">
-                    {formatElapsed(currentSession.elapsedMinutes)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border-primary bg-bg-primary p-3">
-                  <p className="text-xs text-text-secondary">Status</p>
-                  <p className="mt-1 text-lg font-bold text-text-primary">
-                    {canSell ? "Regular" : "Exige fechamento"}
-                  </p>
-                </div>
-              </div>
-
-              <label className="block">
-                <span className="mb-1.5 block text-sm text-text-secondary">Valor de fechamento</span>
-                <input
-                  value={closingAmount}
-                  inputMode="numeric"
-                  pattern="[0-9,.]*"
-                  onBeforeInput={preventInvalidMoneyBeforeInput}
-                  onPaste={pasteClosingAmount}
-                  onChange={(event) => updateClosingAmount(event.target.value)}
-                  className="input-field w-full"
-                  placeholder="0,00"
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 block text-sm text-text-secondary">Observação</span>
-                <textarea
-                  value={closingNote}
-                  onChange={(event) => setClosingNote(event.target.value)}
-                  className="input-field min-h-24 w-full resize-y"
-                  placeholder="Diferenças, sangria, conferência ou observação do fechamento"
-                />
-              </label>
-
-              <LoadingButton
-                type="button"
-                onClick={closeCashRegister}
-                isLoading={saving}
-                loadingLabel="Fechando..."
-                className="btn-primary inline-flex w-full items-center justify-center gap-2 sm:w-auto"
-              >
-                <LockKeyhole size={16} />
-                Fechar caixa
-              </LoadingButton>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <label className="block">
-                <span className="mb-1.5 block text-sm text-text-secondary">Valor inicial</span>
-                <input
-                  value={openingAmount}
-                  inputMode="numeric"
-                  pattern="[0-9,.]*"
-                  onBeforeInput={preventInvalidMoneyBeforeInput}
-                  onPaste={pasteOpeningAmount}
-                  onChange={(event) => updateOpeningAmount(event.target.value)}
-                  className="input-field w-full"
-                  placeholder="0,00"
-                />
-              </label>
-
-              <LoadingButton
-                type="button"
-                onClick={openCashRegister}
-                isLoading={saving}
-                loadingLabel="Abrindo..."
-                className="btn-success inline-flex w-full items-center justify-center gap-2 sm:w-auto"
-              >
-                <UnlockKeyhole size={16} />
-                Abrir caixa
-              </LoadingButton>
-            </div>
-          )}
-        </div>
-
-        <aside className="card rounded-2xl p-4">
-          <div className="mb-3 flex items-center gap-2 text-text-primary">
-            <ShieldCheck size={18} />
-            <h2 className="text-lg font-semibold">Regras aplicadas</h2>
-          </div>
-          <div className="space-y-3 text-sm text-text-secondary">
-            <p>Venda só é confirmada se existir caixa aberto no dia.</p>
-            <p>Caixa aberto por mais de 24 horas bloqueia novas vendas.</p>
-            <p>Caixa vencido precisa ser fechado antes de uma nova abertura.</p>
-          </div>
-          <div className="mt-4 rounded-xl border border-border-primary bg-bg-primary p-3 text-sm">
-            <div className="flex items-center gap-2 text-text-primary">
-              <Clock3 size={16} />
-              <span className="font-semibold">Última movimentação</span>
-            </div>
-            <p className="mt-2 text-text-secondary">
-              {cashStatus?.lastSession
-                ? `${cashStatus.lastSession.status} em ${formatDateTime(
-                    cashStatus.lastSession.closedAt || cashStatus.lastSession.openedAt,
-                  )}`
-                : "Nenhuma movimentação registrada."}
-            </p>
-          </div>
-        </aside>
-      </section>
-
-      <section className="card overflow-hidden rounded-2xl">
-        <div className="border-b border-border-primary px-4 py-3">
-          <h2 className="text-lg font-semibold text-text-primary">Histórico de caixa</h2>
-          <p className="text-sm text-text-secondary">Últimas aberturas e fechamentos em memória da API.</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-[860px] w-full text-sm">
-            <thead className="bg-bg-gray-theme text-xs uppercase text-text-secondary">
-              <tr>
-                <th className="px-3 py-2 text-left">Status</th>
-                <th className="px-3 py-2 text-left">Abertura</th>
-                <th className="px-3 py-2 text-left">Fechamento</th>
-                <th className="px-3 py-2 text-left">Operador</th>
-                <th className="px-3 py-2 text-right">Inicial</th>
-                <th className="px-3 py-2 text-right">Final</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedHistoryRows.map((session) => (
-                <SessionRow key={session.id} session={session} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="px-4 py-4">
-          <TablePagination
-            totalItems={historyRows.length}
-            currentPage={safeCurrentPage}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-            onItemsPerPageChange={(value) => {
-              setItemsPerPage(value);
-              setCurrentPage(1);
-            }}
+      {cashStatus ? (
+        <>
+          <CashStatusBanner
+            state={bannerState}
+            session={currentSession}
+            lastSession={lastClosed}
+            elapsedMinutes={elapsedMinutes}
+            soldCents={currentSession && summary?.sessionId === currentSession.id ? summary.soldCents : null}
+            salesCount={currentSession && summary?.sessionId === currentSession.id ? summary.salesCount : null}
+            expectedCashCents={
+              currentSession && summary?.sessionId === currentSession.id ? summary.expectedCashCents : null
+            }
           />
-        </div>
-      </section>
+
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_23rem] xl:grid-cols-[minmax(0,1fr)_26rem]">
+            <div className="order-2 min-w-0 lg:order-1">
+              {summarySession ? (
+                <CashTurnSummary
+                  title={summaryTitle}
+                  subtitle={summarySubtitle}
+                  summary={summary?.sessionId === summarySession.id ? summary : null}
+                  loading={summaryLoading}
+                  error={summaryError}
+                  canMove={Boolean(currentSession)}
+                  onMove={setMovementType}
+                />
+              ) : (
+                <article className="card p-5 text-sm text-text-secondary">
+                  <h2 className="text-lg font-bold text-text-primary">Primeiro caixa</h2>
+                  <p className="mt-1">
+                    Depois de abrir, aqui aparece o resumo do turno: total vendido, quanto entrou em cada forma de
+                    pagamento e o dinheiro que deve estar na gaveta.
+                  </p>
+                </article>
+              )}
+            </div>
+
+            <div className="order-1 space-y-4 lg:order-2">
+              {closingResult && closingDiff && !currentSession ? (
+                <section
+                  className={`card flex items-start gap-3 p-4 ${
+                    closingDiff.tone === "short" ? "border-primary/40" : "border-success/40"
+                  }`}
+                  role="status"
+                >
+                  <CircleCheck
+                    size={22}
+                    className={`mt-0.5 shrink-0 ${closingDiff.tone === "short" ? "text-primary" : "text-success"}`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-text-primary">Caixa fechado</p>
+                    <p className="text-sm text-text-secondary">
+                      Esperado {brl(closingResult.summary.expectedCashCents)}, contado {brl(closingResult.countedCents)}
+                      {closingDiff.tone === "ok" ? ". Confere." : `. ${closingDiff.label} de ${closingDiff.value}.`}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void printResult(closingResult)}
+                      className="mt-2 inline-flex h-9 items-center gap-2 rounded-lg border border-border-secondary px-3 text-sm font-semibold text-text-primary hover:bg-hover-light"
+                    >
+                      <Printer size={16} />
+                      Imprimir fechamento
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setClosingResult(null)}
+                    className="rounded-md p-1 text-text-tertiary hover:bg-hover-light hover:text-text-primary"
+                    aria-label="Dispensar aviso"
+                  >
+                    <X size={16} />
+                  </button>
+                </section>
+              ) : null}
+
+              {currentSession ? (
+                <CashClosePanel
+                  summary={summary?.sessionId === currentSession.id ? summary : null}
+                  openingCents={currentSession.openingCents}
+                  counted={countedInput}
+                  onCountedChange={setCountedInput}
+                  note={closingNote}
+                  onNoteChange={setClosingNote}
+                  onSubmit={handleClose}
+                  saving={saving}
+                  expired={expired}
+                />
+              ) : (
+                <CashOpenPanel
+                  value={openingInput}
+                  onChange={setOpeningInput}
+                  onSubmit={handleOpen}
+                  saving={saving}
+                  lastCountedCents={lastClosed?.countedCents ?? null}
+                />
+              )}
+
+              <section className="rounded-xl border border-border-primary px-4 py-3 text-sm text-text-secondary">
+                <p className="font-semibold text-text-primary">Regras do caixa</p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                  <li>Só dá para vender com o caixa aberto.</li>
+                  <li>Um caixa aberto há mais de 24 horas para de vender até ser fechado.</li>
+                  <li>Um caixa por vez: feche o atual antes de abrir outro.</li>
+                </ul>
+              </section>
+            </div>
+          </div>
+
+          <CashHistoryCard
+            sessions={history}
+            loading={historyLoading}
+            error={historyError}
+            printingId={printingId}
+            onPrint={(session) => void handlePrintHistory(session)}
+          />
+        </>
+      ) : null}
+
+      {movementType && currentSession ? (
+        <CashMovementDialog
+          initialType={movementType}
+          expectedCashCents={summary?.sessionId === currentSession.id ? summary.expectedCashCents : null}
+          saving={movementSaving}
+          onCancel={() => setMovementType(null)}
+          onConfirm={(type, cents, reason) => void handleMovement(type, cents, reason)}
+        />
+      ) : null}
 
       {statusDialog.Dialog}
     </PageLayout>
