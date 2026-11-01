@@ -582,20 +582,6 @@
    do Full HD, com a letra nítida do Windows (ClearType). */
 @media (min-width: 1024px) and (max-height: 780px) {
   html[data-fit-small-screens="true"] {
-    font-size: 13px;
-    --text-xs: 11px;
-    --text-sm: 13px;
-    --text-base: 14px;
-    --text-lg: 15px;
-    --text-xl: 17px;
-    --text-2xl: 21px;
-    --text-3xl: 24px;
-    --text-4xl: 29px;
-  }
-}
-
-@media (min-width: 1024px) and (min-height: 781px) and (max-height: 880px) {
-  html[data-fit-small-screens="true"] {
     font-size: 14px;
     --text-xs: 12px;
     --text-sm: 14px;
@@ -608,13 +594,24 @@
   }
 }
 
-/* Letra pequena: Segoe UI clássica (desenhada para ficar nítida em tela de
-   computador) e textos cinza um pouco mais escuros. */
+@media (min-width: 1024px) and (min-height: 781px) and (max-height: 880px) {
+  html[data-fit-small-screens="true"] {
+    font-size: 15px;
+    --text-xs: 13px;
+    --text-sm: 15px;
+    --text-base: 16px;
+    --text-lg: 18px;
+    --text-xl: 20px;
+    --text-2xl: 24px;
+    --text-3xl: 28px;
+    --text-4xl: 34px;
+  }
+}
+
+/* Letra pequena: textos cinza um pouco mais escuros. A fonte continua a
+   mesma do Full HD (Segoe UI Variable). */
 @media (min-width: 1024px) and (max-height: 880px) {
   html[data-fit-small-screens="true"] {
-    --font-body: "Segoe UI", "Segoe UI Variable Text", system-ui, -apple-system, Roboto, Arial, sans-serif;
-    --font-sans: "Segoe UI", "Segoe UI Variable Text", system-ui, -apple-system, Roboto, Arial, sans-serif;
-    --font-display: "Segoe UI Semibold", "Segoe UI", "Segoe UI Variable Display", system-ui, -apple-system, Roboto, Arial, sans-serif;
     --color-text-secondary: #334155;
     --color-text-tertiary: #475569;
   }

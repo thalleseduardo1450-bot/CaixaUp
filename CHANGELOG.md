@@ -5,7 +5,7 @@
 ### Telas 1024 × 768 com cara de Full HD
 
 - Em telas menores que Full HD (1024 × 768, 1366 × 768, 1600 × 900…) o sistema usa um modo compacto: letras, espaços e colunas diminuem juntos e a tela fica com a mesma arrumação do Full HD.
-- A letra continua nítida: cada tamanho de letra é um número inteiro de pixels e usa a fonte Segoe UI do Windows, e os textos cinza ficam um pouco mais escuros.
+- A letra continua nítida e na mesma fonte do Full HD: cada tamanho de letra é um número inteiro de pixels, sem redução da janela, e os textos cinza ficam um pouco mais escuros.
 - Full HD e telas maiores continuam iguais. Para desligar, use **Configurações → Adaptar para telas menores**.
 
 ### TOTAL na coluna Venda
