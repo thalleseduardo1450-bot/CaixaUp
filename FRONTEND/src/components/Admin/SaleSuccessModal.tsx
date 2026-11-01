@@ -1,5 +1,5 @@
 import { Check, Eye, Printer, ShoppingCart } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { receiptTotal, type SaleReceipt } from "./ReceiptPreviewModal";
 
 type SaleSuccessModalProps = {
@@ -18,6 +18,18 @@ export default function SaleSuccessModal({
   const [showDetails, setShowDetails] = useState(false);
   const itemCount = receipt.items.reduce((sum, item) => sum + item.quantity, 0);
   const total = receiptTotal(receipt);
+
+  /** Enter (ou Esc) abre a próxima venda sem precisar do mouse. */
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.repeat) return;
+      if (event.key !== "Enter" && event.key !== "Escape") return;
+      event.preventDefault();
+      onStartNewSale();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onStartNewSale]);
 
   return (
     <div
@@ -109,6 +121,7 @@ export default function SaleSuccessModal({
           >
             <ShoppingCart size={19} />
             Nova venda
+            <kbd className="rounded bg-black/20 px-1.5 py-0.5 text-xs font-semibold">Enter</kbd>
           </button>
         </div>
       </div>

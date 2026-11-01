@@ -13,6 +13,8 @@ type PdvSearchBarProps = {
   onQuantityChange: (value: string) => void;
   resultCount: number;
   quantityRef?: React.Ref<HTMLInputElement>;
+  /** Enter no campo de quantidade: devolve o foco para a busca. */
+  onQuantityDone?: () => void;
 };
 
 const PdvSearchBar = forwardRef<HTMLInputElement, PdvSearchBarProps>(
@@ -25,6 +27,7 @@ const PdvSearchBar = forwardRef<HTMLInputElement, PdvSearchBarProps>(
       onQuantityChange,
       resultCount,
       quantityRef,
+      onQuantityDone,
     },
     searchRef,
   ) {
@@ -46,6 +49,16 @@ const PdvSearchBar = forwardRef<HTMLInputElement, PdvSearchBarProps>(
                 onQuantityChange(event.target.value.replace(/\D/g, "").slice(0, 4))
               }
               onFocus={(event) => event.currentTarget.select()}
+              // Sem isto o clique tira a seleção feita no foco e o número digitado
+              // gruda no 1 (vira 15 em vez de 5).
+              onMouseUp={(event) => event.preventDefault()}
+              onKeyDown={(event) => {
+                // Enter na quantidade volta para a busca: digita 5, Enter, bipa.
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  onQuantityDone?.();
+                }
+              }}
               className="input-field w-full text-center font-mono text-xl font-bold"
               aria-label="Quantidade a lançar"
             />
@@ -54,7 +67,7 @@ const PdvSearchBar = forwardRef<HTMLInputElement, PdvSearchBarProps>(
           <label className="flex min-w-[260px] flex-1 flex-col gap-1">
             <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-accent">
               <Search size={14} aria-hidden="true" />
-              Pesquisar produto — bipe o código ou digite o nome (F2)
+              Pesquisar produto — bipe o código ou digite o nome (F5)
             </span>
             <div className="pdv-search-highlight relative rounded-xl bg-bg-light">
               <Barcode

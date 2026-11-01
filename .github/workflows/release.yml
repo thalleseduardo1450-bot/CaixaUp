@@ -1,0 +1,144 @@
+name: Publicar instalador
+
+# Quando a versão do DESKTOP/package.json muda (ou ao enviar uma tag vX.Y.Z),
+# gera o CaixaUp-Setup-X.Y.Z.exe no Windows e publica no release vX.Y.Z do
+# GitHub junto com latest.yml e .blockmap, que a atualização automática dos
+# computadores instalados usa. Um release já publicado não é sobrescrito.
+#
+# Linha 4.x (Supabase): as telas saem de FRONTEND/. Os valores do Supabase são
+# os mesmos que já vão dentro do app 4.0.0 instalado (chave pública).
+on:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - main
+      - "release/**"
+      - "claude/**"
+    paths:
+      - DESKTOP/package.json
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publicar-instalador
+  cancel-in-progress: false
+
+jobs:
+  instalador:
+    runs-on: windows-latest
+    env:
+      VITE_SUPABASE_URL: https://dlbbmdtqewiggufnewif.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable__vfmtElQ1Hor13voGk1s8w_TQivq94_
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Conferir versão da tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          versao=$(node -p "require('./DESKTOP/package.json').version")
+          if [ "v$versao" != "$GITHUB_REF_NAME" ]; then
+            echo "A tag $GITHUB_REF_NAME não bate com a versão $versao do DESKTOP/package.json"
+            exit 1
+          fi
+
+      # Release já publicado não é refeito: os computadores já podem ter baixado.
+      - name: Ver se a versão já foi publicada
+        id: existe
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          versao=$(node -p "require('./DESKTOP/package.json').version")
+          echo "versao=$versao" >> "$GITHUB_OUTPUT"
+          if [ "$(gh release view "v$versao" --json isDraft --jq .isDraft 2>/dev/null)" = "false" ]; then
+            echo "Release v$versao já publicado; nada a fazer."
+            echo "publicado=sim" >> "$GITHUB_OUTPUT"
+          fi
+
+      # O GitHub só publica release com tag existente. Tag criada com o
+      # GITHUB_TOKEN não dispara esta automação de novo.
+      - name: Criar tag da versão
+        if: steps.existe.outputs.publicado != 'sim' && !startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          tag="v${{ steps.existe.outputs.versao }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "Tag $tag já existe"
+          else
+            git tag "$tag"
+            git push origin "refs/tags/$tag"
+          fi
+
+      # Cria o release como rascunho antes do electron-builder (senão .exe e
+      # .blockmap podem cair em dois releases com a mesma tag). Os computadores só
+      # enxergam a versão quando "Liberar o release" confere todos os arquivos.
+      - name: Criar o release com as notas do CHANGELOG
+        if: steps.existe.outputs.publicado != 'sim'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          versao=${{ steps.existe.outputs.versao }}
+          if gh release view "v$versao" >/dev/null 2>&1; then
+            echo "Release v$versao já existe (rascunho)"
+          else
+            awk -v v="## $versao" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md > notas.md
+            [ -s notas.md ] || echo "CaixaUp $versao" > notas.md
+            gh release create "v$versao" --title "CaixaUp $versao" --notes-file notas.md --verify-tag --draft
+          fi
+
+      - name: Compilar as telas
+        if: steps.existe.outputs.publicado != 'sim'
+        working-directory: FRONTEND
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build:desktop
+
+      - name: Gerar e publicar o instalador
+        if: steps.existe.outputs.publicado != 'sim'
+        working-directory: DESKTOP
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm ci --no-audit --no-fund
+          npx electron-builder --win nsis --x64 --publish always
+
+      # Só libera o release se o instalador e o latest.yml estiverem nele. Um
+      # release vazio ou pela metade quebra a atualização automática.
+      - name: Liberar o release
+        if: steps.existe.outputs.publicado != 'sim'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          versao=${{ steps.existe.outputs.versao }}
+          arquivos=$(gh release view "v$versao" --json assets --jq '.assets[].name')
+          echo "$arquivos"
+          for esperado in "CaixaUp-Setup-$versao.exe" "latest.yml" "CaixaUp-Setup-$versao.exe.blockmap"; do
+            if ! grep -qxF "$esperado" <<< "$arquivos"; then
+              echo "::error::Falta $esperado no release v$versao; o release fica como rascunho."
+              exit 1
+            fi
+          done
+          gh release edit "v$versao" --draft=false --latest
+
+      - name: Guardar o instalador
+        if: steps.existe.outputs.publicado != 'sim'
+        uses: actions/upload-artifact@v4
+        with:
+          name: CaixaUp-instalador
+          path: |
+            DESKTOP/release/*.exe
+            DESKTOP/release/*.blockmap
+            DESKTOP/release/latest.yml

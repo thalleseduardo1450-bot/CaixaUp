@@ -20,7 +20,8 @@ type PdvNumericKeypadProps = {
   disabled?: boolean;
 };
 
-const KEYS = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", "00"];
+// "," em vez de "00": o valor recebido é digitado em reais e os centavos vêm depois da vírgula.
+const KEYS = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "0", ","];
 
 export default function PdvNumericKeypad({
   onDigit,

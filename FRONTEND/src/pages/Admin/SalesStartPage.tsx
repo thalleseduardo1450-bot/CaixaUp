@@ -670,7 +670,7 @@ export default function SalesStartPage({
     function handleKeyDown(event: KeyboardEvent) {
       if (anyOverlayOpen) return;
       if (event.ctrlKey || event.altKey || event.metaKey) return;
-      // Tecla imprimível tem key de 1 caractere: exclui F2, setas, Tab, Enter.
+      // Tecla imprimível tem key de 1 caractere: exclui F5, setas, Tab, Enter.
       if (event.key.length !== 1) return;
 
       const target = event.target as HTMLElement | null;
@@ -789,6 +789,7 @@ export default function SalesStartPage({
         onSubmit={submitSearch}
         quantity={quantityInput}
         onQuantityChange={setQuantityInput}
+        onQuantityDone={focusSearch}
         resultCount={visibleProducts.length}
       />
 
@@ -813,7 +814,7 @@ export default function SalesStartPage({
               <div className="flex items-center justify-between border-b border-border-primary bg-bg-light px-4 py-3">
                 <div>
                   <p className="text-lg font-bold text-text-primary">Produtos da venda</p>
-                  <p className="text-sm text-text-secondary">Toque no produto para ajustar a quantidade.</p>
+                  <p className="text-sm text-text-secondary">Clique no número da quantidade para digitar, ou use − e +.</p>
                 </div>
                 <span className="rounded-lg bg-accent/10 px-3 py-1.5 text-sm font-bold text-accent">
                   {cart.itemCount} {cart.itemCount === 1 ? "item" : "itens"}
@@ -826,6 +827,7 @@ export default function SalesStartPage({
                 onIncrement={cart.increment}
                 onDecrement={cart.decrement}
                 onRemove={cart.removeItem}
+                onSetQuantity={cart.setQuantity}
                 wide
               />
             </div>

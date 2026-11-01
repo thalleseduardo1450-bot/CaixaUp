@@ -1,5 +1,15 @@
 # Novidades do CaixaUp
 
+## 4.0.3
+
+### Caixa mais rápido no teclado
+
+- F2 finaliza a venda (F9 continua funcionando). A busca de produto passou para o F5.
+- A quantidade do produto na venda pode ser digitada: clique no número, digite e dê Enter.
+- No campo QTD, digitar troca o 1 em vez de grudar nele.
+- Valor recebido em reais: digite 90 para R$ 90,00; centavos só se quiser, depois da vírgula (90,50).
+- Enter para avançar: o 1º mostra o troco, o 2º conclui a venda e o 3º abre a próxima venda.
+
 ## 3.3.14
 
 ### Caixa mais rápido
