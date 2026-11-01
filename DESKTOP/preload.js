@@ -26,6 +26,8 @@ contextBridge.exposeInMainWorld("caixaUpDesktop", {
     return () => aoExibirJanela.delete(callback);
   },
   fecharJanela: () => ipcRenderer.send("desktop:janela", "fechar"),
+  minimizarJanela: () => ipcRenderer.send("desktop:janela", "minimizar"),
+  maximizarJanela: () => ipcRenderer.send("desktop:janela", "maximizar"),
   alternarTelaCheia: () => ipcRenderer.invoke("desktop:tela-cheia"),
   getPreferences: () => ipcRenderer.invoke("desktop:preferences:get"),
   setPreference: (key, value) =>

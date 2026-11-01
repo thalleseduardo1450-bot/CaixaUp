@@ -533,6 +533,7 @@ function configureDesktopIpc() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return;
     if (acao === "minimizar") win.minimize();
+    else if (acao === "maximizar") win.isMaximized() ? win.unmaximize() : win.maximize();
     else if (acao === "tela-cheia") win.setFullScreen(!win.isFullScreen());
     else if (acao === "fechar") win.close();
   });

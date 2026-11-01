@@ -9,20 +9,7 @@
  * que ele mexe uma vez por turno.
  */
 import { useEffect } from "react";
-import {
-  Boxes,
-  HelpCircle,
-  LayoutGrid,
-  LogOut,
-  Maximize2,
-  Minimize2,
-  Moon,
-  Rows3,
-  Sun,
-  X,
-  Volume2,
-  VolumeX,
-} from "lucide-react";
+import { LogOut, Maximize2, Minimize2, Minus, Square, X } from "lucide-react";
 
 import { CaixaUpMark } from "@/components/Brand/CaixaUpLogo";
 import type { PdvDensity } from "@/types/pdv";
@@ -83,16 +70,8 @@ export default function PdvTopBar({
   cashStatusLabel,
   cashIsOpen,
   clock,
-  themeMode,
-  density,
-  soundEnabled,
   isFullscreen,
-  onToggleTheme,
-  onToggleDensity,
-  onToggleSound,
   onToggleFullscreen,
-  onOpenHelp,
-  onOpenManagement,
   onExit,
 }: PdvTopBarProps) {
   const desktop = typeof window !== "undefined" ? window.caixaUpDesktop : undefined;
@@ -151,58 +130,22 @@ export default function PdvTopBar({
         </div>
 
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onOpenManagement}
-            className="flex h-11 items-center gap-2 rounded-lg border border-border-primary bg-bg-light px-3 text-sm font-semibold text-text-secondary transition hover:border-accent hover:text-accent"
-            title="Abrir produtos e clientes"
-          >
-            <Boxes size={18} />
-            <span className="hidden xl:inline">Cadastros</span>
-          </button>
-
-          <BarButton
-            label={
-              density === "confortavel"
-                ? "Densidade: confortável (clique para compactar)"
-                : "Densidade: compacta (clique para ampliar)"
-            }
-            active={density === "compacta"}
-            onClick={onToggleDensity}
-          >
-            {density === "confortavel" ? (
-              <LayoutGrid size={19} />
-            ) : (
-              <Rows3 size={19} />
-            )}
-          </BarButton>
-
-          <BarButton
-            label={soundEnabled ? "Som do bipe ligado" : "Som do bipe desligado"}
-            active={soundEnabled}
-            onClick={onToggleSound}
-          >
-            {soundEnabled ? <Volume2 size={19} /> : <VolumeX size={19} />}
-          </BarButton>
-
-          <BarButton
-            label={themeMode === "dark" ? "Tema escuro" : "Tema claro"}
-            active={themeMode === "dark"}
-            onClick={onToggleTheme}
-          >
-            {themeMode === "dark" ? <Moon size={19} /> : <Sun size={19} />}
-          </BarButton>
-
+          {desktop?.minimizarJanela ? (
+            <BarButton label="Minimizar" onClick={() => desktop.minimizarJanela?.()}>
+              <Minus size={19} />
+            </BarButton>
+          ) : null}
+          {desktop?.maximizarJanela ? (
+            <BarButton label="Maximizar ou restaurar" onClick={() => desktop.maximizarJanela?.()}>
+              <Square size={16} />
+            </BarButton>
+          ) : null}
           <BarButton
             label={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
             active={isFullscreen}
             onClick={onToggleFullscreen}
           >
             {isFullscreen ? <Minimize2 size={19} /> : <Maximize2 size={19} />}
-          </BarButton>
-
-          <BarButton label="Atalhos do teclado (F1)" onClick={onOpenHelp}>
-            <HelpCircle size={19} />
           </BarButton>
         </div>
 
