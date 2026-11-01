@@ -134,7 +134,7 @@ export function PdvCartItems({
             key={item.id}
             data-cart-item={item.id}
             onClick={() => onSelect(item.id)}
-            className={`cursor-pointer border-b border-border-primary px-4 py-2.5 transition ${
+            className={`pdv-cart-row-in cursor-pointer border-b border-border-primary px-4 py-2.5 transition ${
               isSelected ? "pdv-cart-row-selected bg-accent/10" : "hover:bg-hover-light"
             } ${wide ? "sm:flex sm:items-center sm:gap-4" : ""}`}
           >
@@ -273,7 +273,8 @@ export default function PdvCart({
             Total
           </span>
           <span
-            className={`ml-auto whitespace-nowrap font-mono font-bold leading-none text-text-primary ${
+            key={totalCents}
+            className={`pdv-total-bump ml-auto whitespace-nowrap font-mono font-bold leading-none text-text-primary ${
               totalText.length > 12 ? "text-3xl" : "text-4xl"
             }`}
             aria-live="polite"
