@@ -1,5 +1,20 @@
 # Novidades do CaixaUp
 
+## 4.0.6
+
+### Caixa: abrir e fechar refeito
+
+- Tela nova de abrir e fechar caixa. O resumo do turno agora soma certo (antes ficava em R$ 0,00 e uma venda com vários itens contava várias vezes).
+- Fechamento com conferência: a tela mostra quanto dinheiro deve ter na gaveta, você digita o que contou e vê se sobra ou falta.
+- Sangria e suprimento registrados no caixa e descontados da conta da gaveta.
+- Histórico com esperado, contado e diferença de cada caixa, e impressão do fechamento.
+- Caixa aberto há mais de 24 horas para de vender até ser fechado e aberto de novo.
+- Janelas de confirmação não abrem mais fora da vista em telas compridas.
+
+### Busca de produtos no caixa
+
+- A busca do caixa acha todos os produtos, mesmo com mais de 1.000 cadastrados.
+
 ## 4.0.5
 
 ### Abertura sempre
