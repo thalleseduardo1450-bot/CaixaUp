@@ -54,13 +54,24 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 export async function currentCompanyId(): Promise<string | null> {
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
-  if (!user) return null;
+  let userId = user?.id ?? null;
+  if (!userId && userError) {
+    // getUser vai ao servidor; numa falha de rede ele devolve "sem usuário" e
+    // o caixa ficava com a lista de produtos vazia. A sessão salva neste
+    // computador basta para saber quem é — o banco confere o token de novo.
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    userId = session?.user?.id ?? null;
+  }
+  if (!userId) return null;
 
   const { data: perfil, error } = await supabase
     .from("perfis")
     .select("empresa_id")
-    .eq("id", user.id)
+    .eq("id", userId)
     .maybeSingle();
   if (error) throw error;
   return (perfil as { empresa_id?: string | null } | null)?.empresa_id ?? null;
