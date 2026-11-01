@@ -883,8 +883,11 @@ html[data-theme="dark"] .bg-accent.text-text-light {
   }
 }
 
+/* "backwards" e não "both": guardar o fim da animação deixava a tela inteira
+   com transform depois da entrada, e as janelas de confirmação
+   (position: fixed) ficavam presas no meio da página toda, fora da vista. */
 .page-enter {
-  animation: pageIn 0.3s cubic-bezier(0.2, 0.85, 0.25, 1) both;
+  animation: pageIn 0.3s cubic-bezier(0.2, 0.85, 0.25, 1) backwards;
 }
 
 /* Entrada em cascata de cards (delay definido inline via style) */
