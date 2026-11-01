@@ -412,7 +412,7 @@ export default function PdvCheckoutModal({
       aria-modal="true"
       aria-label="Pagamento"
     >
-      <div className="flex max-h-[96vh] w-full max-w-[560px] flex-col overflow-hidden rounded-xl border border-border-primary bg-bg-light shadow-2xl">
+      <div className="flex max-h-[96vh] w-full max-w-[35rem] flex-col overflow-hidden rounded-xl border border-border-primary bg-bg-light shadow-2xl">
         {/* Total: o maior número da tela, porque é o que o cliente pergunta */}
         <div className="relative shrink-0 px-5 pb-4 pt-5 text-center">
           <button
