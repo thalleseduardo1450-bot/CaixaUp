@@ -1,5 +1,18 @@
 # Novidades do CaixaUp
 
+## Próxima versão
+
+### Telas 1024 × 768 com cara de Full HD
+
+- Em telas menores que Full HD (1024 × 768, 1366 × 768, 1600 × 900…) o sistema usa um modo compacto: letras, espaços e colunas diminuem juntos e a tela fica com a mesma arrumação do Full HD.
+- A letra continua nítida e na mesma fonte do Full HD: cada tamanho de letra é um número inteiro de pixels, sem redução da janela, e os textos cinza ficam um pouco mais escuros.
+- Full HD e telas maiores continuam iguais. Para desligar, use **Configurações → Adaptar para telas menores**.
+
+### TOTAL na coluna Venda
+
+- A faixa do TOTAL vai de uma borda à outra da coluna Venda, em qualquer resolução.
+- Valores grandes (R$ 100.000,00 para cima) diminuem a letra em vez de sair da coluna.
+
 ## 4.0.4
 
 ### Abertura nova

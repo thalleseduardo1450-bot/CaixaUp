@@ -574,6 +574,54 @@
   }
 }
 
+/* Modo compacto para telas menores que Full HD (1024 × 768, 1366 × 768,
+   1600 × 900). Em vez de reduzir a janela inteira (o que deixava a letra em
+   tamanho quebrado e borrada no Windows), o tamanho base do texto diminui e
+   cada tamanho de letra vira um número inteiro de pixels. Espaços, bordas e
+   colunas acompanham porque são medidos em rem. Resultado: a mesma arrumação
+   do Full HD, com a letra nítida do Windows (ClearType). */
+@media (min-width: 1024px) and (max-height: 780px) {
+  html[data-fit-small-screens="true"] {
+    font-size: 14px;
+    --text-xs: 12px;
+    --text-sm: 14px;
+    --text-base: 15px;
+    --text-lg: 17px;
+    --text-xl: 18px;
+    --text-2xl: 23px;
+    --text-3xl: 26px;
+    --text-4xl: 32px;
+  }
+}
+
+@media (min-width: 1024px) and (min-height: 781px) and (max-height: 880px) {
+  html[data-fit-small-screens="true"] {
+    font-size: 15px;
+    --text-xs: 13px;
+    --text-sm: 15px;
+    --text-base: 16px;
+    --text-lg: 18px;
+    --text-xl: 20px;
+    --text-2xl: 24px;
+    --text-3xl: 28px;
+    --text-4xl: 34px;
+  }
+}
+
+/* Letra pequena: textos cinza um pouco mais escuros. A fonte continua a
+   mesma do Full HD (Segoe UI Variable). */
+@media (min-width: 1024px) and (max-height: 880px) {
+  html[data-fit-small-screens="true"] {
+    --color-text-secondary: #334155;
+    --color-text-tertiary: #475569;
+  }
+
+  html[data-fit-small-screens="true"][data-theme="dark"] {
+    --color-text-secondary: #e2e8f0;
+    --color-text-tertiary: #cbd5e1;
+  }
+}
+
 @media (max-width: 1099px) {
   html[data-fit-small-screens="true"] .dept-drawer-panel {
     width: min(100%, 46rem);
@@ -1102,10 +1150,10 @@ html[data-theme="dark"] .pdv-tile:focus-visible {
   box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
-/* Bloco do total: o número mais lido da tela ganha moldura própria. */
+/* Bloco do total: o número mais lido da tela ganha uma faixa própria, que
+   vai de uma borda à outra da coluna Venda. */
 .pdv-total-block {
-  border-radius: 0.625rem;
-  border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
   background-image: linear-gradient(
     135deg,
     color-mix(in srgb, var(--color-success) 12%, var(--color-bg-light)) 0%,
