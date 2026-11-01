@@ -124,10 +124,11 @@ const ZOOM_MAX = 1.5;
 
 // Escala da janela do caixa. Telas menores que Full HD recebem a mesma
 // arrumação do Full HD (mesmas colunas, mesmo TOTAL), só que em tamanho menor:
-// em 1024 × 768 a tela passa a ter o espaço de um Full HD. Full HD e maiores
+// em 1024 × 768 a tela fica em 80% (espaço de 1280 × 900). Full HD e maiores
 // ficam em 100%, sem aumento. Ver computeAppZoom().
 const FULL_HD_WORK_H = 1040; // 1080 menos a barra de tarefas do Windows
-const APP_ZOOM_MIN = 0.7;
+// 80% é o mínimo: abaixo disso a letra fica pequena e feia em 1024 × 768.
+const APP_ZOOM_MIN = 0.8;
 
 let zoomAtual = 1;
 
