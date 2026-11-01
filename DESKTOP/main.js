@@ -495,7 +495,23 @@ function configureAutoUpdater() {
     });
   };
 
+  // Antes só procurava uma vez, 3 s depois de abrir. Quem deixa o caixa
+  // aberto o dia todo nunca recebia versão nova. Agora procura também a
+  // cada 30 minutos e quando a janela volta ao foco (no máximo a cada 10 min).
   setTimeout(checkForUpdates, 3000);
+  setInterval(checkForUpdates, 30 * 60 * 1000);
+  let ultimaBusca = Date.now();
+  app.on("browser-window-focus", () => {
+    if (Date.now() - ultimaBusca < 10 * 60 * 1000) return;
+    if (["downloading", "installing", "checking"].includes(updateStatus.status)) return;
+    ultimaBusca = Date.now();
+    checkForUpdates();
+  });
+  ipcMain.handle("desktop:update-check", () => {
+    ultimaBusca = Date.now();
+    checkForUpdates();
+    return updateStatus;
+  });
 }
 
 function configureDesktopIpc() {
