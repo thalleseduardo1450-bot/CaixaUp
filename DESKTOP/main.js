@@ -221,6 +221,7 @@ function createMainWindow() {
     show: false,
     backgroundColor: "#f8fafc",
     autoHideMenuBar: true,
+    frame: false,
     icon: path.join(__dirname, "build", "icon.png"),
     title: "CaixaUp",
     webPreferences: {
@@ -510,6 +511,13 @@ function configureDesktopIpc() {
   });
   // Lido pela tela ao carregar: se a janela ainda vai aparecer depois da
   // abertura, as animações de entrada esperam por ela.
+  ipcMain.on("desktop:janela", (event, acao) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return;
+    if (acao === "minimizar") win.minimize();
+    else if (acao === "tela-cheia") win.setFullScreen(!win.isFullScreen());
+    else if (acao === "fechar") win.close();
+  });
   ipcMain.on("desktop:janela-ja-exibida", (event) => {
     event.returnValue = janelaDoCaixaExibida;
   });
