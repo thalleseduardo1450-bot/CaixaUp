@@ -9,7 +9,13 @@
  * o valor") e não deixava ver a divisão do pagamento de uma vez. Aqui cada forma
  * é uma linha com o próprio valor à direita — igual ao que o operador já conhece
  * de outros PDVs: abre com o total inteiro em Dinheiro, selecionado, e se ele só
- * quer dinheiro basta F2.
+ * quer dinheiro basta F2 ou Enter.
+ *
+ * VALOR RECEBIDO: REAIS PRIMEIRO, ENTER PARA AVANÇAR
+ * O valor se digita como se fala: "90" é R$ 90,00 e os centavos são opcionais,
+ * depois da vírgula (",90"). O primeiro Enter confirma o valor digitado e mostra
+ * o troco; o Enter seguinte conclui a venda; na tela de venda concluída, mais um
+ * Enter abre a próxima venda.
  *
  * COMO O VALOR SE DISTRIBUI (a regra toda)
  * A linha ativa é a "linha do saldo": ela mostra o que ainda falta para fechar.
@@ -44,7 +50,9 @@ import type { PdvPaymentLine } from "@/types/pdv";
 import {
   formatCents,
   formatCentsBrl,
+  parseCentsBr,
   parseTypedCents,
+  sanitizeCashTyping,
   suggestChangeBreakdown,
 } from "@/utils/pdvMoney";
 import PdvNumericKeypad from "./PdvNumericKeypad";
@@ -164,6 +172,19 @@ export default function PdvCheckoutModal({
   const [onAccount, setOnAccount] = useState(false);
   const [customerId, setCustomerId] = useState(initialCustomerId);
   const [error, setError] = useState("");
+  /**
+   * Texto que o operador está digitando numa linha, do jeito que ele digitou
+   * ("90", "90,", "90,5"). Enquanto existe, a linha mostra o texto cru; o Enter
+   * o confirma e a linha volta a mostrar o valor formatado.
+   */
+  const [draft, setDraft] = useState<{ key: string; text: string } | null>(null);
+  const hasActiveDraft = draft !== null && draft.key === active;
+
+  /** Troca a linha ativa; o rascunho de outra linha deixa de valer. */
+  function selectMethod(key: string) {
+    setActive(key);
+    setDraft((current) => (current && current.key !== key ? null : current));
+  }
 
   const activeInputRef = useRef<HTMLInputElement>(null);
   const discountInputRef = useRef<HTMLInputElement>(null);
@@ -260,6 +281,15 @@ export default function PdvCheckoutModal({
 
       if (event.key === "F2" || event.key === "Enter") {
         event.preventDefault();
+        // Segurar a tecla não pode concluir a venda sem querer.
+        if (event.repeat) return;
+        // Primeiro Enter depois de digitar: só confirma o valor e mostra o troco.
+        if (event.key === "Enter" && hasActiveDraft) {
+          setDraft(null);
+          window.requestAnimationFrame(() => activeInputRef.current?.select());
+          return;
+        }
+        setDraft(null);
         confirmRef.current?.click();
         return;
       }
@@ -283,31 +313,47 @@ export default function PdvCheckoutModal({
         const next =
           (methodIndex + step + PDV_PAYMENT_METHODS.length) %
           PDV_PAYMENT_METHODS.length;
-        setActive(PDV_PAYMENT_METHODS[next].value);
+        selectMethod(PDV_PAYMENT_METHODS[next].value);
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [methodIndex, onClose]);
+  }, [hasActiveDraft, methodIndex, onClose]);
 
   /* ---------------------------- comandos ---------------------------- */
 
   function setActiveValue(cents: number) {
+    setDraft(null);
     setTyped((current) => ({ ...current, [active]: cents }));
     setError("");
   }
 
+  /** Recebe o texto digitado numa linha (teclado físico ou da tela). */
+  function typeInto(key: string, text: string) {
+    const clean = sanitizeCashTyping(text);
+    setActive(key);
+    setDraft({ key, text: clean });
+    setTyped((current) => ({ ...current, [key]: parseCentsBr(clean) }));
+    setError("");
+  }
+
+  /** Texto atual da linha ativa: o rascunho, ou vazio para começar de novo. */
+  function activeDraftText(): string {
+    return draft && draft.key === active ? draft.text : "";
+  }
+
   function pushDigit(digit: string) {
-    setActiveValue(parseTypedCents(`${valueOf(active)}${digit}`));
+    typeInto(active, `${activeDraftText()}${digit}`);
   }
 
   function backspace() {
-    setActiveValue(Math.floor(valueOf(active) / 10));
+    typeInto(active, activeDraftText().slice(0, -1));
   }
 
   /** Volta a linha ao modo "saldo": some o valor fixo e ela recalcula sozinha. */
   function clearActive() {
+    setDraft(null);
     setTyped((current) => {
       const next = { ...current };
       delete next[active];
@@ -463,7 +509,7 @@ export default function PdvCheckoutModal({
               return (
                 <li
                   key={method.value}
-                  onClick={() => setActive(method.value)}
+                  onClick={() => selectMethod(method.value)}
                   className={`pdv-pay-row ${isActive ? "pdv-pay-row-active" : ""}`}
                 >
                   <span
@@ -480,17 +526,22 @@ export default function PdvCheckoutModal({
                   <input
                     ref={isActive ? activeInputRef : undefined}
                     type="text"
-                    inputMode="numeric"
-                    value={showValue ? formatCents(cents) : ""}
-                    onFocus={() => setActive(method.value)}
-                    onChange={(event) => {
-                      setActive(method.value);
-                      setTyped((current) => ({
-                        ...current,
-                        [method.value]: parseTypedCents(event.target.value),
-                      }));
-                      setError("");
+                    inputMode="decimal"
+                    value={
+                      draft?.key === method.value
+                        ? draft.text
+                        : showValue
+                          ? formatCents(cents)
+                          : ""
+                    }
+                    placeholder={isActive ? "0" : undefined}
+                    onFocus={() => selectMethod(method.value)}
+                    onClick={(event) => {
+                      // Clique no valor já formatado seleciona tudo: o que for
+                      // digitado substitui, em vez de grudar no fim.
+                      if (draft?.key !== method.value) event.currentTarget.select();
                     }}
+                    onChange={(event) => typeInto(method.value, event.target.value)}
                     className="pdv-pay-value"
                     aria-label={`Valor em ${method.label}`}
                   />
@@ -656,8 +707,8 @@ export default function PdvCheckoutModal({
               </div>
 
               <p className="text-xs text-text-tertiary">
-                {itemCount} {itemCount === 1 ? "item" : "itens"} no cupom · os dígitos
-                entram da direita para a esquerda (1-2-3-4 vira R$ 12,34).
+                {itemCount} {itemCount === 1 ? "item" : "itens"} no cupom · digite os
+                reais primeiro (9-0 vira R$ 90,00); centavos só depois da vírgula.
               </p>
             </div>
           )}

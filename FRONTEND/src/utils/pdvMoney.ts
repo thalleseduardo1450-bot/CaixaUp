@@ -56,6 +56,30 @@ export function parseTypedCents(text: string | null | undefined): number {
   return Number(digitsOnly.slice(0, 12));
 }
 
+/**
+ * Limpa o que o operador digita no valor recebido, no jeito "reais primeiro":
+ * "90" é R$ 90,00 e os centavos só entram depois da vírgula (",90" ou "90,5").
+ * Fica só com dígitos e uma vírgula, no máximo 2 casas depois dela. O ponto do
+ * teclado numérico vale como vírgula quando não há vírgula e vem com até 2
+ * dígitos depois dele ("12.5" = 12,50); senão é separador de milhar e some.
+ * O resultado vai para parseCentsBr.
+ */
+export function sanitizeCashTyping(text: string | null | undefined): string {
+  let raw = String(text ?? "").replace(/[^\d.,]/g, "");
+  if (!raw.includes(",")) {
+    const lastDot = raw.lastIndexOf(".");
+    if (lastDot >= 0 && raw.length - lastDot - 1 <= 2) {
+      raw = `${raw.slice(0, lastDot)},${raw.slice(lastDot + 1)}`;
+    }
+  }
+  raw = raw.replace(/\./g, "");
+  const commaAt = raw.indexOf(",");
+  if (commaAt < 0) return raw.replace(/^0+(?=\d)/, "").slice(0, 7);
+  const reais = raw.slice(0, commaAt).replace(/^0+(?=\d)/, "").slice(0, 7);
+  const centavos = raw.slice(commaAt + 1).replace(/,/g, "").slice(0, 2);
+  return `${reais},${centavos}`;
+}
+
 /** Formata centavos como "1.234,56" (sem o prefixo R$). */
 export function formatCents(cents: number): string {
   const safe = Number.isFinite(cents) ? Math.round(cents) : 0;

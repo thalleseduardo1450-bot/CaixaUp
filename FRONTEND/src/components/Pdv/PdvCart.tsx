@@ -11,7 +11,7 @@
  * A lista rola, mas o rodapé (total + botão de finalizar) fica fixo. Cupom de 40
  * itens não pode empurrar o botão de pagamento para fora da tela.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Minus, Plus, ReceiptText, Trash2, Wallet, X } from "lucide-react";
 
 import type { PdvCartItem } from "@/types/pdv";
@@ -41,7 +41,68 @@ type PdvCartItemsProps = Pick<
   "items" | "selectedId" | "onSelect" | "onIncrement" | "onDecrement" | "onRemove"
 > & {
   wide?: boolean;
+  /** Quando existe, o número da quantidade vira campo: clica, digita e Enter. */
+  onSetQuantity?: (id: string, quantity: number) => void;
 };
+
+/**
+ * Quantidade do item que aceita digitação. Clicar seleciona o número, então
+ * digitar 6 troca o 1 por 6 (não vira 16). Enter ou sair do campo confirma;
+ * Esc desiste. Vazio ou zero não apaga o item: volta ao valor anterior (para
+ * remover existe o X).
+ */
+function CartQuantityInput({
+  quantity,
+  itemName,
+  onCommit,
+}: {
+  quantity: number;
+  itemName: string;
+  onCommit: (quantity: number) => void;
+}) {
+  const [text, setText] = useState<string | null>(null);
+  const editing = text !== null;
+
+  function finish(save: boolean) {
+    if (save && text !== null) {
+      const parsed = Number(text);
+      if (Number.isFinite(parsed) && parsed >= 1 && parsed !== quantity) {
+        onCommit(Math.floor(parsed));
+      }
+    }
+    setText(null);
+  }
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={editing ? text : String(quantity)}
+      onClick={(event) => event.stopPropagation()}
+      onFocus={(event) => {
+        setText(String(quantity));
+        event.currentTarget.select();
+      }}
+      onMouseUp={(event) => event.preventDefault()}
+      onChange={(event) => setText(event.target.value.replace(/\D/g, "").slice(0, 4))}
+      onBlur={() => finish(true)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          event.currentTarget.blur();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          setText(null);
+          event.currentTarget.blur();
+        }
+      }}
+      className="h-9 w-14 rounded-md border border-border-secondary bg-bg-light text-center font-mono text-lg font-bold text-text-primary outline-none transition hover:border-accent focus:border-accent focus:ring-2 focus:ring-accent/30"
+      aria-label={`Quantidade de ${itemName}`}
+      title="Clique e digite a quantidade"
+    />
+  );
+}
 
 export function PdvCartItems({
   items,
@@ -51,6 +112,7 @@ export function PdvCartItems({
   onDecrement,
   onRemove,
   wide = false,
+  onSetQuantity,
 }: PdvCartItemsProps) {
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -100,9 +162,17 @@ export function PdvCartItems({
               >
                 <Minus size={16} />
               </button>
-              <span className="w-11 text-center font-mono text-lg font-bold text-text-primary">
-                {item.quantity}
-              </span>
+              {onSetQuantity ? (
+                <CartQuantityInput
+                  quantity={item.quantity}
+                  itemName={item.name}
+                  onCommit={(quantity) => onSetQuantity(item.id, quantity)}
+                />
+              ) : (
+                <span className="w-11 text-center font-mono text-lg font-bold text-text-primary">
+                  {item.quantity}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={(event) => {
@@ -214,7 +284,7 @@ export default function PdvCart({
           <Wallet size={24} />
           {isSubmitting ? "Enviando..." : "Finalizar e pagar"}
           <kbd className="rounded bg-black/20 px-1.5 py-0.5 text-xs font-semibold">
-            F9
+            F2
           </kbd>
         </button>
 
