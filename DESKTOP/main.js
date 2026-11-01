@@ -507,6 +507,8 @@ function configureAutoUpdater() {
     ultimaBusca = Date.now();
     checkForUpdates();
   });
+  // Substitui o handler básico de configureDesktopIpc (registrar duas vezes quebra a abertura).
+  ipcMain.removeHandler("desktop:update-check");
   ipcMain.handle("desktop:update-check", () => {
     ultimaBusca = Date.now();
     checkForUpdates();
