@@ -29,6 +29,24 @@ if (!hasSingleInstanceLock) {
   app.quit();
 }
 
+// Animações sempre ligadas (padrão): a abertura e as entradas de tela tocam
+// mesmo quando as animações do Windows estão desligadas (comum em PC de caixa
+// ou acesso remoto). A opção fica em Configurações e vale ao abrir o programa,
+// por isso é lida aqui, antes de o Electron ficar pronto.
+function animacoesSempreLigadas() {
+  try {
+    const arquivo = path.join(app.getPath("userData"), "caixaup-preferences.json");
+    if (!fs.existsSync(arquivo)) return true;
+    return JSON.parse(fs.readFileSync(arquivo, "utf8")).alwaysAnimate !== false;
+  } catch {
+    return true;
+  }
+}
+
+if (animacoesSempreLigadas()) {
+  app.commandLine.appendSwitch("force-prefers-no-reduced-motion");
+}
+
 const packaged = app.isPackaged;
 const webDir = packaged
   ? path.join(process.resourcesPath, "web")
@@ -37,6 +55,7 @@ const webDir = packaged
 let webServer = null;
 let splash = null;
 let aberturaIniciadaEm = 0;
+let janelaDoCaixaExibida = false;
 // A abertura animada (splash.html) dura 7 s; a janela do caixa só aparece depois dela.
 const DURACAO_ABERTURA_MS = 7000;
 let mainWindow = null;
@@ -49,6 +68,7 @@ const DEFAULT_DESKTOP_PREFERENCES = {
   globalShortcuts: true,
   automaticUpdates: true,
   fitSmallScreens: true,
+  alwaysAnimate: true,
 };
 
 let desktopPreferences = { ...DEFAULT_DESKTOP_PREFERENCES };
@@ -156,16 +176,37 @@ function createSplash() {
   splash.loadFile(path.join(__dirname, "splash.html"));
 }
 
-// Quanto falta para a abertura animada terminar. Se o Windows está com as
-// animações desligadas, a abertura mostra só o quadro final e não segura nada.
+// Quanto falta para a abertura animada terminar. Com "Animações sempre
+// ligadas" desligado e as animações do Windows desligadas, a abertura mostra
+// só o quadro final e não segura nada.
 function tempoRestanteAbertura() {
   if (!splash || splash.isDestroyed() || !aberturaIniciadaEm) return 0;
-  try {
-    if (!systemPreferences.getAnimationSettings().shouldRenderRichAnimation) return 0;
-  } catch {
-    // sem essa informação, segue com a animação inteira
+  if (!desktopPreferences.alwaysAnimate) {
+    try {
+      if (!systemPreferences.getAnimationSettings().shouldRenderRichAnimation) return 0;
+    } catch {
+      // sem essa informação, segue com a animação inteira
+    }
   }
   return Math.max(0, DURACAO_ABERTURA_MS - (Date.now() - aberturaIniciadaEm));
+}
+
+// A janela do caixa aparece suave por cima do fim da abertura (que termina no
+// mesmo fundo claro do app) e só depois a abertura é fechada.
+function aparecerSuave(janela, aoTerminar) {
+  const DURACAO_MS = 450;
+  const inicio = Date.now();
+  const passo = () => {
+    if (janela.isDestroyed()) {
+      aoTerminar();
+      return;
+    }
+    const p = Math.min(1, (Date.now() - inicio) / DURACAO_MS);
+    janela.setOpacity(1 - Math.pow(1 - p, 3));
+    if (p < 1) setTimeout(passo, 16);
+    else aoTerminar();
+  };
+  passo();
 }
 
 function createMainWindow() {
@@ -212,10 +253,18 @@ function createMainWindow() {
       return;
     }
     janelaExibida = true;
+    janelaDoCaixaExibida = true;
     console.log(`[janela] exibindo (disparado por: ${origem})`);
-    if (splash && !splash.isDestroyed()) splash.destroy();
+    const fecharAbertura = () => {
+      if (splash && !splash.isDestroyed()) splash.destroy();
+    };
+    const comAbertura = Boolean(splash && !splash.isDestroyed());
+    if (comAbertura) mainWindow.setOpacity(0);
     mainWindow.maximize();
     mainWindow.show();
+    // a tela começa a entrada suave (menu, conteúdo e cartões) agora
+    mainWindow.webContents.send("desktop:janela-exibida");
+    if (comAbertura) aparecerSuave(mainWindow, fecharAbertura);
   };
 
   mainWindow.once("ready-to-show", () => exibirJanela("ready-to-show"));
@@ -458,6 +507,11 @@ function configureDesktopIpc() {
     saveDesktopPreferences();
     applyDesktopPreferences();
     return { ...desktopPreferences };
+  });
+  // Lido pela tela ao carregar: se a janela ainda vai aparecer depois da
+  // abertura, as animações de entrada esperam por ela.
+  ipcMain.on("desktop:janela-ja-exibida", (event) => {
+    event.returnValue = janelaDoCaixaExibida;
   });
   ipcMain.handle("desktop:app-info", () => ({
     version: app.getVersion(),

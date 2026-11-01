@@ -1352,3 +1352,12 @@ html[data-theme="dark"] .pdv-tone-other {
     transition: none;
   }
 }
+
+/* Abertura do programa: enquanto a janela do caixa espera a abertura animada
+   terminar, as animações de entrada ficam paradas no começo e só tocam quando
+   a janela aparece (ver src/utils/entradaDoPrograma.ts). */
+html.app-aguardando *,
+html.app-aguardando *::before,
+html.app-aguardando *::after {
+  animation-play-state: paused !important;
+}

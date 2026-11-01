@@ -4,6 +4,7 @@ import {
   Maximize2,
   Power,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Toast } from "@/hooks/Dialog";
@@ -13,6 +14,7 @@ const DEFAULT_PREFERENCES: DesktopPreferences = {
   globalShortcuts: false,
   automaticUpdates: true,
   fitSmallScreens: true,
+  alwaysAnimate: true,
 };
 
 type PreferenceRowProps = {
@@ -132,6 +134,14 @@ export default function DesktopBehaviorCard() {
         checked={preferences.fitSmallScreens}
         disabled={!desktop}
         onChange={(value) => void changePreference("fitSmallScreens", value)}
+      />
+      <PreferenceRow
+        title="Animações sempre ligadas"
+        description="Toca a abertura e a entrada suave das telas mesmo com as animações do Windows desligadas. Vale na próxima vez que abrir o CaixaUp."
+        icon={<Sparkles size={19} />}
+        checked={preferences.alwaysAnimate}
+        disabled={!desktop}
+        onChange={(value) => void changePreference("alwaysAnimate", value)}
       />
       <PreferenceRow
         title="Atalho global"
