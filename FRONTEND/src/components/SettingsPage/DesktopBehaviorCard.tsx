@@ -127,7 +127,7 @@ export default function DesktopBehaviorCard() {
       />
       <PreferenceRow
         title="Adaptar para telas menores"
-        description="Organiza espaços, colunas e textos para caber melhor em 1024 × 768."
+        description="Em telas menores que Full HD, como 1024 × 768, mostra o sistema com a mesma arrumação do Full HD, em tamanho menor."
         icon={<Maximize2 size={19} />}
         checked={preferences.fitSmallScreens}
         disabled={!desktop}

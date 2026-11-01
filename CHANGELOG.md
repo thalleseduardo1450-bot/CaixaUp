@@ -1,5 +1,18 @@
 # Novidades do CaixaUp
 
+## Próxima versão
+
+### Telas 1024 × 768 com cara de Full HD
+
+- Em monitores menores que Full HD (1024 × 768, 1366 × 768, 1600 × 900…) o sistema inteiro aparece com a mesma arrumação do Full HD, só que em tamanho menor. Em 1024 × 768 a escala fica em 70%.
+- Trocar a resolução com o programa aberto refaz a escala na hora.
+- Full HD e telas maiores continuam iguais (100%). Para desligar, use **Configurações → Adaptar para telas menores**.
+
+### TOTAL na coluna Venda
+
+- A faixa do TOTAL vai de uma borda à outra da coluna Venda, em qualquer resolução.
+- Valores grandes (R$ 100.000,00 para cima) diminuem a letra em vez de sair da coluna.
+
 ## 4.0.4
 
 ### Abertura nova

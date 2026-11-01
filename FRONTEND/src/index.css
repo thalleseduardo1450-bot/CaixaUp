@@ -1102,10 +1102,10 @@ html[data-theme="dark"] .pdv-tile:focus-visible {
   box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
-/* Bloco do total: o número mais lido da tela ganha moldura própria. */
+/* Bloco do total: o número mais lido da tela ganha uma faixa própria, que
+   vai de uma borda à outra da coluna Venda. */
 .pdv-total-block {
-  border-radius: 0.625rem;
-  border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
   background-image: linear-gradient(
     135deg,
     color-mix(in srgb, var(--color-success) 12%, var(--color-bg-light)) 0%,

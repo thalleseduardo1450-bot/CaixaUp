@@ -224,6 +224,7 @@ export default function PdvCart({
   summaryOnly = false,
 }: PdvCartProps) {
   const isEmpty = items.length === 0;
+  const totalText = formatCentsBrl(totalCents);
 
   return (
     <aside className="flex h-full w-full flex-col border-l border-border-primary bg-bg-light">
@@ -261,73 +262,82 @@ export default function PdvCart({
       )}
 
       {/* Rodapé fixo: total e ações */}
-      <div className="pdv-panel-header shrink-0 space-y-3 border-t border-border-primary px-4 py-3">
-        <div className="pdv-total-block flex items-baseline justify-between gap-3 px-3.5 py-2.5">
+      <div className="shrink-0 border-t border-border-primary">
+        {/*
+          O TOTAL segue a coluna Venda de ponta a ponta, em qualquer resolução.
+          Valor grande (R$ 100.000,00 para cima) diminui a letra em vez de
+          sair da coluna.
+        */}
+        <div className="pdv-total-block flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-3">
           <span className="text-sm font-bold uppercase tracking-wide text-text-secondary">
             Total
           </span>
           <span
-            className="font-mono text-4xl font-bold leading-none text-text-primary"
+            className={`ml-auto whitespace-nowrap font-mono font-bold leading-none text-text-primary ${
+              totalText.length > 12 ? "text-3xl" : "text-4xl"
+            }`}
             aria-live="polite"
-            aria-label={`Total da venda ${formatCentsBrl(totalCents)}`}
+            aria-label={`Total da venda ${totalText}`}
           >
-            {formatCentsBrl(totalCents)}
+            {totalText}
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={onCheckout}
-          disabled={isEmpty || checkoutDisabled}
-          className="btn-success pdv-checkout-btn flex w-full items-center justify-center gap-2.5 py-4 text-xl disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <Wallet size={24} />
-          {isSubmitting ? "Enviando..." : "Finalizar e pagar"}
-          <kbd className="rounded bg-black/20 px-1.5 py-0.5 text-xs font-semibold">
-            F2
-          </kbd>
-        </button>
-
-        <div className="grid grid-cols-3 gap-2">
+        <div className="pdv-panel-header space-y-3 px-4 py-3">
           <button
             type="button"
-            onClick={onSuspendSale}
-            disabled={isEmpty}
-            title="Suspender venda (F7)"
-            className="flex flex-col items-center gap-0.5 rounded-lg border border-border-secondary bg-bg-light px-2 py-2 text-xs font-semibold text-text-secondary transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={onCheckout}
+            disabled={isEmpty || checkoutDisabled}
+            className="btn-success pdv-checkout-btn flex w-full items-center justify-center gap-2.5 py-4 text-xl disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Suspender
-            <span className="text-[11px] font-normal text-text-tertiary">F7</span>
+            <Wallet size={24} />
+            {isSubmitting ? "Enviando..." : "Finalizar e pagar"}
+            <kbd className="rounded bg-black/20 px-1.5 py-0.5 text-xs font-semibold">
+              F2
+            </kbd>
           </button>
 
-          <button
-            type="button"
-            onClick={onOpenSuspended}
-            title="Vendas suspensas (F6)"
-            className="relative flex flex-col items-center gap-0.5 rounded-lg border border-border-secondary bg-bg-light px-2 py-2 text-xs font-semibold text-text-secondary transition hover:border-accent hover:text-accent"
-          >
-            Retomar
-            <span className="text-[11px] font-normal text-text-tertiary">F6</span>
-            {suspendedCount > 0 && (
-              <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-white">
-                {suspendedCount}
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={onSuspendSale}
+              disabled={isEmpty}
+              title="Suspender venda (F7)"
+              className="flex flex-col items-center gap-0.5 rounded-lg border border-border-secondary bg-bg-light px-2 py-2 text-xs font-semibold text-text-secondary transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Suspender
+              <span className="text-[11px] font-normal text-text-tertiary">F7</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenSuspended}
+              title="Vendas suspensas (F6)"
+              className="relative flex flex-col items-center gap-0.5 rounded-lg border border-border-secondary bg-bg-light px-2 py-2 text-xs font-semibold text-text-secondary transition hover:border-accent hover:text-accent"
+            >
+              Retomar
+              <span className="text-[11px] font-normal text-text-tertiary">F6</span>
+              {suspendedCount > 0 && (
+                <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-white">
+                  {suspendedCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={onCancelSale}
+              disabled={isEmpty}
+              title="Cancelar venda (F8)"
+              className="flex flex-col items-center gap-0.5 rounded-lg border border-border-secondary bg-bg-light px-2 py-2 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span className="flex items-center gap-1">
+                <Trash2 size={13} />
+                Cancelar
               </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={onCancelSale}
-            disabled={isEmpty}
-            title="Cancelar venda (F8)"
-            className="flex flex-col items-center gap-0.5 rounded-lg border border-border-secondary bg-bg-light px-2 py-2 text-xs font-semibold text-text-secondary transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <span className="flex items-center gap-1">
-              <Trash2 size={13} />
-              Cancelar
-            </span>
-            <span className="text-[11px] font-normal text-text-tertiary">F8</span>
-          </button>
+              <span className="text-[11px] font-normal text-text-tertiary">F8</span>
+            </button>
+          </div>
         </div>
       </div>
     </aside>
