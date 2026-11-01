@@ -1,6 +1,10 @@
 # Novidades do CaixaUp
 
-## Próxima versão
+## 4.0.5
+
+### Abertura sempre
+
+- A abertura animada toca toda vez que o CaixaUp abre, mesmo com as animações do Windows desligadas, e depois dela a tela entra suave.
 
 ### Telas 1024 × 768 com cara de Full HD
 
