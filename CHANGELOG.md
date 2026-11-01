@@ -1,5 +1,12 @@
 # Novidades do CaixaUp
 
+## 4.0.4
+
+### Abertura nova
+
+- Ao abrir o programa aparece uma animação de 7 segundos com o logo do CaixaUp: o "C" é desenhado, a folha verde aparece, entra o nome e o slogan, e no fim tudo fica pequeno no centro.
+- A tela do caixa abre logo depois da animação. Se o carregamento demorar mais, aparece a barrinha "Iniciando servidor e banco de dados…".
+
 ## 4.0.3
 
 ### Caixa mais rápido no teclado
