@@ -122,42 +122,8 @@ const MIN_CSS_H = 620;
 const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 1.5;
 
-// Escala da janela do caixa. Telas menores que Full HD recebem a mesma
-// arrumação do Full HD (mesmas colunas, mesmo TOTAL), só que em tamanho menor:
-// em 1024 × 768 a tela fica em 80% (espaço de 1280 × 900). Full HD e maiores
-// ficam em 100%, sem aumento. Ver computeAppZoom().
-const FULL_HD_WORK_H = 1040; // 1080 menos a barra de tarefas do Windows
-// 80% é o mínimo: abaixo disso a letra fica pequena e feia em 1024 × 768.
-const APP_ZOOM_MIN = 0.8;
-
 let zoomAtual = 1;
 
-function computeAppZoom() {
-  if (!desktopPreferences.fitSmallScreens) return 1;
-  const display =
-    mainWindow && !mainWindow.isDestroyed()
-      ? screen.getDisplayMatching(mainWindow.getBounds())
-      : screen.getPrimaryDisplay();
-  // Pixels reais do monitor: quem usa 125% num Full HD continua em 100% aqui.
-  const alturaReal = display.workAreaSize.height * display.scaleFactor;
-  const z = Math.min(1, alturaReal / FULL_HD_WORK_H);
-  const zoom = Math.max(APP_ZOOM_MIN, Math.round(z * 20) / 20);
-  console.log(
-    `[janela] area util ${display.workAreaSize.width}x${display.workAreaSize.height} ` +
-      `(escala do Windows ${display.scaleFactor}x) -> escala do caixa ${zoom}`,
-  );
-  return zoom;
-}
-
-function applyAppZoom() {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  const zoom = computeAppZoom();
-  if (zoom === zoomAtual && mainWindow.webContents.getZoomFactor() === zoom) return;
-  zoomAtual = zoom;
-  mainWindow.webContents.setZoomFactor(zoom);
-}
-
-// Escala da abertura animada (splash). Fica como estava na 4.0.4.
 function computeZoom() {
   const display = screen.getPrimaryDisplay();
   const { width: w, height: h } = display.workAreaSize;
@@ -203,7 +169,7 @@ function tempoRestanteAbertura() {
 }
 
 function createMainWindow() {
-  zoomAtual = computeAppZoom();
+  zoomAtual = 1;
   const wa = screen.getPrimaryDisplay().workAreaSize;
 
   mainWindow = new BrowserWindow({
@@ -220,7 +186,7 @@ function createMainWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       preload: path.join(__dirname, "preload.js"),
-      zoomFactor: zoomAtual,
+      zoomFactor: 1,
     },
   });
 
@@ -257,17 +223,8 @@ function createMainWindow() {
   setTimeout(() => exibirJanela("prazo maximo"), 20000);
 
   mainWindow.webContents.on("did-finish-load", () => {
-    applyAppZoom();
+    mainWindow.webContents.setZoomFactor(1);
     mainWindow.webContents.setVisualZoomLevelLimits(1, 1);
-  });
-
-  // Trocar a resolução com o caixa aberto (ou levar a janela para outro
-  // monitor) refaz a escala na hora, sem reiniciar o programa.
-  const refazerEscala = () => applyAppZoom();
-  screen.on("display-metrics-changed", refazerEscala);
-  mainWindow.on("moved", refazerEscala);
-  mainWindow.on("closed", () => {
-    screen.removeListener("display-metrics-changed", refazerEscala);
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -359,7 +316,10 @@ function applyDesktopPreferences() {
     });
   }
   configureGlobalShortcuts();
-  applyAppZoom();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    zoomAtual = 1;
+    mainWindow.webContents.setZoomFactor(1);
+  }
 }
 
 function sendUpdateStatus(nextStatus) {

@@ -574,21 +574,54 @@
   }
 }
 
-/* Tela reduzida (1024 × 768 e outras menores que Full HD ficam em 80%):
-   textos cinza ganham mais contraste para a letra pequena continuar nítida. */
-@media (max-resolution: 0.95dppx) {
-  :root {
+/* Modo compacto para telas menores que Full HD (1024 × 768, 1366 × 768,
+   1600 × 900). Em vez de reduzir a janela inteira (o que deixava a letra em
+   tamanho quebrado e borrada no Windows), o tamanho base do texto diminui e
+   cada tamanho de letra vira um número inteiro de pixels. Espaços, bordas e
+   colunas acompanham porque são medidos em rem. Resultado: a mesma arrumação
+   do Full HD, com a letra nítida do Windows (ClearType). */
+@media (min-width: 1024px) and (max-height: 780px) {
+  html[data-fit-small-screens="true"] {
+    font-size: 13px;
+    --text-xs: 11px;
+    --text-sm: 13px;
+    --text-base: 14px;
+    --text-lg: 15px;
+    --text-xl: 17px;
+    --text-2xl: 21px;
+    --text-3xl: 24px;
+    --text-4xl: 29px;
+  }
+}
+
+@media (min-width: 1024px) and (min-height: 781px) and (max-height: 880px) {
+  html[data-fit-small-screens="true"] {
+    font-size: 14px;
+    --text-xs: 12px;
+    --text-sm: 14px;
+    --text-base: 15px;
+    --text-lg: 17px;
+    --text-xl: 18px;
+    --text-2xl: 23px;
+    --text-3xl: 26px;
+    --text-4xl: 32px;
+  }
+}
+
+/* Letra pequena: Segoe UI clássica (desenhada para ficar nítida em tela de
+   computador) e textos cinza um pouco mais escuros. */
+@media (min-width: 1024px) and (max-height: 880px) {
+  html[data-fit-small-screens="true"] {
+    --font-body: "Segoe UI", "Segoe UI Variable Text", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    --font-sans: "Segoe UI", "Segoe UI Variable Text", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    --font-display: "Segoe UI Semibold", "Segoe UI", "Segoe UI Variable Display", system-ui, -apple-system, Roboto, Arial, sans-serif;
     --color-text-secondary: #334155;
     --color-text-tertiary: #475569;
   }
 
-  html[data-theme="dark"] {
+  html[data-fit-small-screens="true"][data-theme="dark"] {
     --color-text-secondary: #e2e8f0;
     --color-text-tertiary: #cbd5e1;
-  }
-
-  body {
-    text-rendering: optimizeLegibility;
   }
 }
 
