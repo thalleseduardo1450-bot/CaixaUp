@@ -5,7 +5,8 @@ declare global {
     | "startWithWindows"
     | "globalShortcuts"
     | "automaticUpdates"
-    | "fitSmallScreens";
+    | "fitSmallScreens"
+    | "alwaysAnimate";
 
   type DesktopPreferences = Record<DesktopPreferenceKey, boolean>;
 
@@ -23,6 +24,10 @@ declare global {
 
   interface Window {
     caixaUpDesktop?: {
+      /** A janela do caixa ainda vai aparecer, depois da abertura animada. */
+      aberturaPendente?: boolean;
+      /** Chama quando a janela do caixa aparece (na hora, se já apareceu). */
+      onJanelaExibida?: (callback: () => void) => () => void;
       getPreferences: () => Promise<DesktopPreferences>;
       setPreference: (
         key: DesktopPreferenceKey,
