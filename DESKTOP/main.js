@@ -14,6 +14,7 @@ const {
   ipcMain,
   screen,
   shell,
+  systemPreferences,
 } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const http = require("http");
@@ -35,6 +36,9 @@ const webDir = packaged
 
 let webServer = null;
 let splash = null;
+let aberturaIniciadaEm = 0;
+// A abertura animada (splash.html) dura 7 s; a janela do caixa só aparece depois dela.
+const DURACAO_ABERTURA_MS = 7000;
 let mainWindow = null;
 let updatePromptShown = false;
 let appIsQuitting = false;
@@ -137,16 +141,31 @@ function computeZoom() {
 function createSplash() {
   const zoom = computeZoom();
   splash = new BrowserWindow({
-    width: Math.round(460 * zoom),
-    height: Math.round(300 * zoom),
+    width: Math.round(640 * zoom),
+    height: Math.round(360 * zoom),
     frame: false,
     resizable: false,
     center: true,
     show: true,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#050A18",
     webPreferences: { contextIsolation: true, nodeIntegration: false, zoomFactor: zoom },
   });
+  splash.webContents.once("did-finish-load", () => {
+    aberturaIniciadaEm = Date.now();
+  });
   splash.loadFile(path.join(__dirname, "splash.html"));
+}
+
+// Quanto falta para a abertura animada terminar. Se o Windows está com as
+// animações desligadas, a abertura mostra só o quadro final e não segura nada.
+function tempoRestanteAbertura() {
+  if (!splash || splash.isDestroyed() || !aberturaIniciadaEm) return 0;
+  try {
+    if (!systemPreferences.getAnimationSettings().shouldRenderRichAnimation) return 0;
+  } catch {
+    // sem essa informação, segue com a animação inteira
+  }
+  return Math.max(0, DURACAO_ABERTURA_MS - (Date.now() - aberturaIniciadaEm));
 }
 
 function createMainWindow() {
@@ -187,6 +206,11 @@ function createMainWindow() {
   const exibirJanela = (origem) => {
     if (janelaExibida) return;
     if (!mainWindow || mainWindow.isDestroyed()) return;
+    const falta = tempoRestanteAbertura();
+    if (falta > 0) {
+      setTimeout(() => exibirJanela(origem), falta);
+      return;
+    }
     janelaExibida = true;
     console.log(`[janela] exibindo (disparado por: ${origem})`);
     if (splash && !splash.isDestroyed()) splash.destroy();
