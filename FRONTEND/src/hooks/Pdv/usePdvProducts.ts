@@ -1,20 +1,37 @@
 /**
  * Arquivo: src/hooks/Pdv/usePdvProducts.ts
- * Objetivo: carregar, normalizar e filtrar o catálogo usado pela frente de caixa.
+ * Objetivo: carregar, manter atualizado e pesquisar o catálogo da frente de caixa.
  * Entradas esperadas: nenhuma; o hook fala direto com productService.
  *
- * Por que a filtragem mora aqui e não na página: são três regras que precisam
- * andar juntas (texto, categoria e modo de exibição) e uma delas é sutil —
- * a busca ignora acento. Sem isso, quem digita "cafe" não encontra "Café", e o
- * operador conclui que o produto não está cadastrado.
+ * POR QUE O PRODUTO "SUMIA" NA BUSCA (e o que cuida de cada causa)
+ *  - A lista vinha cortada em 1000 produtos pelo Supabase: productService.list
+ *    agora lê em páginas até vir tudo.
+ *  - A lista era lida uma vez só, ao abrir o caixa: produto cadastrado depois
+ *    não aparecia. Agora ela se atualiza quando o cadastro avisa (mesmo em
+ *    outra janela), quando a janela volta ao foco e a cada poucos minutos.
+ *  - Se mesmo assim a busca local não achar nada, searchRemote pergunta ao
+ *    servidor antes de o caixa dizer "nenhum produto encontrado".
+ *  - A tela mostrava os 80 primeiros em ordem alfabética: a busca agora põe o
+ *    que mais se parece com o digitado primeiro (utils/pdvProductSearch).
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { productService } from "@/services/api/productService";
+import {
+  PRODUCTS_CHANGED_CHANNEL,
+  productService,
+  type ProductDto,
+} from "@/services/api/productService";
 import { productImagePath } from "@/utils/productImage";
-import type { PdvProduct, PdvProductViewMode } from "@/types/pdv";
+import type { PdvProduct } from "@/types/pdv";
 import { centsFromApi } from "@/utils/pdvMoney";
 import { productCodeKeys } from "@/utils/productCode";
+import {
+  buildSearchEntry,
+  normalizeSearchText,
+  searchCatalog,
+  sortCatalog,
+  type PdvSearchResult,
+} from "@/utils/pdvProductSearch";
 import {
   getFavoriteIds,
   getUsageCounts,
@@ -23,23 +40,29 @@ import {
   type PdvUsageMap,
 } from "@/utils/pdvViewPreferences";
 
-/**
- * Bloco de acentos combinantes (U+0300–U+036F) que o NFD separa da letra base.
- * Montado via RegExp com escape em vez de literal: acento solto no código-fonte
- * é ilegível na revisão e desaparece em qualquer editor que renormalize o arquivo.
- */
-const COMBINING_MARKS = new RegExp("[\\u0300-\\u036f]", "g");
+export { normalizeSearchText };
 
-/** Minúscula e sem acento, para "cafe" achar "Café" e "AÇÚCAR" achar "acucar". */
-export function normalizeSearchText(value: string): string {
-  return value.normalize("NFD").replace(COMBINING_MARKS, "").toLowerCase().trim();
+/** Lista com mais de 1 minuto é relida quando a janela do caixa volta ao foco. */
+const STALE_AFTER_MS = 60_000;
+/** Releitura de fundo, para pegar o que foi cadastrado em outro computador. */
+const BACKGROUND_REFRESH_MS = 5 * 60_000;
+/** Importação do Nex salva produto por produto: espera a rajada de avisos acabar. */
+const CHANGE_NOTICE_DELAY_MS = 1500;
+/** A mesma pergunta ao servidor não se repete dentro deste intervalo. */
+const REMOTE_CACHE_MS = 30_000;
+
+function toPdvProduct(item: ProductDto): PdvProduct {
+  return {
+    id: item.id,
+    name: item.productName,
+    code: item.productCode,
+    alternateCodes: item.productAlternateCode ? [item.productAlternateCode] : [],
+    stock: Number(item.productQnt || 0),
+    unitPriceCents: centsFromApi(item.productSalePrice),
+    imageUrl: item.productImageUrl || productImagePath(item.productName, item.productCode),
+    supplier: item.productSupplier,
+  };
 }
-
-export type PdvProductsFilter = {
-  query: string;
-  category: string;
-  viewMode: PdvProductViewMode;
-};
 
 export function usePdvProducts() {
   const [products, setProducts] = useState<PdvProduct[]>([]);
@@ -47,34 +70,37 @@ export function usePdvProducts() {
   const [loadError, setLoadError] = useState("");
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [usageCounts, setUsageCounts] = useState<PdvUsageMap>({});
+  /** Texto que está sendo procurado no servidor agora (para a tela avisar). */
+  const [remoteSearching, setRemoteSearching] = useState<string | null>(null);
+
+  const loadSeq = useRef(0);
+  const lastLoadedAt = useRef(0);
+  const remoteInFlight = useRef(new Map<string, Promise<PdvProduct[]>>());
+  const remoteDoneAt = useRef(new Map<string, number>());
 
   const load = useCallback(async () => {
+    // Duas leituras ao mesmo tempo (fim da venda + botão "Atualizar"): só a
+    // mais nova vale, para uma resposta atrasada não trocar a lista por outra velha.
+    const seq = ++loadSeq.current;
     setIsLoading(true);
     setLoadError("");
     try {
       const items = await productService.list();
-      setProducts(
-        items.map((item) => ({
-          id: item.id,
-          name: item.productName,
-          code: item.productCode,
-          alternateCodes: item.productAlternateCode
-            ? [item.productAlternateCode]
-            : [],
-          stock: Number(item.productQnt || 0),
-          unitPriceCents: centsFromApi(item.productSalePrice),
-          imageUrl: item.productImageUrl || productImagePath(item.productName, item.productCode),
-          supplier: item.productSupplier,
-        })),
-      );
+      if (seq !== loadSeq.current) return;
+      setProducts(sortCatalog(items.map(toPdvProduct)));
+      lastLoadedAt.current = Date.now();
+      remoteDoneAt.current.clear();
     } catch (error) {
+      if (seq !== loadSeq.current) return;
+      // A lista anterior continua na tela: falhar ao atualizar não pode
+      // deixar o caixa sem produto nenhum.
       setLoadError(
         error instanceof Error
           ? error.message
-          : "Verifique se o servidor do Hórus está rodando e tente de novo.",
+          : "Verifique a internet e tente de novo.",
       );
     } finally {
-      setIsLoading(false);
+      if (seq === loadSeq.current) setIsLoading(false);
     }
   }, []);
 
@@ -83,6 +109,61 @@ export function usePdvProducts() {
     setFavoriteIds(getFavoriteIds());
     setUsageCounts(getUsageCounts());
   }, [load]);
+
+  /* ---------------- manter a lista em dia enquanto o caixa fica aberto ---------------- */
+
+  useEffect(() => {
+    const refreshIfStale = () => {
+      if (document.visibilityState === "hidden") return;
+      if (Date.now() - lastLoadedAt.current < STALE_AFTER_MS) return;
+      void load();
+    };
+
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      void load();
+    }, BACKGROUND_REFRESH_MS);
+
+    window.addEventListener("focus", refreshIfStale);
+    document.addEventListener("visibilitychange", refreshIfStale);
+
+    let noticeTimer: number | undefined;
+    let channel: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== "undefined") {
+      try {
+        channel = new BroadcastChannel(PRODUCTS_CHANGED_CHANNEL);
+        channel.onmessage = () => {
+          window.clearTimeout(noticeTimer);
+          noticeTimer = window.setTimeout(() => void load(), CHANGE_NOTICE_DELAY_MS);
+        };
+      } catch {
+        channel = null;
+      }
+    }
+
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(noticeTimer);
+      window.removeEventListener("focus", refreshIfStale);
+      document.removeEventListener("visibilitychange", refreshIfStale);
+      channel?.close();
+    };
+  }, [load]);
+
+  /* ---------------- busca ---------------- */
+
+  const entries = useMemo(() => products.map(buildSearchEntry), [products]);
+
+  /** Código (e variações sem zero à esquerda) → produto, para o leitor de código. */
+  const productsByCode = useMemo(() => {
+    const map = new Map<string, PdvProduct>();
+    for (const entry of entries) {
+      for (const key of entry.codeKeys) {
+        if (!map.has(key)) map.set(key, entry.product);
+      }
+    }
+    return map;
+  }, [entries]);
 
   /** Fornecedor virou "categoria": é o único agrupamento que o cadastro tem hoje. */
   const categories = useMemo(() => {
@@ -94,67 +175,62 @@ export function usePdvProducts() {
     return Array.from(found).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [products]);
 
-  const filter = useCallback(
-    ({ query, category, viewMode }: PdvProductsFilter): PdvProduct[] => {
-      const normalizedQuery = normalizeSearchText(query);
-
-      let result = products;
-
-      if (category) {
-        result = result.filter((product) => product.supplier?.trim() === category);
-      }
-
-      if (viewMode === "favoritos") {
-        result = result.filter((product) => favoriteIds.includes(product.id));
-      }
-
-      if (normalizedQuery) {
-        const queryCodeKeys = new Set(productCodeKeys(query));
-        result = result.filter((product) => {
-          const productCodes = [product.code, ...(product.alternateCodes ?? [])];
-          if (
-            productCodes.some((code) =>
-              productCodeKeys(code).some((key) => queryCodeKeys.has(key)),
-            )
-          ) {
-            return true;
-          }
-          const haystack = normalizeSearchText(
-            `${product.name} ${productCodes.join(" ")} ${product.supplier ?? ""}`,
-          );
-          // Cada palavra digitada tem de aparecer: "leite int" acha "Leite Integral".
-          return normalizedQuery
-            .split(/\s+/)
-            .every((token) => haystack.includes(token));
-        });
-      }
-
-      if (viewMode === "mais-vendidos") {
-        return [...result]
-          .filter((product) => (usageCounts[product.id] ?? 0) > 0)
-          .sort((a, b) => (usageCounts[b.id] ?? 0) - (usageCounts[a.id] ?? 0));
-      }
-
-      return result;
-    },
-    [favoriteIds, products, usageCounts],
+  const search = useCallback(
+    (query: string, limit: number): PdvSearchResult => searchCatalog(entries, query, limit),
+    [entries],
   );
 
   /** Busca o produto pelo código exato — o caminho do leitor de código de barras. */
   const findByExactCode = useCallback(
     (code: string): PdvProduct | null => {
-      const targets = new Set(productCodeKeys(code));
-      if (targets.size === 0) return null;
-      return (
-        products.find((product) =>
-          [product.code, ...(product.alternateCodes ?? [])].some((candidate) =>
-            productCodeKeys(candidate).some((key) => targets.has(key)),
-          ),
-        ) ?? null
-      );
+      for (const key of productCodeKeys(code)) {
+        const found = productsByCode.get(key);
+        if (found) return found;
+      }
+      return null;
     },
-    [products],
+    [productsByCode],
   );
+
+  /**
+   * Pergunta ao servidor e junta o que vier à lista da tela. Devolve os
+   * produtos achados. Erro de rede vira lista vazia: quem chama já trata o
+   * "não achei".
+   */
+  const searchRemote = useCallback(async (term: string): Promise<PdvProduct[]> => {
+    const key = normalizeSearchText(term);
+    if (!key) return [];
+
+    const pending = remoteInFlight.current.get(key);
+    if (pending) return pending;
+
+    const doneAt = remoteDoneAt.current.get(key);
+    if (doneAt && Date.now() - doneAt < REMOTE_CACHE_MS) return [];
+
+    const request = (async () => {
+      setRemoteSearching(term);
+      try {
+        const found = (await productService.search(term)).map(toPdvProduct);
+        if (found.length > 0) {
+          setProducts((current) => {
+            const byId = new Map(current.map((product) => [product.id, product]));
+            for (const product of found) byId.set(product.id, product);
+            return sortCatalog([...byId.values()]);
+          });
+        }
+        return found;
+      } catch {
+        return [];
+      } finally {
+        remoteDoneAt.current.set(key, Date.now());
+        remoteInFlight.current.delete(key);
+        setRemoteSearching((current) => (current === term ? null : current));
+      }
+    })();
+
+    remoteInFlight.current.set(key, request);
+    return request;
+  }, []);
 
   const toggleFavorite = useCallback((productId: string) => {
     setFavoriteIds(toggleFavoriteId(productId));
@@ -170,9 +246,12 @@ export function usePdvProducts() {
     loadError,
     reload: load,
     categories,
-    filter,
+    search,
+    searchRemote,
+    remoteSearching,
     findByExactCode,
     favoriteIds,
+    usageCounts,
     toggleFavorite,
     trackUsage,
   };

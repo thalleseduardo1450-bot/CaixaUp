@@ -53,7 +53,7 @@ import PdvTopBar from "@/components/Pdv/PdvTopBar";
 import { Toast, useStatusDialog } from "@/hooks/Dialog";
 import useInputMasks from "@/hooks/InputMasks/useInputMasks";
 import { usePdvCart } from "@/hooks/Pdv/usePdvCart";
-import { usePdvProducts } from "@/hooks/Pdv/usePdvProducts";
+import { normalizeSearchText, usePdvProducts } from "@/hooks/Pdv/usePdvProducts";
 import { usePdvShortcuts } from "@/hooks/Pdv/usePdvShortcuts";
 import {
   cashRegisterService,
@@ -64,6 +64,7 @@ import { customerService, type CustomerDto } from "@/services/api/customerServic
 import { salesHistoryService } from "@/services/api/salesHistoryService";
 import type { PdvProduct } from "@/types/pdv";
 import { centsToApi, formatCentsBrl, toReais } from "@/utils/pdvMoney";
+import { productCodeKeys } from "@/utils/productCode";
 import {
   getSellWithoutStockEnabled,
 } from "@/utils/pdvPreferences";
@@ -86,6 +87,11 @@ type SalesStartPageProps = {
 };
 
 const LAST_RECEIPT_STORAGE_KEY = "horus-pdv-last-receipt";
+
+/** Quantos resultados a lista mostra de uma vez; os mais parecidos vêm primeiro. */
+const SEARCH_RESULT_LIMIT = 100;
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Último cupom salvo, lido antes do primeiro render (é o estado inicial, não um
@@ -258,13 +264,16 @@ export default function SalesStartPage({
   }, [quantityInput]);
 
   const isSearchingProduct = query.trim().length > 0;
-  const visibleProducts = useMemo(
+  const searchResult = useMemo(
     () =>
       isSearchingProduct
-        ? products.filter({ query, category: "", viewMode: "grade" }).slice(0, 80)
-        : [],
+        ? products.search(query, SEARCH_RESULT_LIMIT)
+        : { items: [] as PdvProduct[], total: 0 },
     [isSearchingProduct, products, query],
   );
+  const visibleProducts = searchResult.items;
+  const isCheckingServer =
+    isSearchingProduct && searchResult.total === 0 && products.remoteSearching !== null;
 
   const idsInCart = useMemo(() => cart.items.map((item) => item.id), [cart.items]);
 
@@ -333,8 +342,24 @@ export default function SalesStartPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, products.products]);
 
+  /**
+   * Nada na lista da tela: pergunta ao servidor sozinho depois de uma pausa na
+   * digitação. Cobre o produto cadastrado em outro computador depois que o
+   * caixa abriu. O que vier entra na lista e aparece nos resultados.
+   */
+  useEffect(() => {
+    const typed = query.trim();
+    if (!typed || searchResult.total > 0) return;
+    if (normalizeSearchText(typed).replace(/[^a-z0-9]/g, "").length < 2) return;
+    const timer = window.setTimeout(() => void products.searchRemote(typed), 400);
+    return () => window.clearTimeout(timer);
+    // products muda a cada render do hook; só interessa refazer quando o texto
+    // ou a quantidade de resultados mudar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, searchResult.total]);
+
   /** Enter no campo de busca: código exato, ou o único resultado da lista. */
-  const submitSearch = useCallback(() => {
+  const submitSearch = useCallback(async () => {
     const typed = query.trim();
     if (!typed) {
       Toast.info("Bipe o código ou digite parte do nome do produto.");
@@ -347,21 +372,41 @@ export default function SalesStartPage({
       return;
     }
 
-    if (visibleProducts.length === 1) {
+    if (searchResult.total === 1) {
       addProduct(visibleProducts[0], quantityToAdd);
       return;
     }
 
-    if (visibleProducts.length === 0) {
+    if (searchResult.total === 0) {
+      // Antes de dizer que não existe, confere no servidor.
+      const found = await products.searchRemote(typed);
+      const typedKeys = new Set(productCodeKeys(typed));
+      const exactRemote = found.find((product) =>
+        [product.code, ...(product.alternateCodes ?? [])].some((code) =>
+          productCodeKeys(code).some((key) => typedKeys.has(key)),
+        ),
+      );
+      if (exactRemote) {
+        addProduct(exactRemote, quantityToAdd);
+        return;
+      }
+      if (found.length === 1) {
+        addProduct(found[0], quantityToAdd);
+        return;
+      }
+      if (found.length > 1) {
+        Toast.info(`${found.length} produtos encontrados. Toque no produto desejado.`);
+        return;
+      }
       beep("erro");
       Toast.error(`Nenhum produto encontrado para "${typed}".`);
       return;
     }
 
     Toast.info(
-      `${visibleProducts.length} produtos encontrados. Toque no produto desejado.`,
+      `${searchResult.total} produtos encontrados. Toque no produto desejado.`,
     );
-  }, [addProduct, beep, products, quantityToAdd, query, visibleProducts]);
+  }, [addProduct, beep, products, quantityToAdd, query, searchResult, visibleProducts]);
 
   const cancelSale = useCallback(async () => {
     if (cart.isEmpty) return;
@@ -459,7 +504,9 @@ export default function SalesStartPage({
             valor: toReais(line.amountCents),
           })),
           items: cart.items.map((item) => ({
-            productCode: item.code,
+            // O id identifica o produto sem ambiguidade. Pelo código, produto
+            // sem código ou com código repetido podia ser trocado por outro.
+            productCode: UUID_PATTERN.test(item.id) ? item.id : item.code,
             productName: item.name,
             quantity: item.quantity,
           })),
@@ -786,17 +833,24 @@ export default function SalesStartPage({
         quantityRef={quantityInputRef}
         query={query}
         onQueryChange={setQuery}
-        onSubmit={submitSearch}
+        onSubmit={() => void submitSearch()}
         quantity={quantityInput}
         onQuantityChange={setQuantityInput}
         onQuantityDone={focusSearch}
-        resultCount={visibleProducts.length}
+        resultCount={searchResult.total}
       />
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* Resultados aparecem somente durante uma pesquisa. */}
         <section className="flex min-h-0 flex-1 flex-col">
           {isSearchingProduct ? (
+            <>
+            {searchResult.total > visibleProducts.length && (
+              <p className="shrink-0 border-b border-border-primary bg-bg-light px-4 py-2 text-sm text-text-secondary">
+                Mostrando os {visibleProducts.length} mais parecidos de{" "}
+                {searchResult.total}. Continue digitando para achar mais rápido.
+              </p>
+            )}
             <PdvProductGrid
               products={visibleProducts}
               viewMode="lista"
@@ -806,9 +860,16 @@ export default function SalesStartPage({
               idsInCart={idsInCart}
               onSelectProduct={(product) => addProduct(product, quantityToAdd)}
               onToggleFavorite={products.toggleFavorite}
-              emptyTitle="Nenhum produto encontrado"
-              emptyHint="Confira o nome ou o código digitado e tente novamente."
+              emptyTitle={
+                isCheckingServer ? "Procurando no cadastro..." : "Nenhum produto encontrado"
+              }
+              emptyHint={
+                isCheckingServer
+                  ? "Não estava na lista desta tela. Conferindo no servidor."
+                  : "Confira o nome ou o código digitado e tente novamente."
+              }
             />
+            </>
           ) : cart.items.length > 0 ? (
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="flex items-center justify-between border-b border-border-primary bg-bg-light px-4 py-3">
