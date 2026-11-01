@@ -2,8 +2,8 @@
  * Arquivo: src/services/api/cashRegisterService.ts
  * Objetivo: abertura, fechamento, conferência e histórico do caixa direto no Supabase.
  * Tabelas: sessoes_caixa (o turno), vendas + pagamentos (o que entrou no turno),
- * caixas (terminal padrão) e registros_operacionais (sangria, suprimento e o
- * resumo de cada fechamento).
+ * caixas (terminal padrão), movimentacoes_caixa (sangria e suprimento) e
+ * registros_operacionais (resumo de cada fechamento, para o histórico).
  *
  * Dinheiro é contado em centavos inteiros (ver utils/pdvMoney) para a conta da
  * gaveta fechar exata.
@@ -14,8 +14,6 @@ import { toCents, toReais } from "@/utils/pdvMoney";
 /** Caixa aberto há mais que isso para de vender até ser fechado e aberto de novo. */
 export const CASH_REGISTER_MAX_OPEN_MINUTES = 24 * 60;
 
-/** Sangrias e suprimentos ficam em registros_operacionais com este módulo. */
-const MOVEMENTS_MODULE = "caixa-movimentos";
 /** Resumo de cada fechamento (esperado, contado, por forma de pagamento). */
 const CLOSINGS_MODULE = "caixa-fechamentos";
 
@@ -116,14 +114,13 @@ type SaleRow = {
   pagamentos?: Array<{ forma: string | null; valor: number | string | null }> | null;
 };
 
-type MovementRecord = {
-  sessaoId?: string;
-  tipo?: string;
-  valorCentavos?: number;
-  valor?: number;
-  motivo?: string;
-  usuarioNome?: string;
-  criadoEm?: string;
+type MovementRow = {
+  id: string;
+  tipo: string | null;
+  valor: number | string | null;
+  motivo: string | null;
+  created_at: string;
+  perfis?: { nome?: string | null } | null;
 };
 
 type ClosingRecord = {
@@ -248,31 +245,23 @@ async function fetchSessionSales(empresaId: string, sessionId: string) {
 
 async function fetchMovements(empresaId: string, sessionId: string) {
   const { data, error } = await supabase
-    .from("registros_operacionais")
-    .select("id, dados, created_at")
+    .from("movimentacoes_caixa")
+    .select("id, tipo, valor, motivo, created_at, perfis(nome)")
     .eq("empresa_id", empresaId)
-    .eq("modulo", MOVEMENTS_MODULE)
-    .eq("dados->>sessaoId", sessionId)
+    .eq("sessao_caixa_id", sessionId)
     .order("created_at", { ascending: true });
   if (error) return { movements: [] as CashMovementDto[], available: false };
 
-  const movements = ((data ?? []) as Array<{ id: string; dados: MovementRecord | null; created_at: string }>)
-    .map((row): CashMovementDto | null => {
-      const dados = row.dados ?? {};
-      const type = dados.tipo === "sangria" || dados.tipo === "suprimento" ? dados.tipo : null;
-      if (!type) return null;
-      const cents =
-        typeof dados.valorCentavos === "number" ? dados.valorCentavos : toCents(Number(dados.valor ?? 0));
-      return {
-        id: row.id,
-        type,
-        cents: Math.max(0, Math.round(cents)),
-        reason: dados.motivo ?? "",
-        operatorName: dados.usuarioNome ?? "",
-        createdAt: dados.criadoEm ?? row.created_at,
-      };
-    })
-    .filter((movement): movement is CashMovementDto => movement !== null);
+  const movements = ((data ?? []) as unknown as MovementRow[])
+    .filter((row) => row.tipo === "sangria" || row.tipo === "suprimento")
+    .map((row) => ({
+      id: row.id,
+      type: row.tipo as CashMovementType,
+      cents: centsFromDb(row.valor),
+      reason: row.motivo ?? "",
+      operatorName: row.perfis?.nome ?? "",
+      createdAt: row.created_at,
+    }));
   return { movements, available: true };
 }
 
@@ -514,19 +503,13 @@ export const cashRegisterService = {
     }
 
     const user = await currentUserInfo();
-    const { error } = await supabase.from("registros_operacionais").insert({
+    const { error } = await supabase.from("movimentacoes_caixa").insert({
       empresa_id: empresaId,
-      modulo: MOVEMENTS_MODULE,
-      dados: {
-        sessaoId: sessionId,
-        tipo: type,
-        valorCentavos: amount,
-        valor: toReais(amount),
-        motivo: reason.trim(),
-        usuarioId: user.id,
-        usuarioNome: user.name,
-        criadoEm: new Date().toISOString(),
-      },
+      sessao_caixa_id: sessionId,
+      usuario_id: user.id,
+      tipo: type,
+      valor: toReais(amount),
+      motivo: reason.trim(),
     });
     if (error) throw error;
   },
@@ -564,11 +547,15 @@ export const cashRegisterService = {
 
     let result = await supabase
       .from("sessoes_caixa")
-      .update({ ...base, valor_esperado: toReais(summary.expectedCashCents) })
+      .update({
+        ...base,
+        valor_esperado: toReais(summary.expectedCashCents),
+        diferenca: toReais(counted - summary.expectedCashCents),
+      })
       .eq("id", sessionId)
       .eq("status", "aberto")
       .select("id");
-    if (isMissingColumn(result.error, "valor_esperado")) {
+    if (isMissingColumn(result.error, "valor_esperado") || isMissingColumn(result.error, "diferenca")) {
       // Banco sem a coluna: o esperado fica só no resumo do fechamento.
       result = await supabase
         .from("sessoes_caixa")
