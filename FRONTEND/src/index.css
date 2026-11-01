@@ -574,6 +574,24 @@
   }
 }
 
+/* Tela reduzida (1024 × 768 e outras menores que Full HD ficam em 80%):
+   textos cinza ganham mais contraste para a letra pequena continuar nítida. */
+@media (max-resolution: 0.95dppx) {
+  :root {
+    --color-text-secondary: #334155;
+    --color-text-tertiary: #475569;
+  }
+
+  html[data-theme="dark"] {
+    --color-text-secondary: #e2e8f0;
+    --color-text-tertiary: #cbd5e1;
+  }
+
+  body {
+    text-rendering: optimizeLegibility;
+  }
+}
+
 @media (max-width: 1099px) {
   html[data-fit-small-screens="true"] .dept-drawer-panel {
     width: min(100%, 46rem);

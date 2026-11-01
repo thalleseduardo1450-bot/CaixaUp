@@ -4,7 +4,7 @@
 
 ### Telas 1024 × 768 com cara de Full HD
 
-- Em monitores menores que Full HD (1024 × 768, 1366 × 768, 1600 × 900…) o sistema inteiro aparece com a mesma arrumação do Full HD, só que em tamanho menor. Em 1024 × 768 a escala fica em 70%.
+- Em monitores menores que Full HD (1024 × 768, 1366 × 768, 1600 × 900…) o sistema inteiro aparece com a mesma arrumação do Full HD, só que em tamanho menor. Em 1024 × 768 a escala fica em 80%, e os textos cinza ficam mais escuros para a letra continuar nítida.
 - Trocar a resolução com o programa aberto refaz a escala na hora.
 - Full HD e telas maiores continuam iguais (100%). Para desligar, use **Configurações → Adaptar para telas menores**.
 
