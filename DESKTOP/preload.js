@@ -1,6 +1,30 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+// A janela do caixa só aparece quando a abertura animada termina. A tela usa
+// isso para tocar a entrada suave na hora em que a janela aparece.
+let janelaExibida = false;
+try {
+  janelaExibida = ipcRenderer.sendSync("desktop:janela-ja-exibida") === true;
+} catch {
+  janelaExibida = true;
+}
+const aoExibirJanela = new Set();
+ipcRenderer.on("desktop:janela-exibida", () => {
+  janelaExibida = true;
+  aoExibirJanela.forEach((callback) => callback());
+  aoExibirJanela.clear();
+});
+
 contextBridge.exposeInMainWorld("caixaUpDesktop", {
+  aberturaPendente: !janelaExibida,
+  onJanelaExibida: (callback) => {
+    if (janelaExibida) {
+      callback();
+      return () => {};
+    }
+    aoExibirJanela.add(callback);
+    return () => aoExibirJanela.delete(callback);
+  },
   getPreferences: () => ipcRenderer.invoke("desktop:preferences:get"),
   setPreference: (key, value) =>
     ipcRenderer.invoke("desktop:preferences:set", { key, value }),

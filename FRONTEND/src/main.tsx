@@ -9,6 +9,9 @@ import { ToastContainer } from "@/hooks/Dialog";
 import AppErrorBoundary from "@/components/ErrorBoundary/AppErrorBoundary";
 import "./index.css";
 import App from "./App.tsx";
+import { prepararEntradaDoPrograma } from "@/utils/entradaDoPrograma";
+
+prepararEntradaDoPrograma();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
