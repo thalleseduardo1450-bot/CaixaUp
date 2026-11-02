@@ -59,7 +59,9 @@ window.addEventListener("DOMContentLoaded", () => {
       border-radius: 10px; background: #dc2626; color: #fff; font: 700 20px "Segoe UI", sans-serif; cursor: pointer;
       box-shadow: 0 1px 4px rgba(0,0,0,.25); -webkit-app-region: no-drag; }
     #cx-sair:hover { background: #b91c1c; }
-    html[data-janela-integrada] #cx-sair { display: none; }`;
+    html[data-janela-integrada] #cx-sair { display: none; }
+    /* Fora da frente de caixa o X flutuante reserva uma faixa no topo, para não cobrir os cartões. */
+    html:not([data-janela-integrada]) main[data-active-page] { padding-top: 52px !important; }`;
   document.head.appendChild(css);
   const sair = document.createElement("button");
   sair.id = "cx-sair"; sair.textContent = "✕"; sair.title = "Sair";
