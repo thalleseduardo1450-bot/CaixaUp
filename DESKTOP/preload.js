@@ -47,24 +47,59 @@ contextBridge.exposeInMainWorld("caixaUpDesktop", {
   },
 });
 
-// Sem a barra do Windows: texto sem seleção (só campos de digitar) e um X vermelho
-// para sair. Na frente de caixa o X fica dentro do cabeçalho (html[data-janela-integrada]),
-// então o X flutuante some ali e nada fica por cima dos botões.
+// Sem a barra do Windows: texto sem seleção (só campos de digitar) e, fora da frente de
+// caixa, uma barra flutuante com arrastar, minimizar, maximizar, tela cheia e X. Na frente
+// de caixa os mesmos botões ficam dentro do cabeçalho (html[data-janela-integrada]).
+// Arrastar é feito à mão (IPC) para funcionar também em tela cheia e maximizada.
 window.addEventListener("DOMContentLoaded", () => {
   const css = document.createElement("style");
   css.textContent = `
     body, body * { -webkit-user-select: none; user-select: none; }
     input, textarea, [contenteditable="true"], [contenteditable="true"] * { -webkit-user-select: text; user-select: text; }
-    #cx-sair { position: fixed; top: 6px; right: 6px; z-index: 2147483647; width: 40px; height: 40px; border: 0;
-      border-radius: 10px; background: #dc2626; color: #fff; font: 700 20px "Segoe UI", sans-serif; cursor: pointer;
-      box-shadow: 0 1px 4px rgba(0,0,0,.25); -webkit-app-region: no-drag; }
-    #cx-sair:hover { background: #b91c1c; }
-    html[data-janela-integrada] #cx-sair { display: none; }
-    /* Fora da frente de caixa o X flutuante reserva uma faixa no topo, para não cobrir os cartões. */
+    #cx-janela { position: fixed; top: 6px; right: 6px; z-index: 2147483647; display: flex; gap: 6px; }
+    #cx-janela button, #cx-janela .cx-arrastar { width: 40px; height: 40px; border: 0; border-radius: 10px;
+      font: 700 18px "Segoe UI", sans-serif; color: #1e3a5f; background: #fff; cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,.25); display: flex; align-items: center; justify-content: center; }
+    #cx-janela .cx-arrastar { cursor: move; color: #94a3b8; }
+    #cx-janela button:hover { background: #e2e8f0; }
+    #cx-janela .cx-sair { background: #dc2626; color: #fff; font-size: 20px; }
+    #cx-janela .cx-sair:hover { background: #b91c1c; }
+    html[data-janela-integrada] #cx-janela { display: none; }
+    /* Fora da frente de caixa a barra reserva uma faixa no topo, para não cobrir os cartões. */
     html:not([data-janela-integrada]) main[data-active-page] { padding-top: 52px !important; }`;
   document.head.appendChild(css);
-  const sair = document.createElement("button");
-  sair.id = "cx-sair"; sair.textContent = "✕"; sair.title = "Sair";
-  sair.addEventListener("click", () => ipcRenderer.send("desktop:janela", "fechar"));
-  document.body.appendChild(sair);
+  const barra = document.createElement("div");
+  barra.id = "cx-janela";
+  const itens = [
+    ["cx-arrastar", "⠿", "Segure e arraste para mover a janela", null],
+    ["", "—", "Minimizar", () => ipcRenderer.send("desktop:janela", "minimizar")],
+    ["", "☐", "Maximizar ou restaurar", () => ipcRenderer.send("desktop:janela", "maximizar")],
+    ["", "⛶", "Tela cheia", () => ipcRenderer.invoke("desktop:tela-cheia")],
+    ["cx-sair", "✕", "Fechar o CaixaUp", () => ipcRenderer.send("desktop:janela", "fechar")],
+  ];
+  for (const [classe, texto, dica, acao] of itens) {
+    const el = document.createElement(acao ? "button" : "div");
+    el.className = classe; el.textContent = texto; el.title = dica;
+    if (acao) el.addEventListener("click", acao);
+    barra.appendChild(el);
+  }
+  document.body.appendChild(barra);
 });
+
+// Arrastar a janela (cabeçalho do PDV e alça da barra), inclusive em tela cheia.
+window.addEventListener("mousedown", (e) => {
+  if (e.button !== 0) return;
+  const alvo = e.target;
+  if (!(alvo instanceof Element)) return;
+  if (!alvo.closest(".pdv-topbar-drag, .cx-arrastar")) return;
+  if (alvo.closest("button, input, a, select, textarea")) return;
+  ipcRenderer.send("desktop:arrastar", { fase: "inicio", x: e.screenX, y: e.screenY });
+  const mover = (ev) => ipcRenderer.send("desktop:arrastar", { fase: "mover", x: ev.screenX, y: ev.screenY });
+  const soltar = () => {
+    window.removeEventListener("mousemove", mover, true);
+    window.removeEventListener("mouseup", soltar, true);
+    ipcRenderer.send("desktop:arrastar", { fase: "fim" });
+  };
+  window.addEventListener("mousemove", mover, true);
+  window.addEventListener("mouseup", soltar, true);
+}, true);

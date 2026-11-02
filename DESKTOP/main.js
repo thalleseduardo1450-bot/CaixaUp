@@ -543,6 +543,31 @@ function configureDesktopIpc() {
     win.setFullScreen(!win.isFullScreen());
     return win.isFullScreen();
   });
+  // Arrastar à mão: funciona também em tela cheia e maximizada (sai delas ao começar).
+  let arrasto = null;
+  ipcMain.on("desktop:arrastar", (event, dado) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || !dado) return;
+    if (dado.fase === "inicio") {
+      if (win.isFullScreen() || win.isMaximized()) {
+        arrasto = { offX: 550, offY: 20, pronto: false };
+        if (win.isFullScreen()) win.setFullScreen(false);
+        if (win.isMaximized()) win.unmaximize();
+        setTimeout(() => {
+          if (!arrasto || win.isDestroyed()) return;
+          win.setBounds({ x: Math.round(dado.x - 550), y: Math.round(dado.y - 20), width: 1100, height: 720 });
+          arrasto.pronto = true;
+        }, 150);
+      } else {
+        const b = win.getBounds();
+        arrasto = { offX: dado.x - b.x, offY: dado.y - b.y, pronto: true };
+      }
+    } else if (dado.fase === "mover" && arrasto && arrasto.pronto) {
+      win.setPosition(Math.round(dado.x - arrasto.offX), Math.round(dado.y - arrasto.offY));
+    } else if (dado.fase === "fim") {
+      arrasto = null;
+    }
+  });
   ipcMain.on("desktop:janela-ja-exibida", (event) => {
     event.returnValue = janelaDoCaixaExibida;
   });
