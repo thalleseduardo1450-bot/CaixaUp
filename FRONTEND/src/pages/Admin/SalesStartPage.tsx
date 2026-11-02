@@ -620,6 +620,11 @@ export default function SalesStartPage({
   }, [formatMoneyBr, lastReceipt, statusDialog]);
 
   const toggleFullscreen = useCallback(() => {
+    const desktop = window.caixaUpDesktop;
+    if (desktop?.alternarTelaCheia) {
+      void desktop.alternarTelaCheia().then(setIsFullscreen);
+      return;
+    }
     if (document.fullscreenElement) {
       void document.exitFullscreen().catch(() => undefined);
       return;

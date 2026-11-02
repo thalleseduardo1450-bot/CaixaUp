@@ -1431,3 +1431,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .page-enter tbody tr:nth-child(4) { animation-delay: 0.09s; }
 .page-enter tbody tr:nth-child(5) { animation-delay: 0.12s; }
 .page-enter tbody tr:nth-child(n + 6) { animation-delay: 0.15s; }
+
+/* Janela sem moldura do Electron: o cabeçalho da frente de caixa arrasta a janela
+   (o arrasto é tratado pelo preload, também em tela cheia). */
+.pdv-topbar-drag { cursor: default; }
