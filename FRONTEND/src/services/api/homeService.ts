@@ -33,6 +33,28 @@ function fmtBRL(centavosOuReais: number): string {
   });
 }
 
+/**
+ * Estoque de todos os produtos ativos, em páginas: o Supabase corta em 1000
+ * linhas, e com mais produtos que isso o "Estoque baixo" ficava errado.
+ */
+async function estoqueDosProdutos(empresaId: string) {
+  const rows: { estoque_atual: number | null; estoque_minimo: number | null }[] = [];
+  for (let page = 0; page < 200; page += 1) {
+    const from = rows.length;
+    const { data, error } = await supabase
+      .from("produtos")
+      .select("estoque_atual, estoque_minimo")
+      .eq("empresa_id", empresaId)
+      .eq("ativo", true)
+      .order("id")
+      .range(from, from + 999);
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  return rows;
+}
+
 export const homeService = {
   async get() {
     const empresaId = await currentCompanyId();
@@ -42,14 +64,19 @@ export const homeService = {
 
     const hoje = inicioDoDia();
 
-    const { data: vendasSemana, error: vendasError } = await supabase
-      .from("vendas")
-      .select("total, created_at")
-      .eq("empresa_id", empresaId)
-      .eq("status", "concluida")
-      .gte("created_at", inicioDosUltimosSeteDias())
-      .order("created_at", { ascending: true });
-    if (vendasError) throw vendasError;
+    // As consultas não dependem uma da outra: vão juntas em vez de uma após a outra.
+    const [vendasResult, prods] = await Promise.all([
+      supabase
+        .from("vendas")
+        .select("total, created_at")
+        .eq("empresa_id", empresaId)
+        .eq("status", "concluida")
+        .gte("created_at", inicioDosUltimosSeteDias())
+        .order("created_at", { ascending: true }),
+      estoqueDosProdutos(empresaId),
+    ]);
+    if (vendasResult.error) throw vendasResult.error;
+    const vendasSemana = vendasResult.data;
 
     const vendasHoje = (vendasSemana ?? []).filter(
       (sale) => String(sale.created_at ?? "") >= hoje,
@@ -57,21 +84,10 @@ export const homeService = {
 
     const faturamento = (vendasHoje ?? []).reduce((s, v: any) => s + Number(v.total ?? 0), 0);
 
-    const { count: produtos, error: produtosError } = await supabase
-      .from("produtos")
-      .select("id", { count: "exact", head: true })
-      .eq("empresa_id", empresaId)
-      .eq("ativo", true);
-    if (produtosError) throw produtosError;
-
-    const { data: prods, error: estoqueError } = await supabase
-      .from("produtos")
-      .select("estoque_atual, estoque_minimo")
-      .eq("empresa_id", empresaId)
-      .eq("ativo", true);
-    if (estoqueError) throw estoqueError;
-    const estoqueBaixo = (prods ?? []).filter(
-      (p: any) => Number(p.estoque_atual) <= Number(p.estoque_minimo),
+    // Uma leitura só serve para contar os produtos e achar o estoque baixo.
+    const produtos = prods.length;
+    const estoqueBaixo = prods.filter(
+      (p) => Number(p.estoque_atual) <= Number(p.estoque_minimo),
     ).length;
     const trend = Array.from({ length: 7 }, (_, index) => {
       const day = new Date();
