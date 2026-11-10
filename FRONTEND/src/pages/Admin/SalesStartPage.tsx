@@ -98,6 +98,37 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
  * efeito): assim o botão "Reimprimir última venda" já nasce habilitado quando
  * existe cupom, em vez de piscar desabilitado por um render.
  */
+/**
+ * Mensagem clara para a falha ao gravar a venda. O erro do Supabase não é um
+ * `Error` de verdade (é um objeto com `message`), então antes caía sempre no
+ * genérico "Erro ao registrar a venda." e o caixa não sabia o que corrigir.
+ */
+function saleErrorMessage(error: unknown): string {
+  const raw =
+    error && typeof error === "object" && "message" in error
+      ? String((error as { message?: unknown }).message ?? "")
+      : "";
+  const text = raw.trim();
+  if (!text) return "Erro ao registrar a venda. Tente de novo.";
+  if (/failed to fetch|network|fetch failed|timeout/i.test(text)) {
+    return "Sem conexão com a internet. A venda NÃO foi gravada; confira a rede e aperte F2 de novo.";
+  }
+  if (/jwt|token|sessao invalida/i.test(text)) {
+    return "Sua sessão expirou. Saia e entre de novo para continuar vendendo.";
+  }
+  if (/abra o caixa/i.test(text)) return "O caixa está fechado. Abra o caixa para continuar vendendo.";
+  if (/estoque insuficiente/i.test(text)) {
+    return `${text.replace(/^Estoque insuficiente/i, "Estoque insuficiente")}. Ative "Vender sem estoque" nas Configurações ou ajuste o estoque.`;
+  }
+  if (/produto nao encontrado/i.test(text)) {
+    return "Um produto do carrinho não existe mais ou foi desativado. Remova-o e tente de novo.";
+  }
+  if (/total invalido/i.test(text)) return "Total da venda inválido. Confira o desconto e tente de novo.";
+  if (/pagamentos nao conferem/i.test(text)) return "A soma dos pagamentos não bate com o total. Confira os valores.";
+  if (/identifique o cliente/i.test(text)) return "Escolha o cliente para vender fiado.";
+  return text;
+}
+
 function readLastReceipt(): SaleReceipt | null {
   try {
     const stored = cloudStorage.getItem(LAST_RECEIPT_STORAGE_KEY);
@@ -281,7 +312,9 @@ export default function SalesStartPage({
   const cashStatusLabel = !cashChecked
     ? "Verificando caixa..."
     : cashCanSell
-      ? `Caixa aberto há ${formatCashElapsed(cashStatus?.currentSession?.elapsedMinutes)}`
+      ? cashStatus?.warning
+        ? `Caixa aberto há ${formatCashElapsed(cashStatus?.currentSession?.elapsedMinutes)} · feche o caixa`
+        : `Caixa aberto há ${formatCashElapsed(cashStatus?.currentSession?.elapsedMinutes)}`
       : cashStatus?.blockReason || "Caixa fechado";
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId);
@@ -586,9 +619,7 @@ export default function SalesStartPage({
         void products.reload();
 
       } catch (error) {
-        Toast.error(
-          error instanceof Error ? error.message : "Erro ao registrar a venda.",
-        );
+        Toast.error(saleErrorMessage(error));
       } finally {
         setIsSubmitting(false);
       }

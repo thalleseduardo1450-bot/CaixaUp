@@ -50,7 +50,7 @@ export default function CashStatusBanner({
     state === "aberto"
       ? "Caixa aberto · vendas liberadas"
       : state === "expirado"
-        ? "Caixa vencido · vendas bloqueadas"
+        ? "Caixa aberto há mais de 24 h · vendas liberadas"
         : "Caixa fechado · vendas bloqueadas";
 
   const title =
@@ -59,7 +59,7 @@ export default function CashStatusBanner({
         ? "Aberto agora"
         : `Aberto há ${formatElapsed(elapsedMinutes)}`
       : state === "expirado"
-        ? "Feche este caixa para voltar a vender."
+        ? "Feche este caixa e abra um novo quando puder."
         : "Abra o caixa para começar a vender.";
 
   const details: string[] = [];
