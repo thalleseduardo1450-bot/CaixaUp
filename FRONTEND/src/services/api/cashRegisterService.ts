@@ -38,7 +38,7 @@ export type CashRegisterSessionDto = {
   closedByName: string;
   note: string;
   elapsedMinutes: number;
-  /** Quando o caixa aberto deixa de vender (24 h depois da abertura). */
+  /** Quando o caixa passa a mostrar o aviso de "feche o caixa" (24 h depois da abertura). */
   expiresAt: string | null;
 };
 
@@ -46,6 +46,8 @@ export type CashRegisterStatusDto = {
   state: "aberto" | "fechado" | "expirado" | string;
   canSell: boolean;
   blockReason: string;
+  /** Aviso que não bloqueia a venda (ex.: caixa aberto há mais de 24 h). */
+  warning?: string;
   serverNow: string;
   currentSession?: CashRegisterSessionDto | null;
   lastSession?: CashRegisterSessionDto | null;
@@ -387,9 +389,12 @@ export const cashRegisterService = {
 
     if (aberta && aberta.elapsedMinutes >= CASH_REGISTER_MAX_OPEN_MINUTES) {
       return {
+        // Antes bloqueava as vendas: o caixa esquecido aberto de um dia para o
+        // outro travava o PDV e a venda "não finalizava". Agora só avisa.
         state: "expirado",
-        canSell: false,
-        blockReason: `O caixa está aberto desde ${shortDateTime(aberta.openedAt)}, há mais de 24 horas. Feche este caixa e abra um novo para continuar vendendo.`,
+        canSell: true,
+        blockReason: "",
+        warning: `Caixa aberto desde ${shortDateTime(aberta.openedAt)}, há mais de 24 horas. Feche e abra um novo caixa quando puder.`,
         serverNow: new Date().toISOString(),
         currentSession: aberta,
         lastSession,

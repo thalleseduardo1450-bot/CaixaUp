@@ -189,6 +189,7 @@ export default function PdvCheckoutModal({
   const activeInputRef = useRef<HTMLInputElement>(null);
   const discountInputRef = useRef<HTMLInputElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const handleConfirmRef = useRef<() => void>(() => undefined);
 
   /* ---------------------------- contas ---------------------------- */
 
@@ -290,7 +291,9 @@ export default function PdvCheckoutModal({
           return;
         }
         setDraft(null);
-        confirmRef.current?.click();
+        // Chama a conclusão direto (não pelo clique no botão): botão desabilitado
+        // ignora click() e o F2 ficava mudo, sem dizer o que faltava.
+        handleConfirmRef.current();
         return;
       }
 
@@ -363,6 +366,7 @@ export default function PdvCheckoutModal({
   }
 
   function handleConfirm() {
+    if (isSubmitting) return;
     if (!canConfirm) {
       setError(blockingReason);
       return;
@@ -402,6 +406,10 @@ export default function PdvCheckoutModal({
       lines,
     });
   }
+
+  useEffect(() => {
+    handleConfirmRef.current = handleConfirm;
+  });
 
   /* ---------------------------- render ---------------------------- */
 
@@ -729,8 +737,9 @@ export default function PdvCheckoutModal({
             ref={confirmRef}
             type="button"
             onClick={handleConfirm}
-            disabled={!canConfirm}
-            className="pdv-confirm-btn w-full rounded-lg py-4 text-lg font-bold uppercase tracking-wide text-white transition disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={isSubmitting}
+            aria-disabled={!canConfirm}
+            className={`pdv-confirm-btn w-full rounded-lg py-4 text-lg font-bold uppercase tracking-wide text-white transition disabled:cursor-not-allowed disabled:opacity-70 ${canConfirm ? "" : "opacity-70"}`}
           >
             {isSubmitting ? "Registrando venda..." : "F2 Concluir"}
           </button>
