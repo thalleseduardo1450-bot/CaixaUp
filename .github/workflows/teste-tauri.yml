@@ -29,9 +29,10 @@ jobs:
           npm run build:desktop
       - name: Gerar o instalador
         working-directory: DESKTOP
+        shell: bash
         run: |
           npm ci --no-audit --no-fund
-          npx tauri build --bundles nsis --config "{\"bundle\":{\"createUpdaterArtifacts\":false}}"
+          npx tauri build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
       - uses: actions/upload-artifact@v4
         with:
           name: CaixaUp-instalador-teste
