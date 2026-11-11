@@ -5,7 +5,7 @@ import { hydrateCloudStorage, flushCloudStorage, resetCloudStorage } from "@/lib
  * O perfil (nome/telefone/empresa) vive na tabela `perfis`, criado por trigger
  * quando o usuário se cadastra. Mantém o contrato dos DTOs usados pelas telas.
  */
-import { supabase } from "@/lib/supabase";
+import { clearCompanyCache, supabase } from "@/lib/supabase";
 import type { AuthenticatedUser } from "@/utils/authStorage";
 import type { User } from "@supabase/supabase-js";
 
@@ -124,6 +124,7 @@ async function ensureUserProvisioned(user: User) {
     },
   );
   throwSchemaError(provisionError);
+  clearCompanyCache();
 
   const provisionedProfile = await readProfile(user.id);
   if (!provisionedProfile) throw new Error("Não foi possível finalizar o cadastro.");

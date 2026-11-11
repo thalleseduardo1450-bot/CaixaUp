@@ -8,7 +8,7 @@
  * Dinheiro é contado em centavos inteiros (ver utils/pdvMoney) para a conta da
  * gaveta fechar exata.
  */
-import { supabase, currentCompanyId } from "@/lib/supabase";
+import { supabase, currentCompanyId, currentUserId } from "@/lib/supabase";
 import { toCents, toReais } from "@/utils/pdvMoney";
 
 /** Caixa aberto há mais que isso para de vender até ser fechado e aberto de novo. */
@@ -219,12 +219,10 @@ async function requireCompany() {
 }
 
 async function currentUserInfo() {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Sua sessão expirou. Entre de novo para continuar.");
-  const { data } = await supabase.from("perfis").select("nome").eq("id", user.id).maybeSingle();
-  return { id: user.id, name: (data as { nome?: string | null } | null)?.nome ?? "" };
+  const userId = await currentUserId();
+  if (!userId) throw new Error("Sua sessão expirou. Entre de novo para continuar.");
+  const { data } = await supabase.from("perfis").select("nome").eq("id", userId).maybeSingle();
+  return { id: userId, name: (data as { nome?: string | null } | null)?.nome ?? "" };
 }
 
 async function fetchSessionSales(empresaId: string, sessionId: string) {
