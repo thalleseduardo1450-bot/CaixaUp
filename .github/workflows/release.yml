@@ -1,9 +1,9 @@
 name: Publicar instalador
 
 # Quando a versão do DESKTOP/package.json muda (ou ao enviar uma tag vX.Y.Z),
-# gera o CaixaUp-Setup-X.Y.Z.exe no Windows e publica no release vX.Y.Z do
-# GitHub junto com latest.yml e .blockmap, que a atualização automática dos
-# computadores instalados usa. Um release já publicado não é sobrescrito.
+# gera o CaixaUp-Setup-X.Y.Z.exe (Tauri/Rust) no Windows e publica no release
+# vX.Y.Z do GitHub junto com latest.json (atualização da versão Tauri) e
+# latest.yml (computadores ainda na versão Electron migram sozinhos). Um release já publicado não é sobrescrito.
 #
 # Linha 4.x (Supabase): as telas saem de FRONTEND/. Os valores do Supabase são
 # os mesmos que já vão dentro do app 4.0.0 instalado (chave pública).
@@ -80,8 +80,7 @@ jobs:
             git push origin "refs/tags/$tag"
           fi
 
-      # Cria o release como rascunho antes do electron-builder (senão .exe e
-      # .blockmap podem cair em dois releases com a mesma tag). Os computadores só
+      # Cria o release como rascunho antes de gerar o instalador. Os computadores só
       # enxergam a versão quando "Liberar o release" confere todos os arquivos.
       - name: Criar o release com as notas do CHANGELOG
         if: steps.existe.outputs.publicado != 'sim'
@@ -98,6 +97,16 @@ jobs:
             gh release create "v$versao" --title "CaixaUp $versao" --notes-file notas.md --verify-tag --draft
           fi
 
+      - name: Rust
+        if: steps.existe.outputs.publicado != 'sim'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache do Rust
+        if: steps.existe.outputs.publicado != 'sim'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: DESKTOP/src-tauri
+
       - name: Compilar as telas
         if: steps.existe.outputs.publicado != 'sim'
         working-directory: FRONTEND
@@ -105,14 +114,51 @@ jobs:
           npm ci --no-audit --no-fund
           npm run build:desktop
 
-      - name: Gerar e publicar o instalador
+      # Tauri (Rust). A assinatura (TAURI_SIGNING_PRIVATE_KEY) é o que a atualização
+      # automática confere antes de instalar: sem ela o instalador não é aceito.
+      - name: Gerar o instalador
         if: steps.existe.outputs.publicado != 'sim'
         working-directory: DESKTOP
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           npm ci --no-audit --no-fund
-          npx electron-builder --win nsis --x64 --publish always
+          npx tauri build --bundles nsis
+
+      # latest.json: atualização automática da versão Tauri.
+      # latest.yml: os computadores ainda na versão Electron (4.0.x) baixam este mesmo
+      # instalador pela atualização antiga e passam para a versão Tauri sozinhos.
+      - name: Publicar o instalador no release
+        if: steps.existe.outputs.publicado != 'sim'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          versao=${{ steps.existe.outputs.versao }}
+          origem=$(ls DESKTOP/src-tauri/target/release/bundle/nsis/*-setup.exe | head -1)
+          mkdir -p saida
+          exe="CaixaUp-Setup-$versao.exe"
+          cp "$origem" "saida/$exe"
+          cp "$origem.sig" "saida/$exe.sig"
+          node -e '
+            const fs = require("fs"), crypto = require("crypto");
+            const [versao, exe] = process.argv.slice(1);
+            const dados = fs.readFileSync("saida/" + exe);
+            const url = `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${versao}/${exe}`;
+            const notas = fs.existsSync("notas.md") ? fs.readFileSync("notas.md", "utf8").trim() : "";
+            const agora = new Date().toISOString();
+            fs.writeFileSync("saida/latest.json", JSON.stringify({
+              version: versao, notes: notas, pub_date: agora,
+              platforms: { "windows-x86_64": { signature: fs.readFileSync("saida/" + exe + ".sig", "utf8").trim(), url } },
+            }, null, 2));
+            const sha512 = crypto.createHash("sha512").update(dados).digest("base64");
+            fs.writeFileSync("saida/latest.yml",
+              `version: ${versao}\nfiles:\n  - url: ${exe}\n    sha512: ${sha512}\n    size: ${dados.length}\n` +
+              `path: ${exe}\nsha512: ${sha512}\nreleaseDate: '"'"'${agora}'"'"'\n`);
+          ' "$versao" "$exe"
+          cat saida/latest.yml
+          gh release upload "v$versao" saida/* --clobber
 
       # Só libera o release se o instalador e o latest.yml estiverem nele. Um
       # release vazio ou pela metade quebra a atualização automática.
@@ -125,7 +171,7 @@ jobs:
           versao=${{ steps.existe.outputs.versao }}
           arquivos=$(gh release view "v$versao" --json assets --jq '.assets[].name')
           echo "$arquivos"
-          for esperado in "CaixaUp-Setup-$versao.exe" "latest.yml" "CaixaUp-Setup-$versao.exe.blockmap"; do
+          for esperado in "CaixaUp-Setup-$versao.exe" "latest.json" "latest.yml"; do
             if ! grep -qxF "$esperado" <<< "$arquivos"; then
               echo "::error::Falta $esperado no release v$versao; o release fica como rascunho."
               exit 1
@@ -138,7 +184,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: CaixaUp-instalador
-          path: |
-            DESKTOP/release/*.exe
-            DESKTOP/release/*.blockmap
-            DESKTOP/release/latest.yml
+          path: saida/*

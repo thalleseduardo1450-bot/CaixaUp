@@ -1,0 +1,53 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "CaixaUp",
+  "mainBinaryName": "CaixaUp",
+  "version": "../package.json",
+  "identifier": "br.com.caixaup.desktop",
+  "build": {
+    "frontendDist": "../../FRONTEND/dist"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "createUpdaterArtifacts": true,
+    "publisher": "CaixaUp",
+    "icon": [
+      "../build/icon.png",
+      "../build/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "perMachine",
+        "installerIcon": "../build/icon.ico",
+        "installerHooks": "windows/hooks.nsh",
+        "languages": [
+          "PortugueseBR"
+        ]
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDcyNkM3NjMzNkZCM0NGNEEKUldSS3o3TnZNM1pzY2p0NTBYT3U4VVdBdG0yeUdtakpCTDl1ME9Udk5XUmtNZmV5aHptR1pSQnYK",
+      "endpoints": [
+        "https://github.com/thalleseduardo1450-bot/CaixaUp/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

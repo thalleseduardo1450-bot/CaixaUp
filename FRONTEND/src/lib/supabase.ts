@@ -48,31 +48,65 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 });
 
 /**
+ * id do usuário logado, lido da sessão salva neste computador.
+ * Antes usava getUser(), que vai ao servidor de login a cada chamada: cada
+ * tela pagava uma ida e volta extra só para saber quem é. O banco confere o
+ * token de novo em toda consulta (RLS), então a sessão local basta.
+ */
+export async function currentUserId(): Promise<string | null> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (session?.user?.id) return session.user.id;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user?.id ?? null;
+}
+
+// A empresa do usuário quase nunca muda: guarda por usuário e só lê o perfil
+// de novo quando outro usuário entra ou quando o usuário sai.
+let empresaCache: { userId: string; empresaId: Promise<string | null> } | null = null;
+
+supabase.auth.onAuthStateChange((event, session) => {
+  const userId = session?.user?.id ?? null;
+  if (event === "SIGNED_OUT" || !userId || (empresaCache && empresaCache.userId !== userId)) {
+    empresaCache = null;
+  }
+});
+
+/** Esquece a empresa guardada (por exemplo, logo depois de criar a empresa). */
+export function clearCompanyCache() {
+  empresaCache = null;
+}
+
+/**
  * id da empresa do usuário logado, lido do perfil (tabela perfis).
  * Se não houver perfil/empresa, devolve null.
  */
 export async function currentCompanyId(): Promise<string | null> {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-  let userId = user?.id ?? null;
-  if (!userId && userError) {
-    // getUser vai ao servidor; numa falha de rede ele devolve "sem usuário" e
-    // o caixa ficava com a lista de produtos vazia. A sessão salva neste
-    // computador basta para saber quem é — o banco confere o token de novo.
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    userId = session?.user?.id ?? null;
-  }
+  const userId = await currentUserId();
   if (!userId) return null;
+  if (empresaCache?.userId === userId) return empresaCache.empresaId;
 
-  const { data: perfil, error } = await supabase
-    .from("perfis")
-    .select("empresa_id")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  return (perfil as { empresa_id?: string | null } | null)?.empresa_id ?? null;
+  const pedido = (async () => {
+    const { data: perfil, error } = await supabase
+      .from("perfis")
+      .select("empresa_id")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    return (perfil as { empresa_id?: string | null } | null)?.empresa_id ?? null;
+  })();
+  empresaCache = { userId, empresaId: pedido };
+  // Erro ou usuário ainda sem empresa: não guarda, tenta de novo na próxima.
+  pedido.then(
+    (empresaId) => {
+      if (!empresaId && empresaCache?.empresaId === pedido) empresaCache = null;
+    },
+    () => {
+      if (empresaCache?.empresaId === pedido) empresaCache = null;
+    },
+  );
+  return pedido;
 }
