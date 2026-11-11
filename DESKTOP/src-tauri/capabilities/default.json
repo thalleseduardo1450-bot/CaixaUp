@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Janelas do CaixaUp. As funções do app passam pelos comandos próprios (src/main.rs).",
+  "windows": ["caixa", "abertura"],
+  "permissions": ["core:default"]
+}
