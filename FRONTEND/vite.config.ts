@@ -14,16 +14,10 @@ const chunkGroups: Record<string, string> = {
   "@e965/xlsx": "vendor-xlsx",
   "react-day-picker": "vendor-ui",
   "lucide-react": "vendor-ui",
-  recharts: "vendor-charts",
-  "d3-array": "vendor-charts",
-  "d3-color": "vendor-charts",
-  "d3-format": "vendor-charts",
-  "d3-interpolate": "vendor-charts",
-  "d3-path": "vendor-charts",
-  "d3-scale": "vendor-charts",
-  "d3-shape": "vendor-charts",
-  eventemitter3: "vendor-charts",
 };
+
+/** Pacotes usados só por páginas abertas sob demanda (gráficos da página inicial). */
+const lazyPackages = /^(recharts|d3-[a-z-]+|victory-vendor|eventemitter3|@reduxjs\/toolkit|react-redux|redux|redux-thunk|reselect|immer|decimal\.js-light|es-toolkit|tiny-invariant|internmap|use-sync-external-store)$/;
 
 function getPackageName(id: string) {
   const [, pathAfterNodeModules] = id.split("node_modules/");
@@ -51,6 +45,9 @@ export default defineConfig({
 
           const pkgName = getPackageName(id);
           if (!pkgName) return "vendor";
+          // Gráficos só aparecem na página inicial: ficam no pedaço dela, carregado
+          // só quando ela abre, e não atrasam a abertura do programa.
+          if (lazyPackages.test(pkgName)) return;
 
           return chunkGroups[pkgName] ?? "vendor";
         },

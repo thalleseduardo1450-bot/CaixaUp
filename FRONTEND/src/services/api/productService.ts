@@ -141,29 +141,48 @@ export const productService = {
     const empresaId = await currentCompanyId();
     if (!empresaId) return [];
 
-    const rows: unknown[] = [];
-    let total: number | null = null;
-
     // Ordena por nome e id: com nome repetido, a ordem precisa ser estável
     // entre as páginas, senão um produto cai em duas páginas e outro em nenhuma.
-    for (let page = 0; page < 200; page += 1) {
-      const from = rows.length;
-      const { data, error, count } = await supabase
+    const page = (from: number, withCount: boolean) =>
+      supabase
         .from("produtos")
-        .select(PRODUCT_COLUMNS, page === 0 ? { count: "exact" } : undefined)
+        .select(PRODUCT_COLUMNS, withCount ? { count: "exact" } : undefined)
         .eq("empresa_id", empresaId)
         .eq("ativo", true)
         .order("nome")
         .order("id")
         .range(from, from + PAGE_SIZE - 1);
-      if (error) throw error;
 
-      if (page === 0 && typeof count === "number") total = count;
-      const batch = data ?? [];
-      rows.push(...batch);
+    const first = await page(0, true);
+    if (first.error) throw first.error;
+    const rows: unknown[] = [...(first.data ?? [])];
+    const total = typeof first.count === "number" ? first.count : null;
 
+    if (total !== null) {
+      // Com o total em mãos, as outras páginas vão juntas (4 por vez) em vez de
+      // uma depois da outra: com milhares de produtos o caixa abre bem mais rápido.
+      const starts: number[] = [];
+      for (let from = PAGE_SIZE; from < total && starts.length < 199; from += PAGE_SIZE) {
+        starts.push(from);
+      }
+      for (let i = 0; i < starts.length; i += 4) {
+        const results = await Promise.all(starts.slice(i, i + 4).map((from) => page(from, false)));
+        for (const result of results) {
+          if (result.error) throw result.error;
+          rows.push(...(result.data ?? []));
+        }
+      }
+      return rows.map(rowToDto);
+    }
+
+    // Sem o total: página por página até vir uma incompleta.
+    for (let n = 1; n < 200 && rows.length % PAGE_SIZE === 0 && rows.length > 0; n += 1) {
+      const result = await page(rows.length, false);
+      if (result.error) throw result.error;
+      const batch = result.data ?? [];
       if (batch.length === 0) break;
-      if (total !== null ? rows.length >= total : batch.length < PAGE_SIZE) break;
+      rows.push(...batch);
+      if (batch.length < PAGE_SIZE) break;
     }
 
     return rows.map(rowToDto);

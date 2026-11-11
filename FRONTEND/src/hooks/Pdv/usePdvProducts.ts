@@ -21,7 +21,6 @@ import {
   productService,
   type ProductDto,
 } from "@/services/api/productService";
-import { productImagePath } from "@/utils/productImage";
 import type { PdvProduct } from "@/types/pdv";
 import { centsFromApi } from "@/utils/pdvMoney";
 import { productCodeKeys } from "@/utils/productCode";
@@ -59,7 +58,7 @@ function toPdvProduct(item: ProductDto): PdvProduct {
     alternateCodes: item.productAlternateCode ? [item.productAlternateCode] : [],
     stock: Number(item.productQnt || 0),
     unitPriceCents: centsFromApi(item.productSalePrice),
-    imageUrl: item.productImageUrl || productImagePath(item.productName, item.productCode),
+    imageUrl: item.productImageUrl || undefined,
     supplier: item.productSupplier,
   };
 }

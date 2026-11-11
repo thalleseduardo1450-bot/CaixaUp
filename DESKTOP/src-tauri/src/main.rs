@@ -6,9 +6,12 @@
 //! atualização automática pelos releases do GitHub.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod migracao;
+
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
+    panic::{catch_unwind, AssertUnwindSafe},
     path::PathBuf,
     sync::Mutex,
     thread,
@@ -29,6 +32,13 @@ const JANELA_ABERTURA: &str = "abertura";
 const DURACAO_ABERTURA: Duration = Duration::from_millis(7000);
 const ATALHO_MOSTRAR: &str = "CommandOrControl+Shift+C";
 const EMPACOTADO: bool = !cfg!(debug_assertions);
+/// A abertura animada vem de dentro do próprio programa (protocolo "abertura"), sem depender
+/// dos arquivos das telas. No Windows o WebView2 acessa protocolos próprios por http://<nome>.localhost.
+#[cfg(windows)]
+const URL_ABERTURA: &str = "http://abertura.localhost/";
+#[cfg(not(windows))]
+const URL_ABERTURA: &str = "abertura://localhost/";
+const HTML_ABERTURA: &[u8] = include_bytes!("../../splash.html");
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -170,7 +180,8 @@ fn argumentos_webview(preferencias: &Preferencias) -> String {
 
 fn criar_abertura(app: &AppHandle, preferencias: &Preferencias) -> tauri::Result<()> {
     let zoom = zoom_da_tela(app, preferencias);
-    let construtor = WebviewWindowBuilder::new(app, JANELA_ABERTURA, WebviewUrl::App("splash.html".into()))
+    let url = tauri::Url::parse(URL_ABERTURA).expect("endereço da abertura");
+    let construtor = WebviewWindowBuilder::new(app, JANELA_ABERTURA, WebviewUrl::CustomProtocol(url))
         .title("CaixaUp")
         .inner_size(640.0 * zoom, 360.0 * zoom)
         .decorations(false)
@@ -193,7 +204,12 @@ fn criar_abertura(app: &AppHandle, preferencias: &Preferencias) -> tauri::Result
 #[cfg_attr(not(windows), allow(unused_variables))]
 fn criar_caixa(app: &AppHandle, preferencias: &Preferencias) -> tauri::Result<()> {
     let (w, h) = tamanho_da_tela(app);
-    let construtor = WebviewWindowBuilder::new(app, JANELA_CAIXA, WebviewUrl::App("index.html".into()))
+    let mut construtor = WebviewWindowBuilder::new(app, JANELA_CAIXA, WebviewUrl::App("index.html".into()));
+    // Vindo da versão Electron: grava o login e os rascunhos antes de a tela carregar.
+    if let Some(script) = migrar_da_versao_electron(app) {
+        construtor = construtor.initialization_script(script);
+    }
+    let construtor = construtor
         .title("CaixaUp")
         .inner_size(1440f64.min(w), 900f64.min(h))
         .min_inner_size(1024f64.min(w), 700f64.min(h))
@@ -217,6 +233,41 @@ fn criar_caixa(app: &AppHandle, preferencias: &Preferencias) -> tauri::Result<()
         exibir_caixa(app);
     });
     Ok(())
+}
+
+/// Primeira abertura depois da versão Electron: lê o localStorage dela (uma vez só).
+/// Qualquer falha aqui só faz o usuário entrar de novo; nunca impede o programa de abrir.
+fn migrar_da_versao_electron(app: &AppHandle) -> Option<String> {
+    let marca = pasta_dados(app).join("migracao-electron.txt");
+    if marca.exists() {
+        return None;
+    }
+    // A marca vai antes da leitura: se algo der muito errado, não tenta de novo.
+    let _ = fs::write(&marca, "1");
+    let pasta = app
+        .path()
+        .config_dir()
+        .ok()?
+        .join("CaixaUp")
+        .join("Local Storage")
+        .join("leveldb");
+    if !pasta.is_dir() {
+        return None;
+    }
+    match catch_unwind(AssertUnwindSafe(|| migracao::ler_local_storage(&pasta))) {
+        Ok(Ok(dados)) => {
+            let _ = fs::write(&marca, format!("{} itens trazidos da versão Electron", dados.len()));
+            migracao::script(&dados)
+        }
+        Ok(Err(erro)) => {
+            let _ = fs::write(&marca, format!("falhou: {erro}"));
+            None
+        }
+        Err(_) => {
+            let _ = fs::write(&marca, "falhou: erro inesperado ao ler");
+            None
+        }
+    }
 }
 
 /// Mostra a janela do caixa quando a abertura animada termina e fecha a abertura.
@@ -520,6 +571,12 @@ fn abrir_link(app: AppHandle, url: String) -> Result<(), String> {
 
 fn main() {
     tauri::Builder::default()
+        .register_uri_scheme_protocol("abertura", |_contexto, _pedido| {
+            tauri::http::Response::builder()
+                .header("Content-Type", "text/html; charset=utf-8")
+                .body(HTML_ABERTURA)
+                .expect("resposta da abertura")
+        })
         // Uma só cópia aberta: abrir de novo traz a janela que já existe.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             mostrar_caixa(app);

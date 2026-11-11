@@ -5,8 +5,7 @@
   "version": "../package.json",
   "identifier": "br.com.caixaup.desktop",
   "build": {
-    "frontendDist": "../../FRONTEND/dist",
-    "beforeBuildCommand": "node -e \"require('fs').copyFileSync('splash.html','../FRONTEND/dist/splash.html')\""
+    "frontendDist": "../../FRONTEND/dist"
   },
   "app": {
     "windows": [],
